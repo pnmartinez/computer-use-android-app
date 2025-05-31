@@ -2,9 +2,7 @@
 
 A simple Android application that lets you control your PC remotely using voice commands. It is a client for the [simple-computer-use](https://github.com/pnmartinez/simple-computer-use) project.
 
-![imagen](https://github.com/user-attachments/assets/4606ea63-9514-4aae-867c-65a1e4341f28)
-![imagen](https://github.com/user-attachments/assets/26338ea2-a063-4bff-b72d-6d2ee1001cab)
-
+![imagen](https://github.com/user-attachments/assets/e2b6d12b-5051-484e-86a8-d458b90be663)
 
 ## ✨ Features
 
