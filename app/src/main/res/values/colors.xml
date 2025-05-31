@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Material Design 3 Color Scheme -->
+    <color name="md_theme_primary">#006C51</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_primaryContainer">#8BF8CF</color>
+    <color name="md_theme_onPrimaryContainer">#002117</color>
+    <color name="md_theme_secondary">#4C6358</color>
+    <color name="md_theme_onSecondary">#FFFFFF</color>
+    <color name="md_theme_secondaryContainer">#CFE9DB</color>
+    <color name="md_theme_onSecondaryContainer">#092017</color>
+    <color name="md_theme_error">#BA1A1A</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_errorContainer">#FFDAD6</color>
+    <color name="md_theme_onErrorContainer">#410002</color>
+    <color name="md_theme_background">#FBFDF9</color>
+    <color name="md_theme_onBackground">#191C1A</color>
+    <color name="md_theme_surface">#FBFDF9</color>
+    <color name="md_theme_onSurface">#191C1A</color>
+    <color name="md_theme_surfaceVariant">#DCE5DD</color>
+    <color name="md_theme_onSurfaceVariant">#404943</color>
+    <color name="md_theme_outline">#707973</color>
+    
+    <!-- App-specific colors -->
+    <color name="error">#BA1A1A</color>
+    <color name="success">#006C51</color>
+</resources>

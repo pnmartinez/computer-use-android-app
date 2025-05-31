@@ -1,0 +1,4 @@
+/build
+/release/*.apk
+/release/output-metadata.json
+/release/baselineProfiles/

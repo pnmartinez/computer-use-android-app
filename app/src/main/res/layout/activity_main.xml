@@ -1,0 +1,729 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <!-- Background Image -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@mipmap/ic_launcher"
+        android:scaleType="centerInside"
+        android:layout_gravity="center_vertical"
+        android:alpha="0.3"
+        android:contentDescription="Background app icon" />
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/topAppBar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title=""
+            app:navigationIcon="@mipmap/ic_launcher"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:minHeight="?attr/actionBarSize"
+            android:contentInsetStart="0dp"
+            app:contentInsetStart="0dp"
+            android:elevation="0dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/app_name"
+                android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+            <!-- Add an invisible view to adjust navigation icon size -->
+            <View
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="start|center_vertical"
+                android:visibility="invisible" />
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Main scrollable content -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="132dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:scrollbarStyle="outsideOverlay"
+        android:fadeScrollbars="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="24dp"
+            android:animateLayoutChanges="true">
+
+            <!-- Screenshot Section with updated styling -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/screenshotCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="0dp"
+                android:stateListAnimator="@animator/card_state_list_anim"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/screenshots_title"
+                            android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnRefreshPeriod"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="48dp"
+                            android:text="30s"
+                            android:textSize="12sp"
+                            android:contentDescription="@string/change_refresh_period" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnRefreshScreenshot"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/refresh_screenshots"
+                            app:icon="@android:drawable/ic_popup_sync" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnUnlockScreen"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/unlock_screen"
+                            app:icon="@android:drawable/ic_lock_idle_lock" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCaptureScreenshot"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/capture_screen"
+                            app:icon="@android:drawable/ic_menu_camera"
+                            app:strokeWidth="2dp"
+                            app:strokeColor="?attr/colorPrimary"
+                            app:cornerRadius="24dp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/screenshotStatusText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/no_screenshots_available"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textStyle="italic" />
+
+                    <ImageView
+                        android:id="@+id/screenshotImageView"
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp"
+                        android:layout_marginTop="8dp"
+                        android:adjustViewBounds="true"
+                        android:background="@color/md_theme_surfaceVariant"
+                        android:contentDescription="@string/remote_screenshot"
+                        android:scaleType="fitCenter" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Command History Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/commandHistoryCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="0dp"
+                android:stateListAnimator="@animator/card_state_list_anim"
+                app:layout_constraintTop_toBottomOf="@id/screenshotCard"
+                app:layout_constraintBottom_toTopOf="@id/favoritesCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:id="@+id/commandHistoryHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/commandHistoryTitle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/command_history_title"
+                            android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnRefreshCommandHistory"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/refresh_command_history"
+                            app:icon="@android:drawable/ic_popup_sync" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnToggleCommandHistory"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/show_hide_command_history"
+                            app:icon="@drawable/ic_expand" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/commandHistoryContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        android:alpha="0"
+                        android:animateLayoutChanges="true">
+
+                        <TextView
+                            android:id="@+id/noCommandHistoryText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/no_commands_in_history"
+                            android:textAppearance="?attr/textAppearanceBodySmall"
+                            android:textStyle="italic"
+                            android:gravity="center"
+                            android:visibility="visible" />
+
+                        <androidx.core.widget.NestedScrollView
+                            android:id="@+id/commandHistoryScrollView"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:maxHeight="350dp"
+                            android:layout_marginTop="8dp"
+                            android:fadeScrollbars="true"
+                            android:scrollbars="vertical"
+                            android:visibility="gone">
+
+                            <androidx.recyclerview.widget.RecyclerView
+                                android:id="@+id/commandHistoryRecyclerView"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:clipToPadding="false"
+                                android:paddingBottom="8dp"
+                                android:visibility="visible"
+                                android:nestedScrollingEnabled="false" />
+                        </androidx.core.widget.NestedScrollView>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Favorites Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/favoritesCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="0dp"
+                android:stateListAnimator="@animator/card_state_list_anim"
+                app:layout_constraintTop_toBottomOf="@id/commandHistoryCard"
+                app:layout_constraintBottom_toTopOf="@id/loggingCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:id="@+id/favoritesHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/favoritesTitle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/favorites_title"
+                            android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnRefreshFavorites"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/refresh_favorites"
+                            app:icon="@android:drawable/ic_popup_sync" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnToggleFavorites"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/show_hide_favorites"
+                            app:icon="@drawable/ic_expand" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/favoritesContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        android:alpha="0"
+                        android:animateLayoutChanges="true">
+
+                        <TextView
+                            android:id="@+id/noFavoritesText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/no_favorites"
+                            android:textAppearance="?attr/textAppearanceBodySmall"
+                            android:textStyle="italic"
+                            android:gravity="center"
+                            android:visibility="visible" />
+
+                        <androidx.core.widget.NestedScrollView
+                            android:id="@+id/favoritesScrollView"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:maxHeight="350dp"
+                            android:layout_marginTop="8dp"
+                            android:fadeScrollbars="true"
+                            android:scrollbars="vertical"
+                            android:visibility="gone">
+
+                            <androidx.recyclerview.widget.RecyclerView
+                                android:id="@+id/favoritesRecyclerView"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:clipToPadding="false"
+                                android:paddingBottom="8dp"
+                                android:paddingHorizontal="4dp"
+                                android:visibility="visible"
+                                android:nestedScrollingEnabled="false" />
+                        </androidx.core.widget.NestedScrollView>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Logging Area with updated styling -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/loggingCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="0dp"
+                android:stateListAnimator="@animator/card_state_list_anim"
+                app:layout_constraintTop_toBottomOf="@id/favoritesCard"
+                app:layout_constraintBottom_toTopOf="@id/advancedSettingsCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:id="@+id/logsHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/logsTitle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/logs_title"
+                            android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnClearLogs"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="80dp"
+                            android:minHeight="48dp"
+                            android:text="@string/clear"
+                            android:textSize="14sp"
+                            app:icon="@android:drawable/ic_menu_delete" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnToggleLogs"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/expand_collapse_logs"
+                            android:minWidth="48dp"
+                            android:minHeight="48dp"
+                            app:icon="@drawable/ic_expand"
+                            app:iconSize="24dp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/logsContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        android:alpha="0">
+
+                    <ScrollView
+                        android:id="@+id/logsScrollView"
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/logs_scrollview_normal"
+                        android:fadeScrollbars="false"
+                        android:fillViewport="true"
+                        android:scrollbarStyle="insideOverlay"
+                        android:scrollbars="vertical"
+                        android:nestedScrollingEnabled="true">
+
+                        <TextView
+                            android:id="@+id/logsTextView"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:breakStrategy="simple"
+                            android:bufferType="spannable"
+                            android:fontFamily="monospace"
+                            android:freezesText="true"
+                            android:hyphenationFrequency="none"
+                            android:lineSpacingExtra="2sp"
+                            android:padding="8dp"
+                            android:textColor="@android:color/black"
+                            android:textIsSelectable="true"
+                            android:textSize="11sp"
+                            android:background="@android:color/white"
+                            android:alpha="0.9" />
+                    </ScrollView>
+                    
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Advanced Settings Section with updated styling -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/advancedSettingsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="0dp"
+                android:stateListAnimator="@animator/card_state_list_anim"
+                app:layout_constraintTop_toBottomOf="@id/loggingCard"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Header with expand/collapse button -->
+                    <LinearLayout
+                        android:id="@+id/advancedSettingsHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground">
+
+                        <TextView
+                            android:id="@+id/advancedSettingsTitle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/advanced_settings_title"
+                            android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnExpandSettings"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/expand_advanced_settings"
+                            app:icon="@drawable/ic_expand" />
+                    </LinearLayout>
+
+                    <!-- Expandable content -->
+                    <LinearLayout
+                        android:id="@+id/advancedSettingsContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <!-- Server Setup Link -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnServerSetup"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="@string/start_server"
+                            app:icon="@android:drawable/ic_menu_set_as"
+                            app:iconGravity="start" />
+
+                        <!-- Theme Toggle Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnToggleTheme"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/switch_to_dark_theme"
+                            app:icon="@android:drawable/ic_menu_day"
+                            app:iconGravity="start" />
+
+                        <!-- Server IP Address Setting -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/serverIpLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:hint="@string/server_ip_hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/serverIpInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:maxLines="1"
+                                android:text="100.121.141.117" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Server Port Setting -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/serverPortLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/server_port_hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/serverPortInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android:maxLines="1"
+                                android:text="5000" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Unlock Screen Password Setting -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/unlockPasswordLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            app:passwordToggleEnabled="true"
+                            android:hint="@string/unlock_password_hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/unlockPasswordInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textPassword"
+                                android:maxLines="1"
+                                android:text="your_password" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Test Connection Button -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnTestConnection"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/test_connection"
+                                app:icon="@android:drawable/ic_menu_send" />
+
+                            <TextView
+                                android:id="@+id/connectionStatusText"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_vertical"
+                                android:layout_marginStart="16dp"
+                                android:layout_weight="1"
+                                android:text=""
+                                android:textStyle="italic" />
+                        </LinearLayout>
+
+                        <!-- Whisper Model Selection -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/whisperModelLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:hint="@string/whisper_model_hint">
+
+                            <AutoCompleteTextView
+                                android:id="@+id/whisperModelDropdown"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                        
+                        <!-- Help text for Whisper model selection -->
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginBottom="8dp"
+                            android:textSize="13sp"
+                            android:lineSpacingExtra="3dp"
+                            android:textStyle="italic"
+                            android:text="@string/whisper_model_help" />
+
+                        <!-- Save Settings Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSaveSettings"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="@string/save"
+                            app:icon="@android:drawable/ic_menu_save" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Fixed footer with recording button -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="?attr/colorSurfaceVariant"
+        android:elevation="8dp"
+        android:padding="5dp">
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progressIndicator"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@+id/recordButtonContainer"
+            app:layout_constraintEnd_toEndOf="@+id/recordButtonContainer"
+            app:layout_constraintStart_toStartOf="@+id/recordButtonContainer"
+            app:layout_constraintWidth_percent="0.85" />
+
+        <!-- Container for the recording buttons -->
+        <FrameLayout
+            android:id="@+id/recordButtonContainer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintWidth_percent="0.85">
+
+            <!-- Large button for normal/idle state -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStartRecording"
+                android:layout_width="match_parent"
+                android:layout_height="130dp"
+                android:text="@string/start_recording"
+                android:textColor="?attr/colorOnPrimary"
+                app:cornerRadius="35dp"
+                app:icon="@android:drawable/ic_btn_speak_now"
+                app:iconGravity="textStart"
+                app:iconSize="32dp"
+                app:iconTint="?attr/colorOnPrimary"
+                app:rippleColor="?attr/colorOnPrimary"
+                app:elevation="12dp" />
+
+            <!-- Compact button for loading/processing state - initially invisible -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnProcessingRecording"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:text="@string/processing_command"
+                android:textColor="?attr/colorOnSecondary"
+                app:cornerRadius="32dp"
+                app:icon="@android:drawable/ic_popup_sync"
+                app:iconGravity="textStart"
+                app:iconSize="24dp"
+                app:iconTint="?attr/colorOnSecondary"
+                app:rippleColor="?attr/colorOnSecondary"
+                app:elevation="6dp"
+                app:backgroundTint="?attr/colorSecondary"
+                android:enabled="false"
+                android:visibility="gone"/>
+        </FrameLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

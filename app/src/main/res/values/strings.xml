@@ -1,0 +1,252 @@
+<resources>
+    <string name="app_name">Simple Computer Use</string>
+    
+    <!-- Whisper Model Options -->
+    <string-array name="whisper_model_options">
+        <item>tiny</item>
+        <item>base</item>
+        <item>small</item>
+        <item>medium</item>
+        <item>large</item>
+    </string-array>
+
+    <!-- UI Strings -->
+    <string name="logs_title">Logs (Logcat)</string>
+    <string name="clear">Clear</string>
+    <string name="server_ip_hint">Server IP</string>
+    <string name="server_port_hint">Server Port</string>
+    <string name="unlock_password_hint">Unlock Password</string>
+    <string name="test_connection">Test Connection</string>
+    <string name="whisper_model_hint">Whisper Model Size</string>
+    <string name="whisper_model_help">More accurate models require more resources:\n• tiny: ~39M parameters (~75 MB) - Very fast, less accurate\n• base: ~74M parameters (~142 MB) - Balanced (default)\n• small: ~244M parameters (~466 MB) - Good accuracy and speed\n• medium: ~769M parameters (~1.5 GB) - More accurate, slower\n• large: ~1550M parameters (~2.9 GB) - Maximum accuracy</string>
+    <string name="save">Save</string>
+    <string name="steps_label">Steps:</string>
+    <string name="show_code">Show Code</string>
+    
+    <!-- Screenshot Section -->
+    <string name="screenshots_title">Screenshots</string>
+    <string name="change_refresh_period">Change refresh period</string>
+    <string name="refresh_screenshots">Refresh screenshots</string>
+    <string name="unlock_screen">Unlock screen</string>
+    <string name="capture_screen">Capture screen</string>
+    <string name="no_screenshots_available">No screenshots available</string>
+    <string name="remote_screenshot">Remote screenshot</string>
+    
+    <!-- Command History Section -->
+    <string name="command_history_title">Command History</string>
+    <string name="refresh_command_history">Refresh command history</string>
+    <string name="show_hide_command_history">Show/hide command history</string>
+    <string name="no_commands_in_history">No commands in history</string>
+    <string name="success">Success</string>
+    <string name="retry_command">Retry command</string>
+    <string name="retrying_command">Retrying command: %1$s</string>
+    <string name="command_retry_success">Command retry successful</string>
+    <string name="command_retry_failed">Command retry failed: %1$s</string>
+    <string name="command_retry_error">Error retrying command: %1$s</string>
+    
+    <!-- Advanced Settings Section -->
+    <string name="advanced_settings_title">Advanced Settings</string>
+    <string name="expand_advanced_settings">Expand advanced settings</string>
+    <string name="start_server">Start your Simple Computer Use server</string>
+    <string name="switch_to_dark_theme">Switch to dark theme</string>
+    
+    <!-- Recording Section -->
+    <string name="start_recording">Start Recording</string>
+    <string name="processing_command">Processing command...</string>
+
+    <!-- Audio Service Messages -->
+    <string name="already_recording">Already recording. Ignoring request</string>
+    <string name="starting_recording">Starting recording...</string>
+    <string name="recording_started">Recording started - Broadcast sent</string>
+    <string name="microphone_access_error">Error accessing microphone: %1$s</string>
+    <string name="microphone_permission_error">Error accessing microphone. Please check app permissions.</string>
+    <string name="no_recording_in_progress">No recording in progress</string>
+    <string name="stopping_recording">Stopping recording...</string>
+    <string name="recording_stopped">Recording stopped</string>
+    <string name="recording_stop_error">Error stopping recording: %1$s</string>
+    <string name="recording_stopped_broadcast">Recording stopped - Broadcast sent</string>
+    <string name="file_too_large">File too large to send: %1$d bytes</string>
+    <string name="test_mode_simulating">TEST MODE: Simulating audio sending...</string>
+    <string name="test_mode_sent">TEST MODE: Audio sent successfully (simulated)</string>
+    <string name="test_mode_creating">TEST MODE: Creating simulated response</string>
+    <string name="sending_audio_file">Sending audio file via REST API (%1$d bytes)...</string>
+    <string name="using_whisper_model">Using Whisper model: %1$s</string>
+    <string name="sending_to_rest">Sending file to REST server...</string>
+    <string name="no_command_detected">⚠️ No command detected in audio</string>
+    <string name="no_command_detected_message">No command detected in audio. Please try speaking more clearly.</string>
+    <string name="server_error">Server error: %1$s</string>
+    <string name="processing_json">Processing server JSON response</string>
+    <string name="server_returned_error">Error returned by server: %1$s</string>
+    <string name="command_recognized">Command recognized: \"%1$s\"</string>
+    <string name="translated_to">Translated to: \"%1$s\"</string>
+    <string name="detected_language">Detected language: %1$s</string>
+    <string name="steps_executed">Steps executed: %1$d</string>
+    <string name="result">Result: %1$s</string>
+    <string name="audio_response_available">Audio response available, requesting download...</string>
+    <string name="error_processing_json">Error processing JSON response: %1$s</string>
+    <string name="error_processing_response">Error processing response: %1$s</string>
+    <string name="test_mode_tts">TEST MODE: Simulating text-to-speech response</string>
+    <string name="test_mode_tts_ready">TEST MODE: Simulated TTS response ready</string>
+    <string name="would_generate_tts">Would generate TTS response for: \"%1$s\"</string>
+    <string name="playing_audio_response">Playing audio response</string>
+    <string name="trying_to_play">Trying to play response from: %1$s</string>
+    <string name="no_previous_response">No previous response saved. File does not exist.</string>
+    <string name="no_audio_available">No audio response available</string>
+    <string name="response_file_empty">Response file exists but is empty (0 bytes)</string>
+    <string name="audio_file_corrupt">Audio file is corrupt</string>
+    <string name="playing_saved_response">Playing saved response: %1$s bytes</string>
+    <string name="error_playing_audio">Error playing audio: %1$s</string>
+    <string name="cannot_send_file_info">Cannot send file info: file does not exist</string>
+    <string name="file_empty_warning">Warning: file %1$s is empty (0 bytes)</string>
+    <string name="audio_available">Audio %1$s available: %2$s at %3$s</string>
+    <string name="test_mode_response">TEST MODE: Creating simulated response based on recorded audio</string>
+    <string name="test_mode_response_created">TEST MODE: Simulated response created successfully (%1$d bytes)</string>
+    <string name="downloading_audio">Downloading audio response from server...</string>
+    <string name="downloaded_audio">Audio response downloaded (%1$d bytes)</string>
+    <string name="invalid_audio_response">Downloaded response is not valid audio</string>
+    <string name="empty_response">Empty response received for audio request</string>
+    <string name="sorry_no_audio">Sorry, I couldn\'t generate an audio response.</string>
+    <string name="http_error">HTTP Error %1$d: %2$s</string>
+    <string name="network_error">Network error: %1$s</string>
+    <string name="connection_failed">Connection failed</string>
+    <string name="command_executed_network_error">Command executed, but there was a network error getting the response.</string>
+    <string name="error_downloading_audio">Error downloading audio: %1$s</string>
+    <string name="command_executed">Command executed</string>
+    <string name="error_downloaded_file">Error: Downloaded audio file does not exist or is empty</string>
+    <string name="expand_collapse_logs">Expand/Collapse logs</string>
+    <string name="audio_recording">Recording</string>
+    <string name="audio_response">Response</string>
+    <string name="bytes">bytes</string>
+    <string name="kb">KB</string>
+    <string name="mb">MB</string>
+    <string name="connected">Connected</string>
+    <string name="connected_with_time">Connected (%1$dms)</string>
+    <string name="connection_error">Connection error</string>
+    <string name="connection_error_with_message">Connection error (%1$s)</string>
+    <string name="processing_completed">Processing completed</string>
+    <string name="connection_test_received">Connection test received: success=%1$b, message=%2$s</string>
+    <string name="file_not_found">Warning: File not found: %1$s</string>
+    <string name="file_empty_corrupt">Warning: Empty or corrupt file: %1$s</string>
+    <string name="audio_recording_info">Audio recording: %1$s | %2$s</string>
+    <string name="audio_response_info">Audio response: %1$s | %2$s</string>
+    <string name="audio_permission_granted">Audio permission granted</string>
+    <string name="audio_permission_denied">Audio permission denied</string>
+    <string name="audio_permission_required">Audio recording permission is required for this functionality</string>
+
+    <!-- MainActivity Messages -->
+    <string name="recording_finished_processing">Recording finished, processing...</string>
+    <string name="command_processed_successfully">Command processed successfully</string>
+    <string name="response_received">Response received: %1$s</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="app_started">Application started</string>
+    <string name="logs_cleared">Logs cleared</string>
+    <string name="recording_state_reset">Recording state reset</string>
+    <string name="server_settings_updated">Server settings updated: %1$s:%2$s, model: %3$s</string>
+    <string name="testing_connection">Testing connection to %1$s...</string>
+    <string name="timeout_connecting">Connection timeout</string>
+    <string name="error_starting_test">Error starting connection test: %1$s</string>
+    <string name="emergency_reset_activated">Emergency reset activated</string>
+    <string name="requesting_audio_permission">Requesting audio recording permission...</string>
+    <string name="waiting_for_response">Waiting for response timed out</string>
+    <string name="screenshot_taken_successfully">Screenshot taken successfully</string>
+    <string name="screenshot_displayed_successfully">✅ Screenshot displayed successfully</string>
+
+    <!-- Additional strings added for AudioService -->
+    <string name="simple_computer_use_service_started">Simple Computer Use service started</string>
+    <string name="server_configuration_updated">Server configuration updated</string>
+    <string name="forced_reset_recording_state">Forced reset of recording state</string>
+    <string name="audio_service_stopped">Audio service stopped</string>
+    <string name="error_starting_recording">Error starting recording</string>
+    <string name="error_unexpected_starting_recording">Unexpected error while starting recording</string>
+    <string name="no_recording_in_progress_for_cancel">No recording in progress to cancel</string>
+    <string name="canceling_recording">Canceling recording</string>
+    <string name="recording_canceled">Recording canceled</string>
+    <string name="error_canceling_recording">Error canceling recording</string>
+    <string name="recording_canceled_broadcast">Recording canceled broadcast sent</string>
+    <string name="audio_sent_successfully">Audio sent successfully</string>
+    <string name="error_details">Error details: %1$s</string>
+    <string name="warning">Warning: %1$s</string>
+    <string name="error_unexpected">Unexpected error occurred</string>
+    <string name="error_processing_bytes_as_json">Error processing bytes as JSON</string>
+    <string name="test_mode_empty_response">Test mode: Empty response</string>
+    <string name="test_mode_empty_response_created">Test mode: Empty response created</string>
+    <string name="configuration_loaded">Configuration loaded</string>
+    <string name="configuration_updated">Configuration updated</string>
+    <string name="testing_connection_to">Testing connection to %1$s</string>
+    <string name="connection_successful">Connection successful: %1$s</string>
+    <string name="connection_established_but_not_healthy">Connection established but not healthy</string>
+    <string name="connection_established_but_empty">Connection established but empty response</string>
+    <string name="error_analyzing_response">Error analyzing response</string>
+    <string name="connection_successful_alternative_endpoint">Connection successful (alternative endpoint)</string>
+    <string name="error_connecting">Error connecting: %1$s</string>
+    <string name="test_completed">Test completed</string>
+    
+    <!-- Strings for MainActivity errors -->
+    <string name="error">Error</string>
+    <string name="selectedItem">Selected item: %1$s</string>
+    
+    <!-- Button texts -->
+    <string name="stop_recording">Stop recording</string>
+    <string name="start_recording_button">Start recording</string>
+    <string name="toggle_theme_light">Switch to light theme</string>
+    <string name="toggle_theme_dark">Switch to dark theme</string>
+    <string name="disabled">Disabled</string>
+    <string name="loading_command_history">Loading command history...</string>
+    <string name="no_commands_available">No commands available</string>
+    <string name="error_loading_history">Error loading history: %1$s</string>
+    <string name="unlock_screen_started">Screen unlock initiated</string>
+    <string name="capturing_screenshot">Capturing screen...</string>
+    <string name="error_unlocking_screen">Error unlocking screen: %1$s</string>
+    <string name="connection_error_generic">Connection error: %1$s</string>
+    <string name="capturing_screenshot_after_unlock">Capturing screenshot after unlock...</string>
+    <string name="default_server_ip">your_server_ip_here</string>
+    <string name="default_server_port">5000</string>
+    <string name="default_password">your_password</string>
+    <string name="checking_connection">Checking...</string>
+    <string name="connection_timeout">Timeout - No response</string>
+    <string name="empty_server_ip_error">Server IP cannot be empty</string>
+    <string name="empty_server_port_error">Server port cannot be empty</string>
+    <string name="invalid_port_error">Port must be a valid number</string>
+    <string name="empty_whisper_model_error">You must select a Whisper model</string>
+    <string name="settings_saved">Settings saved</string>
+    <string name="last_capture">Last capture: %1$s</string>
+    <string name="no_screenshots">No screenshots available</string>
+    <string name="loading_screenshots">Loading screenshots...</string>
+    <string name="default_refresh_period">30s</string>
+    <string name="refresh_5s">5s</string>
+    <string name="refresh_10s">10s</string>
+    <string name="refresh_30s">30s</string>
+    <string name="refresh_60s">60s</string>
+    <string name="auto_refresh_disabled">Auto-refresh disabled</string>
+    <string name="refresh_period_changed">Refresh period changed to %1$s</string>
+    <string name="last_viewed">Last viewed: %1$s</string>
+    <string name="status_success">Success</string>
+    <string name="command_text">Command text</string>
+    <string name="command_date">2023-01-01 12:00:00</string>
+    <string name="command_step_example">1. Step 1\n2. Step 2</string>
+    <string name="command_code_example">import pyautogui\n# Some code here</string>
+    <string name="empty_response_server">Empty response from server</string>
+    <string name="response_format_invalid">Invalid response format</string>
+    <string name="error_processing_data">Error processing data: %1$s</string>
+    <string name="connection_error_message">Connection error: %1$s</string>
+    <string name="error_generic">Error: %1$s</string>
+    <string name="log_initial_hint">📱 SCROLLABLE AREA - Touch and drag to scroll here</string>
+    <string name="log_highlight_hint">🔍 Border will highlight while scrolling</string>
+    <string name="log_separator">-----------------------------------</string>
+
+    <!-- Favorites functionality -->
+    <string name="favorites_title">Favorites</string>
+    <string name="no_favorites">No saved favorites. Add a favorite command by using the \"Save as Favorite\" button.</string>
+    <string name="refresh_favorites">Refresh favorites</string>
+    <string name="show_hide_favorites">Show/Hide favorites</string>
+    <string name="save_as_favorite">Save as Favorite</string>
+    <string name="run_favorite">Run favorite</string>
+    <string name="delete_favorite">Delete favorite</string>
+    <string name="favorite_saved">Command saved to favorites</string>
+    <string name="favorite_save_failed">Failed to save command as favorite: %1$s</string>
+    <string name="favorite_deleted">Favorite deleted successfully</string>
+    <string name="favorite_delete_failed">Failed to delete favorite: %1$s</string>
+    <string name="favorite_executed">Favorite executed successfully</string>
+    <string name="favorite_execute_failed">Failed to execute favorite: %1$s</string>
+    <string name="loading_favorites">Loading favorites…</string>
+</resources>

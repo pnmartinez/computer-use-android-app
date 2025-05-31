@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Permitir el tráfico HTTP sin cifrar por ahora, para desarrollo -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <!-- Configuración específica para el servidor por defecto -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">your_server_ip_here</domain>
+    </domain-config>
+</network-security-config> 
