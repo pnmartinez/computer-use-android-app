@@ -100,7 +100,6 @@ class MainActivity : AppCompatActivity() {
     // Screenshot section
     private lateinit var screenshotImageView: ImageView
     private lateinit var screenshotStatusText: TextView
-    private lateinit var btnRefreshScreenshot: MaterialButton
     private lateinit var btnCaptureScreenshot: MaterialButton
     private lateinit var btnUnlockScreen: MaterialButton
     private lateinit var btnRefreshPeriod: MaterialButton
@@ -432,7 +431,6 @@ class MainActivity : AppCompatActivity() {
         // Screenshot section
         screenshotImageView = findViewById(R.id.screenshotImageView)
         screenshotStatusText = findViewById(R.id.screenshotStatusText)
-        btnRefreshScreenshot = findViewById(R.id.btnRefreshScreenshot)
         btnCaptureScreenshot = findViewById(R.id.btnCaptureScreenshot)
         btnUnlockScreen = findViewById(R.id.btnUnlockScreen)
         btnRefreshPeriod = findViewById(R.id.btnRefreshPeriod)
@@ -1142,11 +1140,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupScreenshotSection() {
-        // Setup refresh button
-        btnRefreshScreenshot.setOnClickListener {
-            fetchLatestScreenshot()
-        }
-        
         // Setup click listener for fullscreen view
         screenshotImageView.setOnClickListener {
             showFullscreenImage()
@@ -1165,7 +1158,7 @@ class MainActivity : AppCompatActivity() {
         
         // Fetch initial screenshot with a slight delay to allow the UI to initialize
         Handler(mainLooper).postDelayed({
-            fetchLatestScreenshot()
+            captureNewScreenshot()
         }, 1000)
         
         // Setup auto-refresh
@@ -1329,8 +1322,7 @@ class MainActivity : AppCompatActivity() {
                 is ScreenshotState.Success -> {
                     screenshotStatusText.text = getString(R.string.last_capture, state.timestamp)
                     // Enable the refresh and capture buttons
-                    btnRefreshScreenshot.isEnabled = true
-                    btnCaptureScreenshot.isEnabled = true
+                            btnCaptureScreenshot.isEnabled = true
                 }
                 is ScreenshotState.Error -> {
                     screenshotStatusText.text = state.message
@@ -1347,8 +1339,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 is ScreenshotState.Loading -> {
                     screenshotStatusText.text = getString(R.string.loading_screenshots)
-                    // Disable buttons while loading
-                    btnRefreshScreenshot.isEnabled = false
+                    // Disable capture button while loading
                     btnCaptureScreenshot.isEnabled = false
                 }
             }
@@ -1488,7 +1479,7 @@ class MainActivity : AppCompatActivity() {
         refreshHandler = Handler(mainLooper)
         refreshRunnable = object : Runnable {
             override fun run() {
-                fetchLatestScreenshot()
+                captureNewScreenshot()
                 refreshHandler?.postDelayed(this, refreshPeriodMs)
             }
         }
@@ -1742,6 +1733,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+
 
     private fun getServerUrl(): String {
         // Safety check: if serverIpInput isn't initialized yet, use default values
