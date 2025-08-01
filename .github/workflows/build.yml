@@ -1,0 +1,112 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+        - debug
+        - release
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        sdk-platform: '34'
+        sdk-build-tools: '34.0.0'
+        
+    - name: Cache Android SDK
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.android
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-android-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-android-
+          
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+      
+    - name: Build Debug APK
+      if: github.event.inputs.build_type == 'debug' || github.event_name == 'pull_request'
+      run: ./gradlew assembleDebug
+      
+    - name: Build Release APK
+      if: github.event.inputs.build_type == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      run: ./gradlew assembleRelease
+      
+    - name: Sign Release APK
+      if: github.event.inputs.build_type == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      uses: r0adkll/sign-android-release@v1
+      id: sign_app
+      with:
+        releaseDirectory: app/build/outputs/apk/release
+        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+        alias: ${{ secrets.KEY_ALIAS }}
+        keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+        keyPassword: ${{ secrets.KEY_PASSWORD }}
+      env:
+        BUILD_TOOLS_VERSION: "34.0.0"
+        
+    - name: Upload Debug APK
+      if: github.event.inputs.build_type == 'debug' || github.event_name == 'pull_request'
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+        
+    - name: Upload Release APK
+      if: github.event.inputs.build_type == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release-signed
+        path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+        retention-days: 90
+        
+    - name: Upload Unsigned Release APK (fallback)
+      if: (github.event.inputs.build_type == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && steps.sign_app.outcome == 'failure'
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release-unsigned
+        path: app/build/outputs/apk/release/app-release-unsigned.apk
+        retention-days: 90
+        
+    - name: Get APK Info
+      run: |
+        if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+          echo "Debug APK size: $(ls -lh app/build/outputs/apk/debug/app-debug.apk | awk '{print $5}')"
+        fi
+        if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+          echo "Release APK size: $(ls -lh app/build/outputs/apk/release/app-release.apk | awk '{print $5}')"
+        fi
+        if [ -f "app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
+          echo "Unsigned Release APK size: $(ls -lh app/build/outputs/apk/release/app-release-unsigned.apk | awk '{print $5}')"
+        fi 
