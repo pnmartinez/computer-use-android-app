@@ -1,9 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark mode color overrides -->
-    <!-- Ensure text and icons are white in dark mode -->
-    <color name="md_theme_onPrimary">#FFFFFF</color>
-    <color name="md_theme_onSecondary">#FFFFFF</color>
-    <color name="md_theme_onSurface">#FFFFFF</color>
-    <color name="md_theme_onBackground">#FFFFFF</color>
+    <!-- Material Design 3 Dark Color Scheme -->
+    <color name="md_theme_primary">#6FDAB3</color>
+    <color name="md_theme_onPrimary">#00382A</color>
+    <color name="md_theme_primaryContainer">#00513C</color>
+    <color name="md_theme_onPrimaryContainer">#8BF8CF</color>
+    <color name="md_theme_secondary">#B3CCBF</color>
+    <color name="md_theme_onSecondary">#1F352B</color>
+    <color name="md_theme_secondaryContainer">#354B41</color>
+    <color name="md_theme_onSecondaryContainer">#CFE9DB</color>
+    <color name="md_theme_error">#FFB4AB</color>
+    <color name="md_theme_onError">#690005</color>
+    <color name="md_theme_errorContainer">#93000A</color>
+    <color name="md_theme_onErrorContainer">#FFDAD6</color>
+    <color name="md_theme_background">#191C1A</color>
+    <color name="md_theme_onBackground">#E1E3DF</color>
+    <color name="md_theme_surface">#191C1A</color>
+    <color name="md_theme_onSurface">#E1E3DF</color>
+    <color name="md_theme_surfaceVariant">#404943</color>
+    <color name="md_theme_onSurfaceVariant">#C0C9C1</color>
+    <color name="md_theme_outline">#8A938C</color>
 </resources> 
