@@ -37,8 +37,8 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       with:
-        cmdline-tools-version: 'latest'
-        packages: platform-tools,platforms;android-34,build-tools;34.0.0
+        sdk-platform: '34'
+        sdk-build-tools: '34.0.0'
         
     - name: Cache Android SDK
       uses: actions/cache@v4
