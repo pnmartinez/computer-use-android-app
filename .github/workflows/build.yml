@@ -10,7 +10,7 @@ on:
       build_type:
         description: 'Build type'
         required: true
-        default: 'release'
+        default: 'debug'
         type: choice
         options:
         - debug
@@ -55,15 +55,15 @@ jobs:
       run: chmod +x gradlew
       
     - name: Build Debug APK
-      if: github.event.inputs.build_type == 'debug' || github.event_name == 'pull_request'
+      if: github.event.inputs.build_type == 'debug' || github.event_name == 'pull_request' || github.event_name == 'push'
       run: ./gradlew assembleDebug
       
     - name: Build Release APK
-      if: github.event.inputs.build_type == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      if: github.event.inputs.build_type == 'release'
       run: ./gradlew assembleRelease
       
     - name: Sign Release APK
-      if: github.event.inputs.build_type == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      if: github.event.inputs.build_type == 'release'
       uses: r0adkll/sign-android-release@v1
       id: sign_app
       with:
@@ -76,7 +76,7 @@ jobs:
         BUILD_TOOLS_VERSION: "34.0.0"
         
     - name: Upload Debug APK
-      if: github.event.inputs.build_type == 'debug' || github.event_name == 'pull_request'
+      if: github.event.inputs.build_type == 'debug' || github.event_name == 'pull_request' || github.event_name == 'push'
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
@@ -84,7 +84,7 @@ jobs:
         retention-days: 30
         
     - name: Upload Release APK
-      if: github.event.inputs.build_type == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      if: github.event.inputs.build_type == 'release'
       uses: actions/upload-artifact@v4
       with:
         name: app-release-signed
@@ -92,7 +92,7 @@ jobs:
         retention-days: 90
         
     - name: Upload Unsigned Release APK (fallback)
-      if: (github.event.inputs.build_type == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && steps.sign_app.outcome == 'failure'
+      if: github.event.inputs.build_type == 'release' && steps.sign_app.outcome == 'failure'
       uses: actions/upload-artifact@v4
       with:
         name: app-release-unsigned
