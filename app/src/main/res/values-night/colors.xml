@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark mode color overrides -->
+    <!-- Ensure text and icons are white in dark mode -->
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_onSecondary">#FFFFFF</color>
+    <color name="md_theme_onSurface">#FFFFFF</color>
+    <color name="md_theme_onBackground">#FFFFFF</color>
+</resources> 
