@@ -761,13 +761,13 @@ class MainActivity : AppCompatActivity() {
         if (isRecording) {
             btnStartRecording.text = getString(R.string.stop_recording)
             btnStartRecording.icon = ContextCompat.getDrawable(this, android.R.drawable.ic_media_pause)
-            // Set the background color to error color when recording
-            btnStartRecording.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_error)))
+            // Set the background color to red when recording
+            btnStartRecording.setBackgroundColor(ContextCompat.getColor(this, R.color.md_theme_error))
         } else {
             btnStartRecording.text = getString(R.string.start_recording_button)
             btnStartRecording.icon = ContextCompat.getDrawable(this, android.R.drawable.ic_btn_speak_now)
-            // Reset to theme default background color
-            btnStartRecording.setBackgroundTintList(null)
+            // Set the default background color to Android's default dark green
+            btnStartRecording.setBackgroundColor(Color.parseColor("#006400"));
         }
     }
     
@@ -1322,7 +1322,7 @@ class MainActivity : AppCompatActivity() {
                 is ScreenshotState.Success -> {
                     screenshotStatusText.text = getString(R.string.last_capture, state.timestamp)
                     // Enable the refresh and capture buttons
-                            btnCaptureScreenshot.isEnabled = true
+                    btnCaptureScreenshot.isEnabled = true
                 }
                 is ScreenshotState.Error -> {
                     screenshotStatusText.text = state.message

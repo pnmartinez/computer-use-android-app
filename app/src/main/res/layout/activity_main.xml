@@ -688,13 +688,13 @@
                 android:layout_width="match_parent"
                 android:layout_height="130dp"
                 android:text="@string/start_recording"
-                android:textColor="?attr/colorOnPrimary"
+                android:textColor="@color/white"
                 app:cornerRadius="35dp"
                 app:icon="@android:drawable/ic_btn_speak_now"
                 app:iconGravity="textStart"
                 app:iconSize="32dp"
-                app:iconTint="?attr/colorOnPrimary"
-                app:rippleColor="?attr/colorOnPrimary"
+                app:iconTint="@color/white"
+                app:rippleColor="@color/white"
                 app:elevation="12dp" />
 
             <!-- Compact button for loading/processing state - initially invisible -->
