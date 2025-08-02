@@ -26,7 +26,7 @@
     <!-- Screenshot Section -->
     <string name="screenshots_title">Screenshots</string>
     <string name="change_refresh_period">Change refresh period</string>
-    <string name="refresh_screenshots">Refresh screenshots</string>
+
     <string name="unlock_screen">Unlock screen</string>
     <string name="capture_screen">Capture screen</string>
     <string name="no_screenshots_available">No screenshots available</string>
