@@ -1,5 +1,7 @@
 # 🎙️ Android App for Voice Computer Use
 
+[![Build Status](https://github.com/pnmartinez/computer-use-android-app/workflows/Build/badge.svg)](https://github.com/pnmartinez/computer-use-android-app/actions/workflows/build.yml)
+
 A simple Android application that lets you control your PC remotely using voice commands. It is a client for the [simple-computer-use](https://github.com/pnmartinez/simple-computer-use) project.
 
 ![imagen](https://github.com/user-attachments/assets/e2b6d12b-5051-484e-86a8-d458b90be663)
