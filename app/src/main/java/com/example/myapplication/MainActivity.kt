@@ -70,6 +70,8 @@ import com.example.myapplication.CommandHistoryUtils.CommandHistoryEntry
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_IP
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_PORT
 import com.example.myapplication.AudioService.Companion.KEY_WHISPER_MODEL
+import kotlin.math.sqrt
+import android.widget.ProgressBar
 
 class MainActivity : AppCompatActivity() {
     
@@ -103,6 +105,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnCaptureScreenshot: MaterialButton
     private lateinit var btnUnlockScreen: MaterialButton
     private lateinit var btnRefreshPeriod: MaterialButton
+    private lateinit var screenshotLoadingProgress: ProgressBar
     
     // Keep track of app state
     private var isRecording = false
@@ -434,6 +437,7 @@ class MainActivity : AppCompatActivity() {
         btnCaptureScreenshot = findViewById(R.id.btnCaptureScreenshot)
         btnUnlockScreen = findViewById(R.id.btnUnlockScreen)
         btnRefreshPeriod = findViewById(R.id.btnRefreshPeriod)
+        screenshotLoadingProgress = findViewById(R.id.screenshotLoadingProgress)
         
         // Setup log clear button
         btnClearLogs.setOnClickListener {
@@ -1321,17 +1325,20 @@ class MainActivity : AppCompatActivity() {
             when (state) {
                 is ScreenshotState.Success -> {
                     screenshotStatusText.text = getString(R.string.last_capture, state.timestamp)
+                    screenshotLoadingProgress.visibility = View.GONE
                     // Enable the refresh and capture buttons
                     btnCaptureScreenshot.isEnabled = true
                 }
                 is ScreenshotState.Error -> {
                     screenshotStatusText.text = state.message
+                    screenshotLoadingProgress.visibility = View.GONE
                     disableScreenshotControls()
                     // Still enable the capture button on error to allow retry
                     btnCaptureScreenshot.isEnabled = true
                 }
                 is ScreenshotState.NoScreenshots -> {
                     screenshotStatusText.text = getString(R.string.no_screenshots)
+                    screenshotLoadingProgress.visibility = View.GONE
                     disableScreenshotControls()
                     // Still enable the capture button when no screenshots
                     btnCaptureScreenshot.isEnabled = true
@@ -1339,6 +1346,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 is ScreenshotState.Loading -> {
                     screenshotStatusText.text = getString(R.string.loading_screenshots)
+                    screenshotLoadingProgress.visibility = View.VISIBLE
                     // Disable capture button while loading
                     btnCaptureScreenshot.isEnabled = false
                 }
@@ -1351,6 +1359,7 @@ class MainActivity : AppCompatActivity() {
         runOnUiThread {
             screenshotImageView.setImageBitmap(null)
             screenshotImageView.visibility = View.INVISIBLE  // Hide the image view when no image
+            screenshotLoadingProgress.visibility = View.GONE
         }
     }
 
@@ -1367,6 +1376,9 @@ class MainActivity : AppCompatActivity() {
                 setImageBitmap(null)
                 visibility = View.INVISIBLE
             }
+            
+            // Hide loading progress bar
+            screenshotLoadingProgress.visibility = View.GONE
             
             // Update status and log error
             screenshotStatusText.text = errorMessage
@@ -1387,8 +1399,9 @@ class MainActivity : AppCompatActivity() {
                 Log.d("Screenshot", "Fetching screenshot from URL: $imageUrl")
                 addLogMessage("[${getCurrentTime()}] 🖼️ Descargando captura: $filename")
                 
-                // Hide image view while loading
+                // Show loading progress bar and hide image view while loading
                 withContext(Dispatchers.Main) {
+                    screenshotLoadingProgress.visibility = View.VISIBLE
                     screenshotImageView.visibility = View.INVISIBLE
                     screenshotImageView.setImageBitmap(null)
                 }
@@ -1438,6 +1451,9 @@ class MainActivity : AppCompatActivity() {
                             ?: throw IOException("Error al decodificar la imagen")
                         
                         withContext(Dispatchers.Main) {
+                            // Hide loading progress bar
+                            screenshotLoadingProgress.visibility = View.GONE
+                            
                             // Update the image view
                             screenshotImageView.apply {
                                 setImageBitmap(bitmap)
@@ -1453,13 +1469,21 @@ class MainActivity : AppCompatActivity() {
                     } catch (e: Exception) {
                         Log.e("Screenshot", "Error fetching screenshot", e)
                         withContext(Dispatchers.Main) {
+                            // Hide loading progress bar on error
+                            screenshotLoadingProgress.visibility = View.GONE
+                            
+                            // Handle error
                             handleScreenshotError(e)
                         }
                     }
                 }
             } catch (e: Exception) {
-                Log.e("Screenshot", "Error in fetchScreenshot", e)
+                Log.e("Screenshot", "General error in fetchScreenshot", e)
                 withContext(Dispatchers.Main) {
+                    // Hide loading progress bar on error
+                    screenshotLoadingProgress.visibility = View.GONE
+                    
+                    // Handle error
                     handleScreenshotError(e)
                 }
             }
@@ -1629,8 +1653,12 @@ class MainActivity : AppCompatActivity() {
     private fun captureNewScreenshot() {
         screenshotScope.launch {
             try {
-                screenshotStatusText.text = getString(R.string.capturing_screenshot)
-                btnCaptureScreenshot.isEnabled = false
+                // Show loading progress bar instead of just text
+                withContext(Dispatchers.Main) {
+                    screenshotLoadingProgress.visibility = View.VISIBLE
+                    screenshotStatusText.text = getString(R.string.capturing_screenshot)
+                    btnCaptureScreenshot.isEnabled = false
+                }
                 
                 val serverUrl = getServerUrl()
                 // Update to request JSON format for proper response handling
@@ -1696,6 +1724,7 @@ class MainActivity : AppCompatActivity() {
                                                 val timestamp = jsonResponse.optLong("timestamp", 0)
                                                 val date = if (timestamp > 0) Date(timestamp * 1000).formatToDateTime() else "desconocido"
                                                 screenshotStatusText.text = getString(R.string.last_capture, date)
+                                                screenshotLoadingProgress.visibility = View.GONE
                                                 addLogMessage("[${getCurrentTime()}] ✅ ${getString(R.string.screenshot_displayed_successfully)}")
                                                 return@withContext
                                             }
@@ -1724,12 +1753,11 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     screenshotStatusText.text = getString(R.string.error_generic, e.message)
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.error_generic, e.message)}")
-                }
-            } finally {
-                withContext(Dispatchers.Main) {
+                    screenshotLoadingProgress.visibility = View.GONE
                     btnCaptureScreenshot.isEnabled = true
+                    addLogMessage("[${getCurrentTime()}] ❌ ${getString(R.string.error_generic, e.message)}")
                 }
+                Log.e("Screenshot", "Error capturing screenshot", e)
             }
         }
     }
@@ -2585,10 +2613,22 @@ private class FullscreenImageDialog(context: Context, private val bitmap: Bitmap
     private var currentTranslateX = 0f
     private var currentTranslateY = 0f
     
+    // Variables for touch detection
+    private var isInPinchGesture = false
+    private var touchStartTime = 0L
+    private var touchStartX = 0f
+    private var touchStartY = 0f
+    private val tapThreshold = 200L // milliseconds
+    private val moveThreshold = 50f // pixels
+    
     // Store display dimensions
     private val displayMetrics = context.resources.displayMetrics
     private val screenWidth = displayMetrics.widthPixels.toFloat()
     private val screenHeight = displayMetrics.heightPixels.toFloat()
+    
+    // Store initial fit-to-screen scale for toggling
+    private var fitToScreenScale = 1f
+    private var isZoomedToHeight = false
     
     init {
         // Create the container layout
@@ -2599,19 +2639,31 @@ private class FullscreenImageDialog(context: Context, private val bitmap: Bitmap
             override fun onTouchEvent(event: MotionEvent): Boolean {
                 scaleGestureDetector.onTouchEvent(event)
                 
-                // Handle drag events if we're not scaling
-                if (!scaleGestureDetector.isInProgress) {
-                    when (event.action) {
-                        MotionEvent.ACTION_DOWN -> {
-                            lastTouchX = event.x
-                            lastTouchY = event.y
-                            isDragging = true
-                        }
-                        MotionEvent.ACTION_MOVE -> {
-                            if (isDragging && scaleFactor > 1f) {
-                                val deltaX = event.x - lastTouchX
-                                val deltaY = event.y - lastTouchY
-                                
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        lastTouchX = event.x
+                        lastTouchY = event.y
+                        touchStartX = event.x
+                        touchStartY = event.y
+                        touchStartTime = System.currentTimeMillis()
+                        isDragging = false
+                        isInPinchGesture = false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!scaleGestureDetector.isInProgress && !isInPinchGesture) {
+                            val deltaX = event.x - lastTouchX
+                            val deltaY = event.y - lastTouchY
+                            val totalMoveDistance = sqrt(
+                                (event.x - touchStartX) * (event.x - touchStartX) + 
+                                (event.y - touchStartY) * (event.y - touchStartY)
+                            )
+                            
+                            // Only start dragging if we've moved enough and we're zoomed in
+                            if (totalMoveDistance > moveThreshold && scaleFactor > fitToScreenScale) {
+                                isDragging = true
+                            }
+                            
+                            if (isDragging && scaleFactor > fitToScreenScale) {
                                 // Calculate new translation
                                 val newTranslateX = currentTranslateX + deltaX
                                 val newTranslateY = currentTranslateY + deltaY
@@ -2643,12 +2695,30 @@ private class FullscreenImageDialog(context: Context, private val bitmap: Bitmap
                                 lastTouchX = event.x
                                 lastTouchY = event.y
                             }
-                        }
-                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                            isDragging = false
+                        } else if (scaleGestureDetector.isInProgress) {
+                            isInPinchGesture = true
                         }
                     }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        val touchDuration = System.currentTimeMillis() - touchStartTime
+                        val totalMoveDistance = sqrt(
+                            (event.x - touchStartX) * (event.x - touchStartX) + 
+                            (event.y - touchStartY) * (event.y - touchStartY)
+                        )
+                        
+                        // Detect tap: short duration, minimal movement, and not after pinch gesture
+                        if (touchDuration < tapThreshold && 
+                            totalMoveDistance < moveThreshold && 
+                            !isInPinchGesture && 
+                            !isDragging) {
+                            handleTap(touchStartX, touchStartY)
+                        }
+                        
+                        isDragging = false
+                        isInPinchGesture = false
+                    }
                 }
+                
                 return true
             }
         }.apply {
@@ -2696,6 +2766,8 @@ private class FullscreenImageDialog(context: Context, private val bitmap: Bitmap
         val scaleX = screenWidth / bitmap.width.toFloat()
         val scaleY = screenHeight / bitmap.height.toFloat()
         scaleFactor = minOf(scaleX, scaleY)
+        fitToScreenScale = scaleFactor // Store the fit-to-screen scale
+        isZoomedToHeight = false
         
         // Calculate translation to center the image
         currentTranslateX = (screenWidth - bitmap.width * scaleFactor) / 2f
@@ -2718,6 +2790,9 @@ private class FullscreenImageDialog(context: Context, private val bitmap: Bitmap
             
             // Limit the scale factor
             scaleFactor = scaleFactor.coerceIn(0.1f, 10f)
+            
+            // Reset zoom-to-height state when manually scaling
+            isZoomedToHeight = false
             
             // Adjust translation to keep the image centered at the focal point
             if (scaleFactor != previousScale) {
@@ -2769,5 +2844,57 @@ private class FullscreenImageDialog(context: Context, private val bitmap: Bitmap
             or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
             or View.SYSTEM_UI_FLAG_FULLSCREEN
         )
+    }
+    
+    private fun handleTap(tapX: Float, tapY: Float) {
+        if (isZoomedToHeight) {
+            // If already zoomed to height, return to fit-to-screen
+            centerImage()
+        } else {
+            // Zoom to fill height and position based on tap location
+            zoomToHeight(tapX)
+        }
+    }
+    
+    private fun zoomToHeight(tapX: Float) {
+        // Calculate scale to fill the viewport height
+        val heightScale = screenHeight / bitmap.height.toFloat()
+        scaleFactor = heightScale
+        isZoomedToHeight = true
+        
+        // Calculate the scaled width
+        val scaledWidth = bitmap.width * scaleFactor
+        
+        // Determine horizontal positioning based on tap location
+        val tapRatio = tapX / screenWidth
+        
+        when {
+            // Left third of screen - show left side of image
+            tapRatio < 0.33f -> {
+                currentTranslateX = 0f
+            }
+            // Right third of screen - show right side of image
+            tapRatio > 0.67f -> {
+                currentTranslateX = -(scaledWidth - screenWidth)
+            }
+            // Center third of screen - show center of image
+            else -> {
+                currentTranslateX = -(scaledWidth - screenWidth) / 2f
+            }
+        }
+        
+        // Center vertically (should be 0 since we're scaling to exact height)
+        currentTranslateY = 0f
+        
+        // Ensure we don't go beyond bounds
+        if (scaledWidth > screenWidth) {
+            val minTranslateX = -(scaledWidth - screenWidth)
+            currentTranslateX = currentTranslateX.coerceIn(minTranslateX, 0f)
+        } else {
+            // If image is narrower than screen, center it
+            currentTranslateX = (screenWidth - scaledWidth) / 2f
+        }
+        
+        updateImageMatrix()
     }
 }
