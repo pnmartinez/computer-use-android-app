@@ -71,6 +71,7 @@ import com.example.myapplication.AudioService.Companion.KEY_SERVER_IP
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_PORT
 import com.example.myapplication.AudioService.Companion.KEY_WHISPER_MODEL
 import kotlin.math.sqrt
+import android.widget.ProgressBar
 
 class MainActivity : AppCompatActivity() {
     
@@ -104,6 +105,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnCaptureScreenshot: MaterialButton
     private lateinit var btnUnlockScreen: MaterialButton
     private lateinit var btnRefreshPeriod: MaterialButton
+    private lateinit var screenshotLoadingProgress: ProgressBar
     
     // Keep track of app state
     private var isRecording = false
@@ -435,6 +437,7 @@ class MainActivity : AppCompatActivity() {
         btnCaptureScreenshot = findViewById(R.id.btnCaptureScreenshot)
         btnUnlockScreen = findViewById(R.id.btnUnlockScreen)
         btnRefreshPeriod = findViewById(R.id.btnRefreshPeriod)
+        screenshotLoadingProgress = findViewById(R.id.screenshotLoadingProgress)
         
         // Setup log clear button
         btnClearLogs.setOnClickListener {
@@ -1322,17 +1325,20 @@ class MainActivity : AppCompatActivity() {
             when (state) {
                 is ScreenshotState.Success -> {
                     screenshotStatusText.text = getString(R.string.last_capture, state.timestamp)
+                    screenshotLoadingProgress.visibility = View.GONE
                     // Enable the refresh and capture buttons
                     btnCaptureScreenshot.isEnabled = true
                 }
                 is ScreenshotState.Error -> {
                     screenshotStatusText.text = state.message
+                    screenshotLoadingProgress.visibility = View.GONE
                     disableScreenshotControls()
                     // Still enable the capture button on error to allow retry
                     btnCaptureScreenshot.isEnabled = true
                 }
                 is ScreenshotState.NoScreenshots -> {
                     screenshotStatusText.text = getString(R.string.no_screenshots)
+                    screenshotLoadingProgress.visibility = View.GONE
                     disableScreenshotControls()
                     // Still enable the capture button when no screenshots
                     btnCaptureScreenshot.isEnabled = true
@@ -1340,6 +1346,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 is ScreenshotState.Loading -> {
                     screenshotStatusText.text = getString(R.string.loading_screenshots)
+                    screenshotLoadingProgress.visibility = View.VISIBLE
                     // Disable capture button while loading
                     btnCaptureScreenshot.isEnabled = false
                 }
@@ -1352,6 +1359,7 @@ class MainActivity : AppCompatActivity() {
         runOnUiThread {
             screenshotImageView.setImageBitmap(null)
             screenshotImageView.visibility = View.INVISIBLE  // Hide the image view when no image
+            screenshotLoadingProgress.visibility = View.GONE
         }
     }
 
@@ -1368,6 +1376,9 @@ class MainActivity : AppCompatActivity() {
                 setImageBitmap(null)
                 visibility = View.INVISIBLE
             }
+            
+            // Hide loading progress bar
+            screenshotLoadingProgress.visibility = View.GONE
             
             // Update status and log error
             screenshotStatusText.text = errorMessage
@@ -1388,8 +1399,9 @@ class MainActivity : AppCompatActivity() {
                 Log.d("Screenshot", "Fetching screenshot from URL: $imageUrl")
                 addLogMessage("[${getCurrentTime()}] 🖼️ Descargando captura: $filename")
                 
-                // Hide image view while loading
+                // Show loading progress bar and hide image view while loading
                 withContext(Dispatchers.Main) {
+                    screenshotLoadingProgress.visibility = View.VISIBLE
                     screenshotImageView.visibility = View.INVISIBLE
                     screenshotImageView.setImageBitmap(null)
                 }
@@ -1439,6 +1451,9 @@ class MainActivity : AppCompatActivity() {
                             ?: throw IOException("Error al decodificar la imagen")
                         
                         withContext(Dispatchers.Main) {
+                            // Hide loading progress bar
+                            screenshotLoadingProgress.visibility = View.GONE
+                            
                             // Update the image view
                             screenshotImageView.apply {
                                 setImageBitmap(bitmap)
@@ -1454,13 +1469,21 @@ class MainActivity : AppCompatActivity() {
                     } catch (e: Exception) {
                         Log.e("Screenshot", "Error fetching screenshot", e)
                         withContext(Dispatchers.Main) {
+                            // Hide loading progress bar on error
+                            screenshotLoadingProgress.visibility = View.GONE
+                            
+                            // Handle error
                             handleScreenshotError(e)
                         }
                     }
                 }
             } catch (e: Exception) {
-                Log.e("Screenshot", "Error in fetchScreenshot", e)
+                Log.e("Screenshot", "General error in fetchScreenshot", e)
                 withContext(Dispatchers.Main) {
+                    // Hide loading progress bar on error
+                    screenshotLoadingProgress.visibility = View.GONE
+                    
+                    // Handle error
                     handleScreenshotError(e)
                 }
             }
@@ -1630,8 +1653,12 @@ class MainActivity : AppCompatActivity() {
     private fun captureNewScreenshot() {
         screenshotScope.launch {
             try {
-                screenshotStatusText.text = getString(R.string.capturing_screenshot)
-                btnCaptureScreenshot.isEnabled = false
+                // Show loading progress bar instead of just text
+                withContext(Dispatchers.Main) {
+                    screenshotLoadingProgress.visibility = View.VISIBLE
+                    screenshotStatusText.text = getString(R.string.capturing_screenshot)
+                    btnCaptureScreenshot.isEnabled = false
+                }
                 
                 val serverUrl = getServerUrl()
                 // Update to request JSON format for proper response handling
@@ -1697,6 +1724,7 @@ class MainActivity : AppCompatActivity() {
                                                 val timestamp = jsonResponse.optLong("timestamp", 0)
                                                 val date = if (timestamp > 0) Date(timestamp * 1000).formatToDateTime() else "desconocido"
                                                 screenshotStatusText.text = getString(R.string.last_capture, date)
+                                                screenshotLoadingProgress.visibility = View.GONE
                                                 addLogMessage("[${getCurrentTime()}] ✅ ${getString(R.string.screenshot_displayed_successfully)}")
                                                 return@withContext
                                             }
@@ -1725,12 +1753,11 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     screenshotStatusText.text = getString(R.string.error_generic, e.message)
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.error_generic, e.message)}")
-                }
-            } finally {
-                withContext(Dispatchers.Main) {
+                    screenshotLoadingProgress.visibility = View.GONE
                     btnCaptureScreenshot.isEnabled = true
+                    addLogMessage("[${getCurrentTime()}] ❌ ${getString(R.string.error_generic, e.message)}")
                 }
+                Log.e("Screenshot", "Error capturing screenshot", e)
             }
         }
     }

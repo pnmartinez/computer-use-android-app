@@ -98,7 +98,8 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
 
                         <TextView
                             android:layout_width="0dp"
@@ -111,29 +112,39 @@
                             android:id="@+id/btnRefreshPeriod"
                             style="@style/Widget.Material3.Button.TextButton"
                             android:layout_width="wrap_content"
-                            android:layout_height="48dp"
+                            android:layout_height="56dp"
+                            android:minWidth="64dp"
                             android:text="30s"
                             android:textSize="12sp"
+                            android:gravity="center"
                             android:contentDescription="@string/change_refresh_period" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnUnlockScreen"
                             style="@style/Widget.Material3.Button.IconButton"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:layout_marginStart="8dp"
                             android:contentDescription="@string/unlock_screen"
-                            app:icon="@android:drawable/ic_lock_idle_lock" />
+                            app:icon="@android:drawable/ic_lock_idle_lock"
+                            app:iconSize="24dp"
+                            app:iconGravity="textStart"
+                            app:iconPadding="0dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnCaptureScreenshot"
                             style="@style/Widget.Material3.Button.IconButton"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:layout_marginStart="8dp"
                             android:contentDescription="@string/capture_screen"
                             app:icon="@android:drawable/ic_menu_camera"
+                            app:iconSize="24dp"
+                            app:iconGravity="textStart"
+                            app:iconPadding="0dp"
                             app:strokeWidth="2dp"
                             app:strokeColor="?attr/colorPrimary"
-                            app:cornerRadius="24dp" />
+                            app:cornerRadius="28dp" />
                     </LinearLayout>
 
                     <TextView
@@ -145,15 +156,27 @@
                         android:textAppearance="?attr/textAppearanceBodySmall"
                         android:textStyle="italic" />
 
+                    <!-- Loading Progress Bar -->
+                    <ProgressBar
+                        android:id="@+id/screenshotLoadingProgress"
+                        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="4dp"
+                        android:layout_marginTop="8dp"
+                        android:visibility="gone"
+                        android:indeterminate="true"
+                        android:progressTint="?attr/colorPrimary" />
+
                     <ImageView
                         android:id="@+id/screenshotImageView"
                         android:layout_width="match_parent"
                         android:layout_height="200dp"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="4dp"
                         android:adjustViewBounds="true"
                         android:background="@color/md_theme_surfaceVariant"
                         android:contentDescription="@string/remote_screenshot"
-                        android:scaleType="fitCenter" />
+                        android:scaleType="fitCenter"
+                        android:padding="4dp" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
