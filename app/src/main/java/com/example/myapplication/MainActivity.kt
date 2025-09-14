@@ -2647,6 +2647,10 @@ private class FullscreenImageDialog(
     private var fitToScreenScale = 1f
     private var isZoomedToHeight = false
     
+    // Zoom levels for tap-to-zoom functionality
+    private val zoomLevels = arrayOf(1f, 2f, 4f) // fit-to-screen, 2x, 4x
+    private var currentZoomLevelIndex = 0
+    
     init {
         // Create the container layout
         val container = FrameLayout(context)
@@ -2796,6 +2800,7 @@ private class FullscreenImageDialog(
         scaleFactor = minOf(scaleX, scaleY)
         fitToScreenScale = scaleFactor // Store the fit-to-screen scale
         isZoomedToHeight = false
+        currentZoomLevelIndex = 0 // Reset to first zoom level
         
         // Calculate translation to center the image
         currentTranslateX = (screenWidth - bitmap.width * scaleFactor) / 2f
@@ -2875,12 +2880,18 @@ private class FullscreenImageDialog(
     }
     
     private fun handleTap(tapX: Float, tapY: Float) {
-        if (isZoomedToHeight) {
-            // If already zoomed to height, return to fit-to-screen
+        // Cycle through zoom levels on tap
+        currentZoomLevelIndex = (currentZoomLevelIndex + 1) % zoomLevels.size
+        val targetZoomLevel = zoomLevels[currentZoomLevelIndex]
+        
+        if (currentZoomLevelIndex == 0) {
+            // Return to fit-to-screen
             centerImage()
+            isZoomedToHeight = false
         } else {
-            // Zoom to fill height and position based on tap location
-            zoomToHeight(tapX)
+            // Apply zoom level and position based on tap location
+            applyZoomLevel(targetZoomLevel, tapX, tapY)
+            isZoomedToHeight = false // Reset this since we're using custom zoom
         }
     }
     
@@ -2921,6 +2932,55 @@ private class FullscreenImageDialog(
         } else {
             // If image is narrower than screen, center it
             currentTranslateX = (screenWidth - scaledWidth) / 2f
+        }
+        
+        updateImageMatrix()
+    }
+    
+    private fun applyZoomLevel(zoomLevel: Float, tapX: Float, tapY: Float) {
+        // Calculate the target scale (fit-to-screen scale * zoom level)
+        val targetScale = fitToScreenScale * zoomLevel
+        scaleFactor = targetScale
+        
+        // Calculate the scaled dimensions
+        val scaledWidth = bitmap.width * scaleFactor
+        val scaledHeight = bitmap.height * scaleFactor
+        
+        // Calculate the tap position relative to the current image bounds
+        val imageLeft = currentTranslateX
+        val imageTop = currentTranslateY
+        val imageRight = imageLeft + (bitmap.width * fitToScreenScale)
+        val imageBottom = imageTop + (bitmap.height * fitToScreenScale)
+        
+        // Convert tap coordinates to image coordinates
+        val tapRatioX = if (imageRight > imageLeft) {
+            ((tapX - imageLeft) / (imageRight - imageLeft)).coerceIn(0f, 1f)
+        } else {
+            0.5f
+        }
+        val tapRatioY = if (imageBottom > imageTop) {
+            ((tapY - imageTop) / (imageBottom - imageTop)).coerceIn(0f, 1f)
+        } else {
+            0.5f
+        }
+        
+        // Calculate new translation to center the tapped point
+        val targetX = tapX - (scaledWidth * tapRatioX)
+        val targetY = tapY - (scaledHeight * tapRatioY)
+        
+        // Apply bounds checking
+        if (scaledWidth > screenWidth) {
+            val minTranslateX = -(scaledWidth - screenWidth)
+            currentTranslateX = targetX.coerceIn(minTranslateX, 0f)
+        } else {
+            currentTranslateX = (screenWidth - scaledWidth) / 2f
+        }
+        
+        if (scaledHeight > screenHeight) {
+            val minTranslateY = -(scaledHeight - screenHeight)
+            currentTranslateY = targetY.coerceIn(minTranslateY, 0f)
+        } else {
+            currentTranslateY = (screenHeight - scaledHeight) / 2f
         }
         
         updateImageMatrix()

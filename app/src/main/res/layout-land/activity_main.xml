@@ -175,11 +175,11 @@
                     <ImageView
                         android:id="@+id/screenshotImageView"
                         android:layout_width="match_parent"
-                        android:layout_height="200dp"
+                        android:layout_height="250dp"
                         android:adjustViewBounds="true"
                         android:background="@color/md_theme_surfaceVariant"
                         android:contentDescription="@string/remote_screenshot"
-                        android:scaleType="fitCenter" />
+                        android:scaleType="centerCrop" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
