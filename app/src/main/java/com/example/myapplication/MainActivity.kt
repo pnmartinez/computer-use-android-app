@@ -113,6 +113,9 @@ class MainActivity : AppCompatActivity() {
     private val logBuffer = SpannableStringBuilder()
     private var isAdvancedSettingsExpanded = false
     
+    // Track active fullscreen dialog
+    private var activeFullscreenDialog: FullscreenImageDialog? = null
+    
     // For screenshot downloading
     private val screenshotJob = Job()
     private val screenshotScope = CoroutineScope(Dispatchers.Main + screenshotJob)
@@ -1460,6 +1463,9 @@ class MainActivity : AppCompatActivity() {
                                 visibility = View.VISIBLE
                             }
                             
+                            // Update fullscreen dialog if it's open
+                            activeFullscreenDialog?.updateBitmap(bitmap)
+                            
                             // Log success
                             addLogMessage("[${getCurrentTime()}] ✅ Captura cargada correctamente: $filename")
                             
@@ -1594,7 +1600,11 @@ class MainActivity : AppCompatActivity() {
         val bitmap = (screenshotImageView.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap ?: return
         
         // Create and show the fullscreen dialog
-        FullscreenImageDialog(this, bitmap).show()
+        activeFullscreenDialog = FullscreenImageDialog(this, bitmap) { 
+            // Clear reference when dialog is dismissed
+            activeFullscreenDialog = null
+        }
+        activeFullscreenDialog?.show()
     }
 
     private fun loadAppPreferences() {
@@ -1719,6 +1729,9 @@ class MainActivity : AppCompatActivity() {
                                                     setImageBitmap(bitmap)
                                                     visibility = View.VISIBLE
                                                 }
+                                                
+                                                // Update fullscreen dialog if it's open
+                                                activeFullscreenDialog?.updateBitmap(bitmap)
                                                 
                                                 // Update UI state
                                                 val timestamp = jsonResponse.optLong("timestamp", 0)
@@ -2599,7 +2612,11 @@ class MainActivity : AppCompatActivity() {
 /**
  * Dialog for displaying images in fullscreen
  */
-private class FullscreenImageDialog(context: Context, private val bitmap: Bitmap) : Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen) {
+private class FullscreenImageDialog(
+    context: Context, 
+    private var bitmap: Bitmap,
+    private val onDismissCallback: (() -> Unit)? = null
+) : Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen) {
     
     private var scaleFactor = 1f
     private val scaleGestureDetector = ScaleGestureDetector(context, ScaleListener())
@@ -2759,6 +2776,17 @@ private class FullscreenImageDialog(context: Context, private val bitmap: Bitmap
         
         // Center the image initially
         centerImage()
+        
+        // Set dismiss callback
+        setOnDismissListener { onDismissCallback?.invoke() }
+    }
+    
+    // Method to update the bitmap when a new screenshot is available
+    fun updateBitmap(newBitmap: Bitmap) {
+        bitmap = newBitmap
+        imageView.setImageBitmap(bitmap)
+        // Preserve current zoom and position state instead of re-centering
+        updateImageMatrix()
     }
     
     private fun centerImage() {
