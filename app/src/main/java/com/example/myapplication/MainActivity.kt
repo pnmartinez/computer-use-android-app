@@ -105,7 +105,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnCaptureScreenshot: MaterialButton
     private lateinit var btnUnlockScreen: MaterialButton
     private lateinit var btnRefreshPeriod: MaterialButton
-    private lateinit var screenshotLoadingProgress: ProgressBar
+    lateinit var screenshotLoadingProgress: ProgressBar
     
     // Keep track of app state
     private var isRecording = false
@@ -1329,12 +1329,16 @@ class MainActivity : AppCompatActivity() {
                 is ScreenshotState.Success -> {
                     screenshotStatusText.text = getString(R.string.last_capture, state.timestamp)
                     screenshotLoadingProgress.visibility = View.GONE
+                    // Also hide in fullscreen dialog if open
+                    activeFullscreenDialog?.setScreenshotProgressVisible(false)
                     // Enable the refresh and capture buttons
                     btnCaptureScreenshot.isEnabled = true
                 }
                 is ScreenshotState.Error -> {
                     screenshotStatusText.text = state.message
                     screenshotLoadingProgress.visibility = View.GONE
+                    // Also hide in fullscreen dialog if open
+                    activeFullscreenDialog?.setScreenshotProgressVisible(false)
                     disableScreenshotControls()
                     // Still enable the capture button on error to allow retry
                     btnCaptureScreenshot.isEnabled = true
@@ -1342,6 +1346,8 @@ class MainActivity : AppCompatActivity() {
                 is ScreenshotState.NoScreenshots -> {
                     screenshotStatusText.text = getString(R.string.no_screenshots)
                     screenshotLoadingProgress.visibility = View.GONE
+                    // Also hide in fullscreen dialog if open
+                    activeFullscreenDialog?.setScreenshotProgressVisible(false)
                     disableScreenshotControls()
                     // Still enable the capture button when no screenshots
                     btnCaptureScreenshot.isEnabled = true
@@ -1350,6 +1356,8 @@ class MainActivity : AppCompatActivity() {
                 is ScreenshotState.Loading -> {
                     screenshotStatusText.text = getString(R.string.loading_screenshots)
                     screenshotLoadingProgress.visibility = View.VISIBLE
+                    // Also show in fullscreen dialog if open
+                    activeFullscreenDialog?.setScreenshotProgressVisible(true)
                     // Disable capture button while loading
                     btnCaptureScreenshot.isEnabled = false
                 }
@@ -1363,6 +1371,8 @@ class MainActivity : AppCompatActivity() {
             screenshotImageView.setImageBitmap(null)
             screenshotImageView.visibility = View.INVISIBLE  // Hide the image view when no image
             screenshotLoadingProgress.visibility = View.GONE
+            // Also hide in fullscreen dialog if open
+            activeFullscreenDialog?.setScreenshotProgressVisible(false)
         }
     }
 
@@ -1382,6 +1392,8 @@ class MainActivity : AppCompatActivity() {
             
             // Hide loading progress bar
             screenshotLoadingProgress.visibility = View.GONE
+            // Also hide in fullscreen dialog if open
+            activeFullscreenDialog?.setScreenshotProgressVisible(false)
             
             // Update status and log error
             screenshotStatusText.text = errorMessage
@@ -1405,6 +1417,8 @@ class MainActivity : AppCompatActivity() {
                 // Show loading progress bar and hide image view while loading
                 withContext(Dispatchers.Main) {
                     screenshotLoadingProgress.visibility = View.VISIBLE
+                    // Also show in fullscreen dialog if open
+                    activeFullscreenDialog?.setScreenshotProgressVisible(true)
                     screenshotImageView.visibility = View.INVISIBLE
                     screenshotImageView.setImageBitmap(null)
                 }
@@ -1456,6 +1470,8 @@ class MainActivity : AppCompatActivity() {
                         withContext(Dispatchers.Main) {
                             // Hide loading progress bar
                             screenshotLoadingProgress.visibility = View.GONE
+                            // Also hide in fullscreen dialog if open
+                            activeFullscreenDialog?.setScreenshotProgressVisible(false)
                             
                             // Update the image view
                             screenshotImageView.apply {
@@ -1477,6 +1493,8 @@ class MainActivity : AppCompatActivity() {
                         withContext(Dispatchers.Main) {
                             // Hide loading progress bar on error
                             screenshotLoadingProgress.visibility = View.GONE
+                            // Also hide in fullscreen dialog if open
+                            activeFullscreenDialog?.setScreenshotProgressVisible(false)
                             
                             // Handle error
                             handleScreenshotError(e)
@@ -1488,6 +1506,8 @@ class MainActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     // Hide loading progress bar on error
                     screenshotLoadingProgress.visibility = View.GONE
+                    // Also hide in fullscreen dialog if open
+                    activeFullscreenDialog?.setScreenshotProgressVisible(false)
                     
                     // Handle error
                     handleScreenshotError(e)
@@ -1605,6 +1625,9 @@ class MainActivity : AppCompatActivity() {
             activeFullscreenDialog = null
         }
         activeFullscreenDialog?.show()
+        
+        // Sync screenshot progress indicator state with the dialog
+        activeFullscreenDialog?.setScreenshotProgressVisible(screenshotLoadingProgress.visibility == View.VISIBLE)
     }
 
     private fun loadAppPreferences() {
@@ -1666,6 +1689,8 @@ class MainActivity : AppCompatActivity() {
                 // Show loading progress bar instead of just text
                 withContext(Dispatchers.Main) {
                     screenshotLoadingProgress.visibility = View.VISIBLE
+                    // Also show in fullscreen dialog if open
+                    activeFullscreenDialog?.setScreenshotProgressVisible(true)
                     screenshotStatusText.text = getString(R.string.capturing_screenshot)
                     btnCaptureScreenshot.isEnabled = false
                 }
@@ -1738,6 +1763,8 @@ class MainActivity : AppCompatActivity() {
                                                 val date = if (timestamp > 0) Date(timestamp * 1000).formatToDateTime() else "desconocido"
                                                 screenshotStatusText.text = getString(R.string.last_capture, date)
                                                 screenshotLoadingProgress.visibility = View.GONE
+                                                // Also hide in fullscreen dialog if open
+                                                activeFullscreenDialog?.setScreenshotProgressVisible(false)
                                                 addLogMessage("[${getCurrentTime()}] ✅ ${getString(R.string.screenshot_displayed_successfully)}")
                                                 return@withContext
                                             }
@@ -1767,6 +1794,8 @@ class MainActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     screenshotStatusText.text = getString(R.string.error_generic, e.message)
                     screenshotLoadingProgress.visibility = View.GONE
+                    // Also hide in fullscreen dialog if open
+                    activeFullscreenDialog?.setScreenshotProgressVisible(false)
                     btnCaptureScreenshot.isEnabled = true
                     addLogMessage("[${getCurrentTime()}] ❌ ${getString(R.string.error_generic, e.message)}")
                 }
@@ -2651,6 +2680,29 @@ private class FullscreenImageDialog(
     private val zoomLevels = arrayOf(1f, 2f, 4f) // fit-to-screen, 2x, 4x
     private var currentZoomLevelIndex = 0
     
+    // Screenshot loading progress indicator
+    private lateinit var screenshotProgressIndicator: ProgressBar
+    
+    // Recording state within the dialog
+    private var isRecordingLocal = false
+    private lateinit var recordButton: MaterialButton
+    
+    // Receiver to sync recording state
+    private val recordingStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context, intent: Intent) {
+            when (intent.action) {
+                AudioService.ACTION_RECORDING_STARTED -> {
+                    isRecordingLocal = true
+                    updateRecordButtonState()
+                }
+                AudioService.ACTION_RECORDING_STOPPED -> {
+                    isRecordingLocal = false
+                    updateRecordButtonState()
+                }
+            }
+        }
+    }
+    
     init {
         // Create the container layout
         val container = FrameLayout(context)
@@ -2766,9 +2818,48 @@ private class FullscreenImageDialog(
             setOnClickListener { dismiss() }
         }
         
+        // Screenshot loading progress indicator - positioned in center
+        screenshotProgressIndicator = ProgressBar(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.CENTER
+            }
+            alpha = 0.9f
+            visibility = View.GONE
+        }
+        
+        // Floating semi-transparent recording button (similar to landscape)
+        recordButton = MaterialButton(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                144, // approx 72dp on mdpi; good enough for our use here
+                144
+            ).apply {
+                gravity = Gravity.BOTTOM or Gravity.END
+                setMargins(24, 24, 24, 36)
+            }
+            alpha = 0.7f
+            setIconResource(android.R.drawable.ic_btn_speak_now)
+            iconTint = ColorStateList.valueOf(Color.WHITE)
+            rippleColor = ColorStateList.valueOf(Color.WHITE)
+            setBackgroundColor(Color.parseColor("#006400"))
+            contentDescription = context.getString(R.string.start_recording)
+            setOnClickListener {
+                // Toggle start/stop by sending the same service intents MainActivity uses
+                val action = if (!isRecordingLocal) "START_RECORDING" else "STOP_RECORDING"
+                val svcIntent = Intent(context, AudioService::class.java).apply { this.action = action }
+                try {
+                    context.startService(svcIntent)
+                } catch (_: Exception) { /* ignore */ }
+            }
+        }
+        
         // Add views to container
         container.addView(imageView)
         container.addView(closeButton)
+        container.addView(screenshotProgressIndicator)
+        container.addView(recordButton)
         
         setContentView(container)
         
@@ -2782,7 +2873,27 @@ private class FullscreenImageDialog(
         centerImage()
         
         // Set dismiss callback
-        setOnDismissListener { onDismissCallback?.invoke() }
+        setOnDismissListener { 
+            try {
+                context.unregisterReceiver(recordingStateReceiver)
+            } catch (_: Exception) { /* already unregistered */ }
+            onDismissCallback?.invoke() 
+        }
+        
+        // Register receiver for recording state
+        try {
+            val filter = IntentFilter().apply {
+                addAction(AudioService.ACTION_RECORDING_STARTED)
+                addAction(AudioService.ACTION_RECORDING_STOPPED)
+            }
+            context.registerReceiver(recordingStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } catch (_: Exception) { /* ignore */ }
+        
+        // Initialize progress indicator state based on main activity
+        initializeProgressState()
+        
+        // Initialize button state
+        updateRecordButtonState()
     }
     
     // Method to update the bitmap when a new screenshot is available
@@ -2791,6 +2902,44 @@ private class FullscreenImageDialog(
         imageView.setImageBitmap(bitmap)
         // Preserve current zoom and position state instead of re-centering
         updateImageMatrix()
+    }
+    
+    // Method to show/hide screenshot loading progress
+    fun setScreenshotProgressVisible(visible: Boolean) {
+        if (::screenshotProgressIndicator.isInitialized) {
+            screenshotProgressIndicator.visibility = if (visible) View.VISIBLE else View.GONE
+        }
+    }
+    
+    // Initialize progress state based on main activity
+    private fun initializeProgressState() {
+        // Try to get the main activity's progress indicator state
+        try {
+            val mainActivity = context as? MainActivity
+            if (mainActivity != null) {
+                val isMainProgressVisible = mainActivity.screenshotLoadingProgress.visibility == View.VISIBLE
+                setScreenshotProgressVisible(isMainProgressVisible)
+            }
+        } catch (e: Exception) {
+            // If we can't access the main activity, default to hidden
+            setScreenshotProgressVisible(false)
+        }
+    }
+    
+    private fun updateRecordButtonState() {
+        if (::recordButton.isInitialized) {
+            if (isRecordingLocal) {
+                // Recording state - red background, pause icon
+                recordButton.setBackgroundColor(Color.parseColor("#D32F2F")) // Material red
+                recordButton.setIconResource(android.R.drawable.ic_media_pause)
+                recordButton.contentDescription = context.getString(R.string.stop_recording)
+            } else {
+                // Idle state - green background, mic icon
+                recordButton.setBackgroundColor(Color.parseColor("#006400")) // Dark green
+                recordButton.setIconResource(android.R.drawable.ic_btn_speak_now)
+                recordButton.contentDescription = context.getString(R.string.start_recording)
+            }
+        }
     }
     
     private fun centerImage() {
