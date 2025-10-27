@@ -16,6 +16,7 @@
     <string name="server_ip_hint">Server IP</string>
     <string name="server_port_hint">Server Port</string>
     <string name="unlock_password_hint">Unlock Password</string>
+    <string name="response_timeout_hint">Response Timeout (seconds)</string>
     <string name="test_connection">Test Connection</string>
     <string name="whisper_model_hint">Whisper Model Size</string>
     <string name="whisper_model_help">More accurate models require more resources:\n• tiny: ~39M parameters (~75 MB) - Very fast, less accurate\n• base: ~74M parameters (~142 MB) - Balanced (default)\n• small: ~244M parameters (~466 MB) - Good accuracy and speed\n• medium: ~769M parameters (~1.5 GB) - More accurate, slower\n• large: ~1550M parameters (~2.9 GB) - Maximum accuracy</string>
@@ -207,6 +208,7 @@
     <string name="empty_server_ip_error">Server IP cannot be empty</string>
     <string name="empty_server_port_error">Server port cannot be empty</string>
     <string name="invalid_port_error">Port must be a valid number</string>
+    <string name="invalid_timeout_error">Timeout must be between 5 and 120 seconds</string>
     <string name="empty_whisper_model_error">You must select a Whisper model</string>
     <string name="settings_saved">Settings saved</string>
     <string name="last_capture">Last capture: %1$s</string>

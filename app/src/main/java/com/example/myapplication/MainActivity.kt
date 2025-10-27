@@ -94,6 +94,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var serverIpInput: TextInputEditText
     private lateinit var serverPortInput: TextInputEditText
     private lateinit var unlockPasswordInput: TextInputEditText
+    private lateinit var responseTimeoutInput: TextInputEditText
     private lateinit var btnTestConnection: MaterialButton
     private lateinit var btnSaveSettings: MaterialButton
     private lateinit var connectionStatusText: TextView
@@ -115,6 +116,9 @@ class MainActivity : AppCompatActivity() {
     
     // Track active fullscreen dialog
     private var activeFullscreenDialog: FullscreenImageDialog? = null
+    
+    // Handler for response timeout
+    private var responseTimeoutHandler: Handler? = null
     
     // For screenshot downloading
     private val screenshotJob = Job()
@@ -143,6 +147,11 @@ class MainActivity : AppCompatActivity() {
                     addLogMessage("[${getCurrentTime()}] ${getString(R.string.recording_finished_processing)}")
                 }
                 AudioService.ACTION_RESPONSE_RECEIVED -> {
+                    // Cancel the response timeout since we got a response
+                    Log.d("MainActivity", "ACTION_RESPONSE_RECEIVED received - canceling timeout")
+                    responseTimeoutHandler?.removeCallbacksAndMessages(null)
+                    responseTimeoutHandler = null
+                    
                     // When a response is received, return to the ready state
                     Log.d("MainActivity", "Response received, returning to ready state")
                     showReadyState()
@@ -214,6 +223,11 @@ class MainActivity : AppCompatActivity() {
                     updateAudioFileInfo(filePath, fileSize, duration, type)
                 }
                 AudioService.ACTION_PROCESSING_COMPLETED -> {
+                    // Cancel the response timeout since processing is complete
+                    Log.d("MainActivity", "ACTION_PROCESSING_COMPLETED received - canceling timeout")
+                    responseTimeoutHandler?.removeCallbacksAndMessages(null)
+                    responseTimeoutHandler = null
+                    
                     // Ensure we return to the ready state when processing completes
                     showReadyState()
                     addLogMessage("[${getCurrentTime()}] ${getString(R.string.processing_completed)}")
@@ -285,6 +299,7 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_IS_FAVORITES_EXPANDED = "isFavoritesExpanded"
         private const val KEY_IS_ADVANCED_SETTINGS_EXPANDED = "isAdvancedSettingsExpanded"
         private const val KEY_SCREENSHOT_REFRESH_PERIOD = "screenshotRefreshPeriod"
+        private const val KEY_RESPONSE_TIMEOUT = AudioService.KEY_RESPONSE_TIMEOUT
         private const val PERMISSION_REQUEST_RECORD_AUDIO = 100
     }
     
@@ -369,6 +384,7 @@ class MainActivity : AppCompatActivity() {
         
         // Stop any scheduled timers
         connectionTestTimeoutHandler?.removeCallbacksAndMessages(null)
+        responseTimeoutHandler?.removeCallbacksAndMessages(null)
         stopAutoRefresh()
     }
     
@@ -421,6 +437,7 @@ class MainActivity : AppCompatActivity() {
         serverIpInput = findViewById(R.id.serverIpInput)
         serverPortInput = findViewById(R.id.serverPortInput)
         unlockPasswordInput = findViewById(R.id.unlockPasswordInput)
+        responseTimeoutInput = findViewById(R.id.responseTimeoutInput)
         btnTestConnection = findViewById(R.id.btnTestConnection)
         btnSaveSettings = findViewById(R.id.btnSaveSettings)
         connectionStatusText = findViewById(R.id.connectionStatusText)
@@ -659,12 +676,14 @@ class MainActivity : AppCompatActivity() {
         val whisperModel = prefs.getString(KEY_WHISPER_MODEL, AudioService.DEFAULT_WHISPER_MODEL)
             ?: AudioService.DEFAULT_WHISPER_MODEL
         val unlockPassword = prefs.getString(KEY_UNLOCK_PASSWORD, "your_password") ?: "your_password"
+        val responseTimeout = prefs.getInt(KEY_RESPONSE_TIMEOUT, AudioService.DEFAULT_RESPONSE_TIMEOUT)
         
         // Update UI
         serverIpInput.setText(serverIp)
         serverPortInput.setText(serverPort.toString())
         whisperModelDropdown.setText(whisperModel, false)
         unlockPasswordInput.setText(unlockPassword)
+        responseTimeoutInput.setText((responseTimeout / 1000).toString()) // Convert to seconds for display
     }
     
     private fun saveServerSettings() {
@@ -672,6 +691,7 @@ class MainActivity : AppCompatActivity() {
         val portText = serverPortInput.text.toString().trim()
         val whisperModel = whisperModelDropdown.text.toString().trim()
         val unlockPassword = unlockPasswordInput.text.toString()
+        val timeoutText = responseTimeoutInput.text.toString().trim()
         
         // Validate input
         if (ip.isEmpty()) {
@@ -696,6 +716,18 @@ class MainActivity : AppCompatActivity() {
             return
         }
         
+        val timeout = try {
+            val timeoutSeconds = timeoutText.toInt()
+            if (timeoutSeconds < 5 || timeoutSeconds > 120) {
+                Toast.makeText(this, getString(R.string.invalid_timeout_error), Toast.LENGTH_SHORT).show()
+                return
+            }
+            timeoutSeconds * 1000 // Convert to milliseconds
+        } catch (e: NumberFormatException) {
+            Toast.makeText(this, getString(R.string.invalid_timeout_error), Toast.LENGTH_SHORT).show()
+            return
+        }
+        
         // Save to SharedPreferences
         val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().apply {
@@ -703,7 +735,8 @@ class MainActivity : AppCompatActivity() {
             putInt(KEY_SERVER_PORT, port)
             putString(KEY_WHISPER_MODEL, whisperModel)
             putString(KEY_UNLOCK_PASSWORD, unlockPassword)  // Save unlock password
-            apply()
+            putInt(KEY_RESPONSE_TIMEOUT, timeout)
+            commit() // Use commit() instead of apply() for immediate write
         }
         
         // Also save to app preferences to ensure consistency
@@ -715,6 +748,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(KEY_SERVER_IP, ip)
             putExtra(KEY_SERVER_PORT, port as Int)
             putExtra(KEY_WHISPER_MODEL, whisperModel)
+            putExtra(KEY_RESPONSE_TIMEOUT, timeout)
         }
         startService(intent)
         
@@ -765,12 +799,18 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun updateButtonStates() {
+        Log.d("MainActivity", "updateButtonStates() called - isRecording: $isRecording")
+        Log.e("MainActivity", "UPDATE_BUTTON: updateButtonStates() called - isRecording: $isRecording")
         if (isRecording) {
+            Log.d("MainActivity", "Setting button to recording state (red)")
+            Log.e("MainActivity", "UPDATE_BUTTON: Setting button to recording state (red)")
             btnStartRecording.text = getString(R.string.stop_recording)
             btnStartRecording.icon = ContextCompat.getDrawable(this, android.R.drawable.ic_media_pause)
             // Set the background color to red when recording
             btnStartRecording.setBackgroundColor(ContextCompat.getColor(this, R.color.md_theme_error))
         } else {
+            Log.d("MainActivity", "Setting button to ready state (green)")
+            Log.e("MainActivity", "UPDATE_BUTTON: Setting button to ready state (green)")
             btnStartRecording.text = getString(R.string.start_recording_button)
             btnStartRecording.icon = ContextCompat.getDrawable(this, android.R.drawable.ic_btn_speak_now)
             // Set the default background color to Android's default dark green
@@ -867,15 +907,27 @@ class MainActivity : AppCompatActivity() {
             }
         }, 3000)
         
+        // Cancel any existing timeout
+        responseTimeoutHandler?.removeCallbacksAndMessages(null)
+        
         // Add a timeout to reset the UI if no response is received
-        Handler(mainLooper).postDelayed({
+        responseTimeoutHandler = Handler(mainLooper)
+        val currentTimeout = AudioService.getCurrentResponseTimeout(this)
+        Log.d("MainActivity", "Setting ${currentTimeout/1000}-second response timeout")
+        responseTimeoutHandler?.postDelayed({
+            Log.d("MainActivity", "Response timeout triggered - checking UI state")
+            Log.e("MainActivity", "TIMEOUT: ${AudioService.getCurrentResponseTimeout(this)/1000} seconds elapsed, checking UI state")
             if (progressIndicator.visibility == View.VISIBLE || btnProcessingRecording.visibility == View.VISIBLE) {
                 Log.d("MainActivity", "Response timeout - resetting UI to ready state")
+                Log.e("MainActivity", "TIMEOUT: Calling showReadyState() from timeout")
                 showReadyState()
                 addLogMessage("[${getCurrentTime()}] ${getString(R.string.waiting_for_response)}")
                 Toast.makeText(this, "No se recibió respuesta del servidor", Toast.LENGTH_SHORT).show()
+            } else {
+                Log.d("MainActivity", "Response timeout triggered but UI already reset - ignoring")
+                Log.e("MainActivity", "TIMEOUT: UI already reset, ignoring timeout")
             }
-        }, 35000) // 35 seconds timeout
+        }, AudioService.getCurrentResponseTimeout(this).toLong()) // Use configurable timeout
         
         // Update UI to show processing state
         showProcessingState()
@@ -911,30 +963,42 @@ class MainActivity : AppCompatActivity() {
     
     private fun showReadyState() {
         runOnUiThread {
+            Log.d("MainActivity", "showReadyState() called - current isRecording: $isRecording")
+            Log.e("MainActivity", "SHOW_READY: showReadyState() called - current isRecording: $isRecording")
+            
             // Use AnimationUtils instead of AnimatorInflater
             val fadeOut = AnimationUtils.loadAnimation(this, R.anim.fade_out)
             val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in)
             
             // Set animation listener
             fadeOut.setAnimationListener(object : Animation.AnimationListener {
-                override fun onAnimationStart(animation: Animation?) {}
+                override fun onAnimationStart(animation: Animation?) {
+                    Log.d("MainActivity", "Fade out animation started")
+                }
                 
                 override fun onAnimationEnd(animation: Animation?) {
+                    Log.d("MainActivity", "Fade out animation ended - resetting UI")
+                    Log.e("MainActivity", "SHOW_READY: Fade out animation ended - resetting UI")
                     // After fade out, hide the processing button and show the main button
                     btnProcessingRecording.visibility = View.GONE
                     btnStartRecording.visibility = View.VISIBLE
                     progressIndicator.visibility = View.GONE
                     isRecording = false
+                    Log.d("MainActivity", "isRecording set to false, calling updateButtonStates()")
+                    Log.e("MainActivity", "SHOW_READY: isRecording set to false, calling updateButtonStates()")
                     updateButtonStates()
                     
                     // Start fade in animation
                     btnStartRecording.startAnimation(fadeIn)
+                    Log.d("MainActivity", "Fade in animation started")
+                    Log.e("MainActivity", "SHOW_READY: Fade in animation started")
                 }
                 
                 override fun onAnimationRepeat(animation: Animation?) {}
             })
             
             // Start fade out animation
+            Log.d("MainActivity", "Starting fade out animation on processing button")
             btnProcessingRecording.startAnimation(fadeOut)
         }
     }

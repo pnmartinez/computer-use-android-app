@@ -44,6 +44,7 @@ class AudioService : Service() {
     private var serverIp: String = DEFAULT_SERVER_IP
     private var serverPort: Int = DEFAULT_SERVER_PORT
     private var whisperModel: String = DEFAULT_WHISPER_MODEL
+    private var responseTimeout: Int = DEFAULT_RESPONSE_TIMEOUT
     private val apiBaseUrl: String
         get() = "https://$serverIp:$serverPort"
     
@@ -86,12 +87,20 @@ class AudioService : Service() {
         const val DEFAULT_SERVER_IP = "your_server_ip_here"
         const val DEFAULT_SERVER_PORT = 5000
         const val DEFAULT_WHISPER_MODEL = "large"
+        const val DEFAULT_RESPONSE_TIMEOUT = 20000 // 20 seconds in milliseconds
         
         // SharedPreferences keys
         const val PREFS_NAME = "AudioServicePrefs"
         const val KEY_SERVER_IP = "server_ip"
         const val KEY_SERVER_PORT = "server_port"
         const val KEY_WHISPER_MODEL = "whisper_model"
+        const val KEY_RESPONSE_TIMEOUT = "response_timeout"
+        
+        // Get current response timeout from SharedPreferences
+        fun getCurrentResponseTimeout(context: Context): Int {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            return prefs.getInt(KEY_RESPONSE_TIMEOUT, DEFAULT_RESPONSE_TIMEOUT)
+        }
         
         // Start log capture process
         fun startLogCapture(context: Context) {
@@ -239,9 +248,10 @@ class AudioService : Service() {
             val newIp = intent.getStringExtra(KEY_SERVER_IP)
             val newPort = intent.getIntExtra(KEY_SERVER_PORT, DEFAULT_SERVER_PORT)
             val newModel = intent.getStringExtra(KEY_WHISPER_MODEL)
+            val newTimeout = intent.getIntExtra(KEY_RESPONSE_TIMEOUT, DEFAULT_RESPONSE_TIMEOUT)
             
             if (newIp != null) {
-                updateServerSettings(newIp, newPort, newModel)
+                updateServerSettings(newIp, newPort, newModel, newTimeout)
                 sendLogMessage(getString(R.string.server_configuration_updated, serverIp, serverPort, whisperModel))
             }
         } else {
@@ -574,6 +584,11 @@ class AudioService : Service() {
                             sendLogMessage(getString(R.string.empty_response))
                             Log.e("AudioSending", "La respuesta del servidor está vacía")
                             sendErrorMessage(getString(R.string.empty_response))
+                            // Send response received signal for empty response
+                            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.empty_response))
+                                putExtra(EXTRA_RESPONSE_SUCCESS, false)
+                            })
                             signalProcessingComplete()
                         }
                     } else {
@@ -597,6 +612,11 @@ class AudioService : Service() {
                                 if (status == "error" && errorMessage.isNotEmpty()) {
                                     sendLogMessage(getString(R.string.warning, errorMessage))
                                     sendErrorMessage(errorMessage)
+                                    // Send response received signal for error
+                                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                        putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
+                                        putExtra(EXTRA_RESPONSE_SUCCESS, false)
+                                    })
                                     signalProcessingComplete()
                                     return
                                 }
@@ -621,22 +641,42 @@ class AudioService : Service() {
                                             getString(R.string.no_command_detected_message)
                                         )
                                     }
+                                    // Send response received signal for no command detected
+                                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                        putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.no_command_detected_message))
+                                        putExtra(EXTRA_RESPONSE_SUCCESS, false)
+                                    })
                                     signalProcessingComplete()
                                     return
                                 } else {
                                     // Other error cases
                                     sendErrorMessage(getString(R.string.server_error, errorMessage))
+                                    // Send response received signal for other errors
+                                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                        putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
+                                        putExtra(EXTRA_RESPONSE_SUCCESS, false)
+                                    })
                                     signalProcessingComplete()
                                 }
                             } catch (e: Exception) {
                                 // Error parsing the JSON, continue with normal error handling
                                 Log.e("AudioSending", "Error parsing error response: ${e.message}")
                                 sendErrorMessage(getString(R.string.error_processing_response, e.message))
+                                // Send response received signal for parsing error
+                                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                    putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_processing_response, e.message))
+                                    putExtra(EXTRA_RESPONSE_SUCCESS, false)
+                                })
                                 signalProcessingComplete()
                             }
                         } else {
                             // Generic HTTP error
                             sendErrorMessage(getString(R.string.http_error, response.code, response.message))
+                            // Send response received signal for HTTP error
+                            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.http_error, response.code, response.message))
+                                putExtra(EXTRA_RESPONSE_SUCCESS, false)
+                            })
                             signalProcessingComplete()
                         }
                     }
@@ -645,6 +685,11 @@ class AudioService : Service() {
                     sendLogMessage(getString(R.string.network_error, e.message))
                     Log.e("AudioSending", "Error de red", e)
                     sendErrorMessage(getString(R.string.network_error, e.message ?: getString(R.string.connection_failed)))
+                    // Send response received signal for network error
+                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                        putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.network_error, e.message ?: getString(R.string.connection_failed)))
+                        putExtra(EXTRA_RESPONSE_SUCCESS, false)
+                    })
                     signalProcessingComplete()
                 }
             } catch (e: Exception) {
@@ -652,6 +697,11 @@ class AudioService : Service() {
                 sendLogMessage(getString(R.string.error_unexpected, e.javaClass.simpleName, e.message))
                 Log.e("AudioSending", "Error inesperado", e)
                 sendErrorMessage(getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
+                // Send response received signal for unexpected error
+                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                    putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
+                    putExtra(EXTRA_RESPONSE_SUCCESS, false)
+                })
                 signalProcessingComplete()
             }
         } catch (e: Exception) {
@@ -659,6 +709,11 @@ class AudioService : Service() {
             sendLogMessage(getString(R.string.error_unexpected, e.javaClass.simpleName, e.message))
             Log.e("AudioSending", "Error inesperado", e)
             sendErrorMessage(getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
+            // Send response received signal for outer exception
+            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
+                putExtra(EXTRA_RESPONSE_SUCCESS, false)
+            })
             signalProcessingComplete()
         }
     }
@@ -684,6 +739,11 @@ class AudioService : Service() {
                 // Check if this is the new error format
                 if (status == "error") {
                     sendErrorMessage(errorMessage)
+                    // Send response received signal for error case too
+                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                        putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
+                        putExtra(EXTRA_RESPONSE_SUCCESS, false)
+                    })
                     signalProcessingComplete()
                     return
                 }
@@ -708,6 +768,11 @@ class AudioService : Service() {
                 
                 // Signal completion with error
                 sendErrorMessage(errorMessage)
+                // Send response received signal for error case too
+                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                    putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
+                    putExtra(EXTRA_RESPONSE_SUCCESS, false)
+                })
                 signalProcessingComplete()
                 return
             }
@@ -718,6 +783,7 @@ class AudioService : Service() {
             val language = jsonObject.optString("language", "unknown")
             val steps = jsonObject.optInt("steps", 0)
             val result = jsonObject.optString("result", "")
+            val success = jsonObject.optBoolean("success", true) // Extract success field from server
             
             // Check if translation was performed
             val isTranslated = jsonObject.optBoolean("translated", false)
@@ -745,6 +811,11 @@ class AudioService : Service() {
                 // Launch a coroutine to download the audio in the background
                 serviceScope.launch(Dispatchers.IO) {
                     downloadAudioResponse(transcription)
+                    // Send response received signal
+                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                        putExtra(EXTRA_RESPONSE_MESSAGE, result)
+                        putExtra(EXTRA_RESPONSE_SUCCESS, success)
+                    })
                     // Signal completion after downloading
                     signalProcessingComplete()
                 }
@@ -752,6 +823,11 @@ class AudioService : Service() {
                 // Create a text-to-speech response instead
                 serviceScope.launch(Dispatchers.IO) {
                     createTextToSpeechResponse(transcription, result)
+                    // Send response received signal
+                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                        putExtra(EXTRA_RESPONSE_MESSAGE, result)
+                        putExtra(EXTRA_RESPONSE_SUCCESS, success)
+                    })
                     // Signal completion after TTS
                     signalProcessingComplete()
                 }
@@ -760,6 +836,11 @@ class AudioService : Service() {
             sendLogMessage(getString(R.string.error_processing_json, e.message))
             Log.e("AudioResponse", "Error al procesar respuesta JSON", e)
             sendErrorMessage(getString(R.string.error_processing_response, e.message))
+            // Send response received signal for JSON processing error
+            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_processing_response, e.message))
+                putExtra(EXTRA_RESPONSE_SUCCESS, false)
+            })
             signalProcessingComplete()
         }
     }
@@ -1138,17 +1219,21 @@ class AudioService : Service() {
         serverIp = prefs.getString(KEY_SERVER_IP, DEFAULT_SERVER_IP) ?: DEFAULT_SERVER_IP
         serverPort = prefs.getInt(KEY_SERVER_PORT, DEFAULT_SERVER_PORT)
         whisperModel = prefs.getString(KEY_WHISPER_MODEL, DEFAULT_WHISPER_MODEL) ?: DEFAULT_WHISPER_MODEL
+        responseTimeout = prefs.getInt(KEY_RESPONSE_TIMEOUT, DEFAULT_RESPONSE_TIMEOUT)
         sendLogMessage(getString(R.string.configuration_loaded, serverIp, serverPort, whisperModel))
     }
     
     /**
      * Updates and saves server settings
      */
-    private fun updateServerSettings(ip: String, port: Int, model: String? = null) {
+    private fun updateServerSettings(ip: String, port: Int, model: String? = null, timeout: Int? = null) {
         serverIp = ip
         serverPort = port
         if (model != null) {
             whisperModel = model
+        }
+        if (timeout != null) {
+            responseTimeout = timeout
         }
         
         // Save to SharedPreferences
@@ -1157,6 +1242,7 @@ class AudioService : Service() {
             putString(KEY_SERVER_IP, serverIp)
             putInt(KEY_SERVER_PORT, serverPort)
             putString(KEY_WHISPER_MODEL, whisperModel)
+            putInt(KEY_RESPONSE_TIMEOUT, responseTimeout)
             apply()
         }
         
