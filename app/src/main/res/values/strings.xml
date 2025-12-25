@@ -53,6 +53,9 @@
     <string name="expand_advanced_settings">Expand advanced settings</string>
     <string name="start_server">Start your Simple Computer Use server</string>
     <string name="switch_to_dark_theme">Switch to dark theme</string>
+    <string name="settings_title">Configuración</string>
+    <string name="audio_playback_enabled">Reproducir audio automáticamente</string>
+    <string name="audio_playback_disabled">Reproducción de audio desactivada</string>
     
     <!-- Recording Section -->
     <string name="start_recording">Start Recording</string>
