@@ -36,6 +36,9 @@ class AudioService : Service() {
     private var recorder: MediaRecorder? = null
     private var player: ExoPlayer? = null
     private var textToSpeechManager: TextToSpeechManager? = null
+    private var ttsLanguage: String = DEFAULT_TTS_LANGUAGE
+    private var ttsRate: Float = DEFAULT_TTS_RATE
+    private var ttsPitch: Float = DEFAULT_TTS_PITCH
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
     private val serviceJob = SupervisorJob()
@@ -73,6 +76,7 @@ class AudioService : Service() {
         const val ACTION_AUDIO_FILE_INFO = "com.example.myapplication.AUDIO_FILE_INFO"
         const val ACTION_PROCESSING_COMPLETED = "com.example.myapplication.PROCESSING_COMPLETED"
         const val ACTION_CONNECTION_TESTED = "com.example.myapplication.CONNECTION_TESTED"
+        const val ACTION_TTS_STATUS = "com.example.myapplication.TTS_STATUS"
         
         const val EXTRA_LOG_MESSAGE = "log_message"
         const val EXTRA_AUDIO_FILE_PATH = "audio_file_path"
@@ -84,12 +88,16 @@ class AudioService : Service() {
         const val EXTRA_RESPONSE_MESSAGE = "response_message"
         const val EXTRA_RESPONSE_SUCCESS = "response_success"
         const val EXTRA_SCREEN_SUMMARY = "screen_summary"
+        const val EXTRA_TTS_STATUS = "tts_status"
         
         // Default server settings
         const val DEFAULT_SERVER_IP = "your_server_ip_here"
         const val DEFAULT_SERVER_PORT = 5000
         const val DEFAULT_WHISPER_MODEL = "large"
         const val DEFAULT_RESPONSE_TIMEOUT = 20000 // 20 seconds in milliseconds
+        const val DEFAULT_TTS_LANGUAGE = "es-ES"
+        const val DEFAULT_TTS_RATE = 1.0f
+        const val DEFAULT_TTS_PITCH = 1.0f
         
         // SharedPreferences keys
         const val PREFS_NAME = "AudioServicePrefs"
@@ -97,6 +105,13 @@ class AudioService : Service() {
         const val KEY_SERVER_PORT = "server_port"
         const val KEY_WHISPER_MODEL = "whisper_model"
         const val KEY_RESPONSE_TIMEOUT = "response_timeout"
+        const val KEY_TTS_LANGUAGE = "tts_language"
+        const val KEY_TTS_RATE = "tts_rate"
+        const val KEY_TTS_PITCH = "tts_pitch"
+
+        const val TTS_STATUS_PLAYING = "playing"
+        const val TTS_STATUS_IDLE = "idle"
+        const val TTS_STATUS_ERROR = "error"
         
         // Get current response timeout from SharedPreferences
         fun getCurrentResponseTimeout(context: Context): Int {
@@ -238,13 +253,20 @@ class AudioService : Service() {
         super.onCreate()
         // Load settings from SharedPreferences
         loadSettings()
-        textToSpeechManager = TextToSpeechManager(this) { isReady ->
-            if (isReady) {
-                sendLogMessage(getString(R.string.tts_initialized))
-            } else {
-                sendLogMessage(getString(R.string.tts_init_failed))
-            }
-        }
+        textToSpeechManager = TextToSpeechManager(
+            this,
+            onReadyChanged = { isReady ->
+                if (isReady) {
+                    sendLogMessage(getString(R.string.tts_initialized))
+                    applyTtsSettings()
+                } else {
+                    sendLogMessage(getString(R.string.tts_init_failed))
+                }
+            },
+            onSpeakStart = { sendTtsStatus(TTS_STATUS_PLAYING) },
+            onSpeakDone = { sendTtsStatus(TTS_STATUS_IDLE) },
+            onSpeakError = { sendTtsStatus(TTS_STATUS_ERROR) }
+        )
         
         // Use FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK for services that play or record media
         startForeground(1, createNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
@@ -258,9 +280,20 @@ class AudioService : Service() {
             val newPort = intent.getIntExtra(KEY_SERVER_PORT, DEFAULT_SERVER_PORT)
             val newModel = intent.getStringExtra(KEY_WHISPER_MODEL)
             val newTimeout = intent.getIntExtra(KEY_RESPONSE_TIMEOUT, DEFAULT_RESPONSE_TIMEOUT)
+            val newTtsLanguage = intent.getStringExtra(KEY_TTS_LANGUAGE)
+            val newTtsRate = intent.getFloatExtra(KEY_TTS_RATE, DEFAULT_TTS_RATE)
+            val newTtsPitch = intent.getFloatExtra(KEY_TTS_PITCH, DEFAULT_TTS_PITCH)
             
             if (newIp != null) {
-                updateServerSettings(newIp, newPort, newModel, newTimeout)
+                updateServerSettings(
+                    newIp,
+                    newPort,
+                    newModel,
+                    newTimeout,
+                    newTtsLanguage,
+                    newTtsRate,
+                    newTtsPitch
+                )
                 sendLogMessage(getString(R.string.server_configuration_updated, serverIp, serverPort, whisperModel))
             }
         } else {
@@ -279,10 +312,12 @@ class AudioService : Service() {
                                 sendLogMessage(getString(R.string.tts_speaking_response))
                             } else {
                                 sendLogMessage(getString(R.string.tts_not_ready))
+                                sendTtsStatus(TTS_STATUS_ERROR)
                             }
                         }
                     } else {
                         sendLogMessage(getString(R.string.summary_unavailable))
+                        sendTtsStatus(TTS_STATUS_ERROR)
                     }
                 }
                 "TEST_CONNECTION" -> testServerConnection()
@@ -811,6 +846,7 @@ class AudioService : Service() {
             val steps = jsonObject.optInt("steps", 0)
             val result = jsonObject.optString("result", "")
             val screenSummary = jsonObject.optString("screen_summary", "").trim()
+            val summaryFallback = jsonObject.optString("summary", "").trim()
             val success = jsonObject.optBoolean("success", true) // Extract success field from server
             
             // Check if translation was performed
@@ -828,15 +864,21 @@ class AudioService : Service() {
             responseInfo.append("\n").append(getString(R.string.detected_language, language))
             responseInfo.append("\n").append(getString(R.string.steps_executed, steps))
             responseInfo.append("\n").append(getString(R.string.result, result))
-            if (screenSummary.isNotEmpty()) {
-                responseInfo.append("\n").append(getString(R.string.screen_summary_label, screenSummary))
+            val summaryForUi = when {
+                screenSummary.isNotEmpty() -> screenSummary
+                summaryFallback.isNotEmpty() -> summaryFallback
+                else -> ""
+            }
+
+            if (summaryForUi.isNotEmpty()) {
+                responseInfo.append("\n").append(getString(R.string.screen_summary_label, summaryForUi))
             }
             
             sendLogMessage(responseInfo.toString())
             
             // Check if audio response is available
             val hasAudioResponse = jsonObject.optBoolean("audio_response_available", false)
-            val responseMessage = if (screenSummary.isNotEmpty()) screenSummary else result
+            val responseMessage = if (summaryForUi.isNotEmpty()) summaryForUi else result
             
             if (hasAudioResponse) {
                 sendLogMessage(getString(R.string.audio_response_available))
@@ -847,7 +889,7 @@ class AudioService : Service() {
                     sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                         putExtra(EXTRA_RESPONSE_MESSAGE, responseMessage)
                         putExtra(EXTRA_RESPONSE_SUCCESS, success)
-                        putExtra(EXTRA_SCREEN_SUMMARY, screenSummary)
+                        putExtra(EXTRA_SCREEN_SUMMARY, summaryForUi)
                     })
                     // Signal completion after downloading
                     signalProcessingComplete()
@@ -860,7 +902,7 @@ class AudioService : Service() {
                     sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                         putExtra(EXTRA_RESPONSE_MESSAGE, responseMessage)
                         putExtra(EXTRA_RESPONSE_SUCCESS, success)
-                        putExtra(EXTRA_SCREEN_SUMMARY, screenSummary)
+                        putExtra(EXTRA_SCREEN_SUMMARY, summaryForUi)
                     })
                     // Signal completion after TTS
                     signalProcessingComplete()
@@ -917,6 +959,7 @@ class AudioService : Service() {
                     sendLogMessage(getString(R.string.tts_speaking_response))
                 } else {
                     sendLogMessage(getString(R.string.tts_not_ready))
+                    sendTtsStatus(TTS_STATUS_ERROR)
                 }
             }
             
@@ -1251,6 +1294,19 @@ class AudioService : Service() {
         sendBroadcast(Intent(ACTION_PROCESSING_COMPLETED))
     }
 
+    private fun sendTtsStatus(status: String) {
+        sendBroadcast(Intent(ACTION_TTS_STATUS).apply {
+            putExtra(EXTRA_TTS_STATUS, status)
+        })
+    }
+
+    private fun applyTtsSettings() {
+        val didApply = textToSpeechManager?.updateConfig(ttsLanguage, ttsRate, ttsPitch) ?: false
+        if (!didApply) {
+            sendLogMessage(getString(R.string.tts_config_failed, ttsLanguage))
+        }
+    }
+
     /**
      * Loads server settings from SharedPreferences
      */
@@ -1260,13 +1316,24 @@ class AudioService : Service() {
         serverPort = prefs.getInt(KEY_SERVER_PORT, DEFAULT_SERVER_PORT)
         whisperModel = prefs.getString(KEY_WHISPER_MODEL, DEFAULT_WHISPER_MODEL) ?: DEFAULT_WHISPER_MODEL
         responseTimeout = prefs.getInt(KEY_RESPONSE_TIMEOUT, DEFAULT_RESPONSE_TIMEOUT)
+        ttsLanguage = prefs.getString(KEY_TTS_LANGUAGE, DEFAULT_TTS_LANGUAGE) ?: DEFAULT_TTS_LANGUAGE
+        ttsRate = prefs.getFloat(KEY_TTS_RATE, DEFAULT_TTS_RATE)
+        ttsPitch = prefs.getFloat(KEY_TTS_PITCH, DEFAULT_TTS_PITCH)
         sendLogMessage(getString(R.string.configuration_loaded, serverIp, serverPort, whisperModel))
     }
     
     /**
      * Updates and saves server settings
      */
-    private fun updateServerSettings(ip: String, port: Int, model: String? = null, timeout: Int? = null) {
+    private fun updateServerSettings(
+        ip: String,
+        port: Int,
+        model: String? = null,
+        timeout: Int? = null,
+        language: String? = null,
+        rate: Float? = null,
+        pitch: Float? = null
+    ) {
         serverIp = ip
         serverPort = port
         if (model != null) {
@@ -1274,6 +1341,15 @@ class AudioService : Service() {
         }
         if (timeout != null) {
             responseTimeout = timeout
+        }
+        if (language != null) {
+            ttsLanguage = language
+        }
+        if (rate != null) {
+            ttsRate = rate
+        }
+        if (pitch != null) {
+            ttsPitch = pitch
         }
         
         // Save to SharedPreferences
@@ -1283,8 +1359,13 @@ class AudioService : Service() {
             putInt(KEY_SERVER_PORT, serverPort)
             putString(KEY_WHISPER_MODEL, whisperModel)
             putInt(KEY_RESPONSE_TIMEOUT, responseTimeout)
+            putString(KEY_TTS_LANGUAGE, ttsLanguage)
+            putFloat(KEY_TTS_RATE, ttsRate)
+            putFloat(KEY_TTS_PITCH, ttsPitch)
             apply()
         }
+
+        applyTtsSettings()
         
         sendLogMessage(getString(R.string.configuration_updated, serverIp, serverPort, whisperModel))
     }

@@ -228,6 +228,15 @@
                         android:text="@string/summary_unavailable"
                         android:textAppearance="?attr/textAppearanceBodyMedium" />
 
+                    <TextView
+                        android:id="@+id/summaryStatusText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/summary_status_empty"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textStyle="italic" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -673,6 +682,57 @@
                                 android:inputType="number"
                                 android:maxLines="1"
                                 android:text="20" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/ttsLanguageLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/tts_language_hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/ttsLanguageInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:maxLines="1"
+                                android:text="es-ES" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/ttsRateLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/tts_rate_hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/ttsRateInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal"
+                                android:maxLines="1"
+                                android:text="1.0" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/ttsPitchLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/tts_pitch_hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/ttsPitchInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal"
+                                android:maxLines="1"
+                                android:text="1.0" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <!-- Test Connection Button -->

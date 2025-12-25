@@ -69,6 +69,9 @@ import kotlinx.coroutines.TimeoutCancellationException
 import com.example.myapplication.CommandHistoryUtils.CommandHistoryEntry
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_IP
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_PORT
+import com.example.myapplication.AudioService.Companion.KEY_TTS_LANGUAGE
+import com.example.myapplication.AudioService.Companion.KEY_TTS_PITCH
+import com.example.myapplication.AudioService.Companion.KEY_TTS_RATE
 import com.example.myapplication.AudioService.Companion.KEY_WHISPER_MODEL
 import kotlin.math.sqrt
 import android.widget.ProgressBar
@@ -95,6 +98,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var serverPortInput: TextInputEditText
     private lateinit var unlockPasswordInput: TextInputEditText
     private lateinit var responseTimeoutInput: TextInputEditText
+    private lateinit var ttsLanguageInput: TextInputEditText
+    private lateinit var ttsRateInput: TextInputEditText
+    private lateinit var ttsPitchInput: TextInputEditText
     private lateinit var btnTestConnection: MaterialButton
     private lateinit var btnSaveSettings: MaterialButton
     private lateinit var connectionStatusText: TextView
@@ -111,7 +117,9 @@ class MainActivity : AppCompatActivity() {
     // Screen summary section
     private lateinit var summaryTextView: TextView
     private lateinit var btnPlaySummary: MaterialButton
+    private lateinit var summaryStatusTextView: TextView
     private var lastScreenSummary: String = ""
+    private var isSummaryPlaying: Boolean = false
     
     // Keep track of app state
     private var isRecording = false
@@ -166,12 +174,36 @@ class MainActivity : AppCompatActivity() {
                     val screenSummary = intent.getStringExtra(AudioService.EXTRA_SCREEN_SUMMARY).orEmpty()
                     val success = intent.getBooleanExtra(AudioService.EXTRA_RESPONSE_SUCCESS, true)
 
-                    updateScreenSummary(screenSummary)
+                    val summaryForUi = if (screenSummary.isNotBlank()) screenSummary else message
+                    updateScreenSummary(summaryForUi)
                     
                     // Call our handler with the response details
                     handleVoiceCommandResponse(success, message)
                     
                     addLogMessage("[${getCurrentTime()}] ${getString(R.string.response_received, message)}")
+                }
+                AudioService.ACTION_TTS_STATUS -> {
+                    val status = intent.getStringExtra(AudioService.EXTRA_TTS_STATUS).orEmpty()
+                    when (status) {
+                        AudioService.TTS_STATUS_PLAYING -> {
+                            isSummaryPlaying = true
+                            updateSummaryStatus(getString(R.string.summary_status_playing))
+                        }
+                        AudioService.TTS_STATUS_IDLE -> {
+                            isSummaryPlaying = false
+                            updateSummaryStatus(
+                                if (lastScreenSummary.isNotBlank()) {
+                                    getString(R.string.summary_status_ready)
+                                } else {
+                                    getString(R.string.summary_status_empty)
+                                }
+                            )
+                        }
+                        AudioService.TTS_STATUS_ERROR -> {
+                            isSummaryPlaying = false
+                            updateSummaryStatus(getString(R.string.summary_status_error))
+                        }
+                    }
                 }
                 AudioService.ACTION_LOG_MESSAGE -> {
                     val message = intent.getStringExtra(AudioService.EXTRA_LOG_MESSAGE) ?: return
@@ -411,6 +443,7 @@ class MainActivity : AppCompatActivity() {
             addAction(AudioService.ACTION_AUDIO_FILE_INFO)
             addAction(AudioService.ACTION_PROCESSING_COMPLETED)
             addAction(AudioService.ACTION_CONNECTION_TESTED)
+            addAction(AudioService.ACTION_TTS_STATUS)
         }
         registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
     }
@@ -446,6 +479,9 @@ class MainActivity : AppCompatActivity() {
         serverPortInput = findViewById(R.id.serverPortInput)
         unlockPasswordInput = findViewById(R.id.unlockPasswordInput)
         responseTimeoutInput = findViewById(R.id.responseTimeoutInput)
+        ttsLanguageInput = findViewById(R.id.ttsLanguageInput)
+        ttsRateInput = findViewById(R.id.ttsRateInput)
+        ttsPitchInput = findViewById(R.id.ttsPitchInput)
         btnTestConnection = findViewById(R.id.btnTestConnection)
         btnSaveSettings = findViewById(R.id.btnSaveSettings)
         connectionStatusText = findViewById(R.id.connectionStatusText)
@@ -470,6 +506,7 @@ class MainActivity : AppCompatActivity() {
         // Screen summary section
         summaryTextView = findViewById(R.id.summaryText)
         btnPlaySummary = findViewById(R.id.btnPlaySummary)
+        summaryStatusTextView = findViewById(R.id.summaryStatusText)
         btnPlaySummary.setOnClickListener {
             if (lastScreenSummary.isNotBlank()) {
                 speakSummary(lastScreenSummary)
@@ -697,6 +734,10 @@ class MainActivity : AppCompatActivity() {
             ?: AudioService.DEFAULT_WHISPER_MODEL
         val unlockPassword = prefs.getString(KEY_UNLOCK_PASSWORD, "your_password") ?: "your_password"
         val responseTimeout = prefs.getInt(KEY_RESPONSE_TIMEOUT, AudioService.DEFAULT_RESPONSE_TIMEOUT)
+        val ttsLanguage = prefs.getString(KEY_TTS_LANGUAGE, AudioService.DEFAULT_TTS_LANGUAGE)
+            ?: AudioService.DEFAULT_TTS_LANGUAGE
+        val ttsRate = prefs.getFloat(KEY_TTS_RATE, AudioService.DEFAULT_TTS_RATE)
+        val ttsPitch = prefs.getFloat(KEY_TTS_PITCH, AudioService.DEFAULT_TTS_PITCH)
         
         // Update UI
         serverIpInput.setText(serverIp)
@@ -704,6 +745,9 @@ class MainActivity : AppCompatActivity() {
         whisperModelDropdown.setText(whisperModel, false)
         unlockPasswordInput.setText(unlockPassword)
         responseTimeoutInput.setText((responseTimeout / 1000).toString()) // Convert to seconds for display
+        ttsLanguageInput.setText(ttsLanguage)
+        ttsRateInput.setText(ttsRate.toString())
+        ttsPitchInput.setText(ttsPitch.toString())
     }
     
     private fun saveServerSettings() {
@@ -712,6 +756,9 @@ class MainActivity : AppCompatActivity() {
         val whisperModel = whisperModelDropdown.text.toString().trim()
         val unlockPassword = unlockPasswordInput.text.toString()
         val timeoutText = responseTimeoutInput.text.toString().trim()
+        val ttsLanguage = ttsLanguageInput.text.toString().trim()
+        val ttsRateText = ttsRateInput.text.toString().trim()
+        val ttsPitchText = ttsPitchInput.text.toString().trim()
         
         // Validate input
         if (ip.isEmpty()) {
@@ -747,6 +794,35 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.invalid_timeout_error), Toast.LENGTH_SHORT).show()
             return
         }
+
+        val rate = try {
+            ttsRateText.toFloat().also {
+                if (it < 0.1f || it > 2.0f) {
+                    Toast.makeText(this, getString(R.string.invalid_tts_rate_error), Toast.LENGTH_SHORT).show()
+                    return
+                }
+            }
+        } catch (e: NumberFormatException) {
+            Toast.makeText(this, getString(R.string.invalid_tts_rate_error), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val pitch = try {
+            ttsPitchText.toFloat().also {
+                if (it < 0.1f || it > 2.0f) {
+                    Toast.makeText(this, getString(R.string.invalid_tts_pitch_error), Toast.LENGTH_SHORT).show()
+                    return
+                }
+            }
+        } catch (e: NumberFormatException) {
+            Toast.makeText(this, getString(R.string.invalid_tts_pitch_error), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (ttsLanguage.isEmpty()) {
+            Toast.makeText(this, getString(R.string.invalid_tts_language_error), Toast.LENGTH_SHORT).show()
+            return
+        }
         
         // Save to SharedPreferences
         val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
@@ -756,6 +832,9 @@ class MainActivity : AppCompatActivity() {
             putString(KEY_WHISPER_MODEL, whisperModel)
             putString(KEY_UNLOCK_PASSWORD, unlockPassword)  // Save unlock password
             putInt(KEY_RESPONSE_TIMEOUT, timeout)
+            putString(KEY_TTS_LANGUAGE, ttsLanguage)
+            putFloat(KEY_TTS_RATE, rate)
+            putFloat(KEY_TTS_PITCH, pitch)
             commit() // Use commit() instead of apply() for immediate write
         }
         
@@ -769,6 +848,9 @@ class MainActivity : AppCompatActivity() {
             putExtra(KEY_SERVER_PORT, port as Int)
             putExtra(KEY_WHISPER_MODEL, whisperModel)
             putExtra(KEY_RESPONSE_TIMEOUT, timeout)
+            putExtra(KEY_TTS_LANGUAGE, ttsLanguage)
+            putExtra(KEY_TTS_RATE, rate)
+            putExtra(KEY_TTS_PITCH, pitch)
         }
         startService(intent)
         
@@ -1148,6 +1230,19 @@ class MainActivity : AppCompatActivity() {
         }
         summaryTextView.text = summaryText
         btnPlaySummary.isEnabled = trimmedSummary.isNotEmpty()
+        if (!isSummaryPlaying) {
+            updateSummaryStatus(
+                if (trimmedSummary.isNotEmpty()) {
+                    getString(R.string.summary_status_ready)
+                } else {
+                    getString(R.string.summary_status_empty)
+                }
+            )
+        }
+    }
+
+    private fun updateSummaryStatus(status: String) {
+        summaryStatusTextView.text = status
     }
 
     /**
