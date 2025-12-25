@@ -88,7 +88,10 @@
     <string name="error_processing_response">Error processing response: %1$s</string>
     <string name="test_mode_tts">TEST MODE: Simulating text-to-speech response</string>
     <string name="test_mode_tts_ready">TEST MODE: Simulated TTS response ready</string>
-    <string name="would_generate_tts">Would generate TTS response for: \"%1$s\"</string>
+    <string name="tts_initialized">Text-to-Speech ready</string>
+    <string name="tts_init_failed">Text-to-Speech unavailable</string>
+    <string name="tts_speaking_response">Speaking response with Text-to-Speech</string>
+    <string name="tts_not_ready">Text-to-Speech not ready to speak</string>
     <string name="playing_audio_response">Playing audio response</string>
     <string name="trying_to_play">Trying to play response from: %1$s</string>
     <string name="no_previous_response">No previous response saved. File does not exist.</string>

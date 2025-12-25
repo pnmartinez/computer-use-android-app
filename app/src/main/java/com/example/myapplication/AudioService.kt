@@ -35,6 +35,7 @@ class AudioService : Service() {
 
     private var recorder: MediaRecorder? = null
     private var player: ExoPlayer? = null
+    private var textToSpeechManager: TextToSpeechManager? = null
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
     private val serviceJob = SupervisorJob()
@@ -236,6 +237,13 @@ class AudioService : Service() {
         super.onCreate()
         // Load settings from SharedPreferences
         loadSettings()
+        textToSpeechManager = TextToSpeechManager(this) { isReady ->
+            if (isReady) {
+                sendLogMessage(getString(R.string.tts_initialized))
+            } else {
+                sendLogMessage(getString(R.string.tts_init_failed))
+            }
+        }
         
         // Use FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK for services that play or record media
         startForeground(1, createNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
@@ -300,6 +308,9 @@ class AudioService : Service() {
         // Liberar ExoPlayer
         player?.release()
         player = null
+
+        textToSpeechManager?.shutdown()
+        textToSpeechManager = null
     }
 
     /**
@@ -849,8 +860,7 @@ class AudioService : Service() {
      * Creates a text-to-speech response when the server doesn't provide audio
      */
     private fun createTextToSpeechResponse(title: String, message: String) {
-        // This is a placeholder for TTS implementation
-        // In a real app, we would generate audio with TTS and save it as a file
+        // Native TTS plays the response text; saving synthesized audio remains a future step.
         
         if (testMode) {
             sendLogMessage(getString(R.string.test_mode_tts))
@@ -877,8 +887,15 @@ class AudioService : Service() {
                 }
             }
         } else {
-            // For now, we'll just log that we would generate TTS
-            sendLogMessage(getString(R.string.would_generate_tts, title))
+            val responseText = message.ifBlank { title }
+            serviceScope.launch(Dispatchers.Main) {
+                val didSpeak = textToSpeechManager?.speak(responseText) ?: false
+                if (didSpeak) {
+                    sendLogMessage(getString(R.string.tts_speaking_response))
+                } else {
+                    sendLogMessage(getString(R.string.tts_not_ready))
+                }
+            }
             
             // Broadcast that we have a "response" even though it's just text
             sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
