@@ -54,6 +54,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.core.view.GravityCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -73,6 +75,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnStartRecording: MaterialButton
     private lateinit var btnProcessingRecording: MaterialButton
     private lateinit var progressIndicator: LinearProgressIndicator
+    private lateinit var drawerLayout: DrawerLayout
     
     // Logs - Find ScrollView directly by ID
     private lateinit var logsTextView: TextView
@@ -386,9 +389,21 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun initViews() {
-        val btnOpenSettings = findViewById<MaterialButton>(R.id.btnOpenSettings)
-        btnOpenSettings.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
+        drawerLayout = findViewById(R.id.drawerLayout)
+        val navigationView = findViewById<com.google.android.material.navigation.NavigationView>(R.id.navigationView)
+        val topAppBar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.topAppBar)
+        topAppBar.setNavigationOnClickListener {
+            drawerLayout.openDrawer(GravityCompat.START)
+        }
+        navigationView.setNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_settings -> {
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                    true
+                }
+                else -> false
+            }
         }
 
         // Main controls
