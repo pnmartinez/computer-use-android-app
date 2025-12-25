@@ -35,6 +35,10 @@ class AudioService : Service() {
 
     private var recorder: MediaRecorder? = null
     private var player: ExoPlayer? = null
+    private var textToSpeechManager: TextToSpeechManager? = null
+    private var ttsLanguage: String = DEFAULT_TTS_LANGUAGE
+    private var ttsRate: Float = DEFAULT_TTS_RATE
+    private var ttsPitch: Float = DEFAULT_TTS_PITCH
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
     private val serviceJob = SupervisorJob()
@@ -72,6 +76,7 @@ class AudioService : Service() {
         const val ACTION_AUDIO_FILE_INFO = "com.example.myapplication.AUDIO_FILE_INFO"
         const val ACTION_PROCESSING_COMPLETED = "com.example.myapplication.PROCESSING_COMPLETED"
         const val ACTION_CONNECTION_TESTED = "com.example.myapplication.CONNECTION_TESTED"
+        const val ACTION_TTS_STATUS = "com.example.myapplication.TTS_STATUS"
         
         const val EXTRA_LOG_MESSAGE = "log_message"
         const val EXTRA_AUDIO_FILE_PATH = "audio_file_path"
@@ -82,12 +87,17 @@ class AudioService : Service() {
         const val EXTRA_CONNECTION_MESSAGE = "connection_message"
         const val EXTRA_RESPONSE_MESSAGE = "response_message"
         const val EXTRA_RESPONSE_SUCCESS = "response_success"
+        const val EXTRA_SCREEN_SUMMARY = "screen_summary"
+        const val EXTRA_TTS_STATUS = "tts_status"
         
         // Default server settings
         const val DEFAULT_SERVER_IP = "your_server_ip_here"
         const val DEFAULT_SERVER_PORT = 5000
         const val DEFAULT_WHISPER_MODEL = "large"
         const val DEFAULT_RESPONSE_TIMEOUT = 20000 // 20 seconds in milliseconds
+        const val DEFAULT_TTS_LANGUAGE = "es-ES"
+        const val DEFAULT_TTS_RATE = 1.0f
+        const val DEFAULT_TTS_PITCH = 1.0f
         
         // SharedPreferences keys
         const val PREFS_NAME = "AudioServicePrefs"
@@ -95,6 +105,13 @@ class AudioService : Service() {
         const val KEY_SERVER_PORT = "server_port"
         const val KEY_WHISPER_MODEL = "whisper_model"
         const val KEY_RESPONSE_TIMEOUT = "response_timeout"
+        const val KEY_TTS_LANGUAGE = "tts_language"
+        const val KEY_TTS_RATE = "tts_rate"
+        const val KEY_TTS_PITCH = "tts_pitch"
+
+        const val TTS_STATUS_PLAYING = "playing"
+        const val TTS_STATUS_IDLE = "idle"
+        const val TTS_STATUS_ERROR = "error"
         
         // Get current response timeout from SharedPreferences
         fun getCurrentResponseTimeout(context: Context): Int {
@@ -236,6 +253,20 @@ class AudioService : Service() {
         super.onCreate()
         // Load settings from SharedPreferences
         loadSettings()
+        textToSpeechManager = TextToSpeechManager(
+            this,
+            onReadyChanged = { isReady ->
+                if (isReady) {
+                    sendLogMessage(getString(R.string.tts_initialized))
+                    applyTtsSettings()
+                } else {
+                    sendLogMessage(getString(R.string.tts_init_failed))
+                }
+            },
+            onSpeakStart = { sendTtsStatus(TTS_STATUS_PLAYING) },
+            onSpeakDone = { sendTtsStatus(TTS_STATUS_IDLE) },
+            onSpeakError = { sendTtsStatus(TTS_STATUS_ERROR) }
+        )
         
         // Use FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK for services that play or record media
         startForeground(1, createNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
@@ -249,9 +280,20 @@ class AudioService : Service() {
             val newPort = intent.getIntExtra(KEY_SERVER_PORT, DEFAULT_SERVER_PORT)
             val newModel = intent.getStringExtra(KEY_WHISPER_MODEL)
             val newTimeout = intent.getIntExtra(KEY_RESPONSE_TIMEOUT, DEFAULT_RESPONSE_TIMEOUT)
+            val newTtsLanguage = intent.getStringExtra(KEY_TTS_LANGUAGE)
+            val newTtsRate = intent.getFloatExtra(KEY_TTS_RATE, DEFAULT_TTS_RATE)
+            val newTtsPitch = intent.getFloatExtra(KEY_TTS_PITCH, DEFAULT_TTS_PITCH)
             
             if (newIp != null) {
-                updateServerSettings(newIp, newPort, newModel, newTimeout)
+                updateServerSettings(
+                    newIp,
+                    newPort,
+                    newModel,
+                    newTimeout,
+                    newTtsLanguage,
+                    newTtsRate,
+                    newTtsPitch
+                )
                 sendLogMessage(getString(R.string.server_configuration_updated, serverIp, serverPort, whisperModel))
             }
         } else {
@@ -261,6 +303,23 @@ class AudioService : Service() {
             "STOP_RECORDING" -> stopRecordingAndSend()
                 "CANCEL_RECORDING" -> stopRecordingWithoutSending()
             "PLAY_RESPONSE" -> playLastResponse()
+                "SPEAK_SUMMARY" -> {
+                    val summaryText = intent.getStringExtra(EXTRA_SCREEN_SUMMARY).orEmpty()
+                    if (summaryText.isNotBlank()) {
+                        serviceScope.launch(Dispatchers.Main) {
+                            val didSpeak = textToSpeechManager?.speak(summaryText) ?: false
+                            if (didSpeak) {
+                                sendLogMessage(getString(R.string.tts_speaking_response))
+                            } else {
+                                sendLogMessage(getString(R.string.tts_not_ready))
+                                sendTtsStatus(TTS_STATUS_ERROR)
+                            }
+                        }
+                    } else {
+                        sendLogMessage(getString(R.string.summary_unavailable))
+                        sendTtsStatus(TTS_STATUS_ERROR)
+                    }
+                }
                 "TEST_CONNECTION" -> testServerConnection()
                 "RESET_STATE" -> {
                     // Force reset recording state regardless of current state
@@ -300,6 +359,9 @@ class AudioService : Service() {
         // Liberar ExoPlayer
         player?.release()
         player = null
+
+        textToSpeechManager?.shutdown()
+        textToSpeechManager = null
     }
 
     /**
@@ -585,7 +647,7 @@ class AudioService : Service() {
                             Log.e("AudioSending", "La respuesta del servidor está vacía")
                             sendErrorMessage(getString(R.string.empty_response))
                             // Send response received signal for empty response
-                            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                 putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.empty_response))
                                 putExtra(EXTRA_RESPONSE_SUCCESS, false)
                             })
@@ -613,7 +675,7 @@ class AudioService : Service() {
                                     sendLogMessage(getString(R.string.warning, errorMessage))
                                     sendErrorMessage(errorMessage)
                                     // Send response received signal for error
-                                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                         putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
                                         putExtra(EXTRA_RESPONSE_SUCCESS, false)
                                     })
@@ -642,7 +704,7 @@ class AudioService : Service() {
                                         )
                                     }
                                     // Send response received signal for no command detected
-                                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                         putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.no_command_detected_message))
                                         putExtra(EXTRA_RESPONSE_SUCCESS, false)
                                     })
@@ -652,7 +714,7 @@ class AudioService : Service() {
                                     // Other error cases
                                     sendErrorMessage(getString(R.string.server_error, errorMessage))
                                     // Send response received signal for other errors
-                                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                         putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
                                         putExtra(EXTRA_RESPONSE_SUCCESS, false)
                                     })
@@ -663,7 +725,7 @@ class AudioService : Service() {
                                 Log.e("AudioSending", "Error parsing error response: ${e.message}")
                                 sendErrorMessage(getString(R.string.error_processing_response, e.message))
                                 // Send response received signal for parsing error
-                                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                     putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_processing_response, e.message))
                                     putExtra(EXTRA_RESPONSE_SUCCESS, false)
                                 })
@@ -673,7 +735,7 @@ class AudioService : Service() {
                             // Generic HTTP error
                             sendErrorMessage(getString(R.string.http_error, response.code, response.message))
                             // Send response received signal for HTTP error
-                            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                 putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.http_error, response.code, response.message))
                                 putExtra(EXTRA_RESPONSE_SUCCESS, false)
                             })
@@ -686,7 +748,7 @@ class AudioService : Service() {
                     Log.e("AudioSending", "Error de red", e)
                     sendErrorMessage(getString(R.string.network_error, e.message ?: getString(R.string.connection_failed)))
                     // Send response received signal for network error
-                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                         putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.network_error, e.message ?: getString(R.string.connection_failed)))
                         putExtra(EXTRA_RESPONSE_SUCCESS, false)
                     })
@@ -698,7 +760,7 @@ class AudioService : Service() {
                 Log.e("AudioSending", "Error inesperado", e)
                 sendErrorMessage(getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
                 // Send response received signal for unexpected error
-                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                     putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
                     putExtra(EXTRA_RESPONSE_SUCCESS, false)
                 })
@@ -710,7 +772,7 @@ class AudioService : Service() {
             Log.e("AudioSending", "Error inesperado", e)
             sendErrorMessage(getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
             // Send response received signal for outer exception
-            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                 putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
                 putExtra(EXTRA_RESPONSE_SUCCESS, false)
             })
@@ -740,7 +802,7 @@ class AudioService : Service() {
                 if (status == "error") {
                     sendErrorMessage(errorMessage)
                     // Send response received signal for error case too
-                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                         putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
                         putExtra(EXTRA_RESPONSE_SUCCESS, false)
                     })
@@ -769,7 +831,7 @@ class AudioService : Service() {
                 // Signal completion with error
                 sendErrorMessage(errorMessage)
                 // Send response received signal for error case too
-                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                     putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
                     putExtra(EXTRA_RESPONSE_SUCCESS, false)
                 })
@@ -783,6 +845,8 @@ class AudioService : Service() {
             val language = jsonObject.optString("language", "unknown")
             val steps = jsonObject.optInt("steps", 0)
             val result = jsonObject.optString("result", "")
+            val screenSummary = jsonObject.optString("screen_summary", "").trim()
+            val summaryFallback = jsonObject.optString("summary", "").trim()
             val success = jsonObject.optBoolean("success", true) // Extract success field from server
             
             // Check if translation was performed
@@ -800,11 +864,21 @@ class AudioService : Service() {
             responseInfo.append("\n").append(getString(R.string.detected_language, language))
             responseInfo.append("\n").append(getString(R.string.steps_executed, steps))
             responseInfo.append("\n").append(getString(R.string.result, result))
+            val summaryForUi = when {
+                screenSummary.isNotEmpty() -> screenSummary
+                summaryFallback.isNotEmpty() -> summaryFallback
+                else -> ""
+            }
+
+            if (summaryForUi.isNotEmpty()) {
+                responseInfo.append("\n").append(getString(R.string.screen_summary_label, summaryForUi))
+            }
             
             sendLogMessage(responseInfo.toString())
             
             // Check if audio response is available
             val hasAudioResponse = jsonObject.optBoolean("audio_response_available", false)
+            val responseMessage = if (summaryForUi.isNotEmpty()) summaryForUi else result
             
             if (hasAudioResponse) {
                 sendLogMessage(getString(R.string.audio_response_available))
@@ -812,9 +886,10 @@ class AudioService : Service() {
                 serviceScope.launch(Dispatchers.IO) {
                     downloadAudioResponse(transcription)
                     // Send response received signal
-                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
-                        putExtra(EXTRA_RESPONSE_MESSAGE, result)
+                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                        putExtra(EXTRA_RESPONSE_MESSAGE, responseMessage)
                         putExtra(EXTRA_RESPONSE_SUCCESS, success)
+                        putExtra(EXTRA_SCREEN_SUMMARY, summaryForUi)
                     })
                     // Signal completion after downloading
                     signalProcessingComplete()
@@ -822,11 +897,12 @@ class AudioService : Service() {
             } else {
                 // Create a text-to-speech response instead
                 serviceScope.launch(Dispatchers.IO) {
-                    createTextToSpeechResponse(transcription, result)
+                    createTextToSpeechResponse(transcription, responseMessage)
                     // Send response received signal
-                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
-                        putExtra(EXTRA_RESPONSE_MESSAGE, result)
+                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                        putExtra(EXTRA_RESPONSE_MESSAGE, responseMessage)
                         putExtra(EXTRA_RESPONSE_SUCCESS, success)
+                        putExtra(EXTRA_SCREEN_SUMMARY, summaryForUi)
                     })
                     // Signal completion after TTS
                     signalProcessingComplete()
@@ -837,7 +913,7 @@ class AudioService : Service() {
             Log.e("AudioResponse", "Error al procesar respuesta JSON", e)
             sendErrorMessage(getString(R.string.error_processing_response, e.message))
             // Send response received signal for JSON processing error
-            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                 putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_processing_response, e.message))
                 putExtra(EXTRA_RESPONSE_SUCCESS, false)
             })
@@ -849,8 +925,7 @@ class AudioService : Service() {
      * Creates a text-to-speech response when the server doesn't provide audio
      */
     private fun createTextToSpeechResponse(title: String, message: String) {
-        // This is a placeholder for TTS implementation
-        // In a real app, we would generate audio with TTS and save it as a file
+        // Native TTS plays the response text; saving synthesized audio remains a future step.
         
         if (testMode) {
             sendLogMessage(getString(R.string.test_mode_tts))
@@ -868,7 +943,7 @@ class AudioService : Service() {
                     
                     // Announce the response is ready
                     sendAudioFileInfo(responseFile, "response")
-                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                         putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.test_mode_tts_ready))
                         putExtra(EXTRA_RESPONSE_SUCCESS, true)
                     })
@@ -877,14 +952,18 @@ class AudioService : Service() {
                 }
             }
         } else {
-            // For now, we'll just log that we would generate TTS
-            sendLogMessage(getString(R.string.would_generate_tts, title))
+            val responseText = message.ifBlank { title }
+            serviceScope.launch(Dispatchers.Main) {
+                val didSpeak = textToSpeechManager?.speak(responseText) ?: false
+                if (didSpeak) {
+                    sendLogMessage(getString(R.string.tts_speaking_response))
+                } else {
+                    sendLogMessage(getString(R.string.tts_not_ready))
+                    sendTtsStatus(TTS_STATUS_ERROR)
+                }
+            }
             
-            // Broadcast that we have a "response" even though it's just text
-            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
-                putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.playing_audio_response))
-                putExtra(EXTRA_RESPONSE_SUCCESS, true)
-            })
+            // No extra response broadcast here; processJsonResponse already notifies the UI.
         }
     }
 
@@ -1036,7 +1115,7 @@ class AudioService : Service() {
                 
                 // Now let's announce we received a response
                 sendAudioFileInfo(responseFile, "response")
-                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
+                sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
                 
                 sendLogMessage(getString(R.string.test_mode_response_created, responseFile.length()))
             } else {
@@ -1056,7 +1135,7 @@ class AudioService : Service() {
                 
                 // Now let's announce we received a response
                 sendAudioFileInfo(responseFile, "response")
-                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
+                sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
                 
                 sendLogMessage(getString(R.string.test_mode_empty_response_created, responseFile.length()))
             }
@@ -1155,7 +1234,7 @@ class AudioService : Service() {
             }
             
             sendLogMessage(getString(R.string.playing_audio_response))
-            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
+            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
         } catch (e: Exception) {
             sendLogMessage(getString(R.string.error_playing_audio, e.message))
         }
@@ -1200,7 +1279,7 @@ class AudioService : Service() {
         val intent = Intent(ACTION_LOG_MESSAGE).apply {
             putExtra(EXTRA_LOG_MESSAGE, errorMessage)
         }
-        sendBroadcast(intent)
+        sendAppBroadcast(intent)
     }
 
     /**
@@ -1208,7 +1287,25 @@ class AudioService : Service() {
      * This can be used to hide progress indicators
      */
     private fun signalProcessingComplete() {
-        sendBroadcast(Intent(ACTION_PROCESSING_COMPLETED))
+        sendAppBroadcast(Intent(ACTION_PROCESSING_COMPLETED))
+    }
+
+    private fun sendAppBroadcast(intent: Intent) {
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
+    }
+
+    private fun sendTtsStatus(status: String) {
+        sendAppBroadcast(Intent(ACTION_TTS_STATUS).apply {
+            putExtra(EXTRA_TTS_STATUS, status)
+        })
+    }
+
+    private fun applyTtsSettings() {
+        val didApply = textToSpeechManager?.updateConfig(ttsLanguage, ttsRate, ttsPitch) ?: false
+        if (!didApply) {
+            sendLogMessage(getString(R.string.tts_config_failed, ttsLanguage))
+        }
     }
 
     /**
@@ -1220,13 +1317,24 @@ class AudioService : Service() {
         serverPort = prefs.getInt(KEY_SERVER_PORT, DEFAULT_SERVER_PORT)
         whisperModel = prefs.getString(KEY_WHISPER_MODEL, DEFAULT_WHISPER_MODEL) ?: DEFAULT_WHISPER_MODEL
         responseTimeout = prefs.getInt(KEY_RESPONSE_TIMEOUT, DEFAULT_RESPONSE_TIMEOUT)
+        ttsLanguage = prefs.getString(KEY_TTS_LANGUAGE, DEFAULT_TTS_LANGUAGE) ?: DEFAULT_TTS_LANGUAGE
+        ttsRate = prefs.getFloat(KEY_TTS_RATE, DEFAULT_TTS_RATE)
+        ttsPitch = prefs.getFloat(KEY_TTS_PITCH, DEFAULT_TTS_PITCH)
         sendLogMessage(getString(R.string.configuration_loaded, serverIp, serverPort, whisperModel))
     }
     
     /**
      * Updates and saves server settings
      */
-    private fun updateServerSettings(ip: String, port: Int, model: String? = null, timeout: Int? = null) {
+    private fun updateServerSettings(
+        ip: String,
+        port: Int,
+        model: String? = null,
+        timeout: Int? = null,
+        language: String? = null,
+        rate: Float? = null,
+        pitch: Float? = null
+    ) {
         serverIp = ip
         serverPort = port
         if (model != null) {
@@ -1234,6 +1342,15 @@ class AudioService : Service() {
         }
         if (timeout != null) {
             responseTimeout = timeout
+        }
+        if (language != null) {
+            ttsLanguage = language
+        }
+        if (rate != null) {
+            ttsRate = rate
+        }
+        if (pitch != null) {
+            ttsPitch = pitch
         }
         
         // Save to SharedPreferences
@@ -1243,8 +1360,13 @@ class AudioService : Service() {
             putInt(KEY_SERVER_PORT, serverPort)
             putString(KEY_WHISPER_MODEL, whisperModel)
             putInt(KEY_RESPONSE_TIMEOUT, responseTimeout)
+            putString(KEY_TTS_LANGUAGE, ttsLanguage)
+            putFloat(KEY_TTS_RATE, ttsRate)
+            putFloat(KEY_TTS_PITCH, ttsPitch)
             apply()
         }
+
+        applyTtsSettings()
         
         sendLogMessage(getString(R.string.configuration_updated, serverIp, serverPort, whisperModel))
     }

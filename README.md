@@ -14,6 +14,19 @@ A simple Android application that lets you control your PC remotely using voice 
 - 🔒 Secure communication using TLS encryption
 - 🔄 CI/CD with automatic builds via GitHub Actions
 
+## 🔊 Text-to-Speech (TTS)
+
+This app now initializes Android’s native `TextToSpeech` engine in the audio service to speak
+server responses when no audio file is available (no extra dependencies needed beyond the
+Android SDK). The response text currently comes from the `result` field in
+`AudioService.processJsonResponse()` and is passed to `createTextToSpeechResponse(...)`, which
+uses `TextToSpeechManager.speak(...)`.
+
+**Para más adelante:** si el backend cambia el formato, o si quieres priorizar otro campo,
+ajusta la llamada a `createTextToSpeechResponse(...)` dentro de `processJsonResponse()` para
+pasar el texto correcto. El siguiente paso sería guardar el audio sintetizado en un archivo
+(por ejemplo `response_audio.ogg`) para que se pueda reproducir como cualquier otra respuesta.
+
 ## 🚀 Getting Started
 
 0. 📦 Build the app from source (Android Studio or gradlew...)
