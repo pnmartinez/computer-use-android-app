@@ -21,24 +21,32 @@
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:visibility="gone"
+        android:layout_height="wrap_content"
         android:background="@android:color/transparent"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/topAppBar"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
+            android:layout_height="?attr/actionBarSize"
             app:title=""
-            app:navigationIcon="@mipmap/ic_launcher"
-            app:menu="@menu/main_menu"
+            app:navigationIcon="@android:drawable/ic_menu_sort_by_size"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:minHeight="0dp"
+            android:minHeight="?attr/actionBarSize"
             android:contentInsetStart="0dp"
             app:contentInsetStart="0dp"
             android:elevation="0dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnOpenSettings"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="start|center_vertical"
+                android:contentDescription="@string/settings_title"
+                app:icon="@android:drawable/ic_menu_preferences"
+                app:iconSize="24dp" />
 
             <TextView
                 android:layout_width="wrap_content"

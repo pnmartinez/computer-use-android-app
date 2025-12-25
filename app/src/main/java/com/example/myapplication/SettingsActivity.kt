@@ -56,6 +56,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyThemeFromPreferences()
         setContentView(R.layout.activity_settings)
 
         val toolbar = findViewById<MaterialToolbar>(R.id.settingsToolbar)
@@ -130,9 +131,12 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun loadThemePreference() {
+        updateThemeButtonText()
+    }
+
+    private fun applyThemeFromPreferences() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isDarkTheme = prefs.getBoolean(KEY_IS_DARK_THEME, false)
-        updateThemeButtonText()
         updateTheme()
     }
 

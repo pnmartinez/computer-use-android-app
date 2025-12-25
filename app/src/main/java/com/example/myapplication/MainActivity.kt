@@ -51,6 +51,7 @@ import android.widget.PopupMenu
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import androidx.constraintlayout.widget.ConstraintLayout
 import kotlinx.coroutines.CoroutineScope
@@ -268,6 +269,7 @@ class MainActivity : AppCompatActivity() {
         private const val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 101
         private const val PREFS_NAME = "AppPreferences"
         private const val KEY_IS_LOGS_EXPANDED = "isLogsExpanded"
+        private const val KEY_IS_DARK_THEME = "isDarkTheme"
         private const val KEY_REFRESH_PERIOD = "refreshPeriod"
         private const val KEY_AUTO_REFRESH_ENABLED = "autoRefreshEnabled"
         private const val KEY_UNLOCK_PASSWORD = "unlockPassword"
@@ -279,6 +281,7 @@ class MainActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyThemeFromPreferences()
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         
@@ -327,6 +330,7 @@ class MainActivity : AppCompatActivity() {
     
     override fun onResume() {
         super.onResume()
+        applyThemeFromPreferences()
         try {
             registerReceiver()
         } catch (e: Exception) {
@@ -382,15 +386,9 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun initViews() {
-        val topAppBar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.topAppBar)
-        topAppBar.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.action_settings -> {
-                    startActivity(Intent(this, SettingsActivity::class.java))
-                    true
-                }
-                else -> false
-            }
+        val btnOpenSettings = findViewById<MaterialButton>(R.id.btnOpenSettings)
+        btnOpenSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
 
         // Main controls
@@ -1462,6 +1460,18 @@ class MainActivity : AppCompatActivity() {
             .putBoolean(KEY_IS_FAVORITES_EXPANDED, isFavoritesExpanded)
             .putString(KEY_SCREENSHOT_REFRESH_PERIOD, btnRefreshPeriod.text.toString())
             .apply()
+    }
+
+    private fun applyThemeFromPreferences() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val isDarkTheme = prefs.getBoolean(KEY_IS_DARK_THEME, false)
+        AppCompatDelegate.setDefaultNightMode(
+            if (isDarkTheme) {
+                AppCompatDelegate.MODE_NIGHT_YES
+            } else {
+                AppCompatDelegate.MODE_NIGHT_NO
+            }
+        )
     }
     
     private fun captureNewScreenshot() {
