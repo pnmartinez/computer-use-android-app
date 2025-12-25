@@ -647,7 +647,7 @@ class AudioService : Service() {
                             Log.e("AudioSending", "La respuesta del servidor está vacía")
                             sendErrorMessage(getString(R.string.empty_response))
                             // Send response received signal for empty response
-                            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                 putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.empty_response))
                                 putExtra(EXTRA_RESPONSE_SUCCESS, false)
                             })
@@ -675,7 +675,7 @@ class AudioService : Service() {
                                     sendLogMessage(getString(R.string.warning, errorMessage))
                                     sendErrorMessage(errorMessage)
                                     // Send response received signal for error
-                                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                         putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
                                         putExtra(EXTRA_RESPONSE_SUCCESS, false)
                                     })
@@ -704,7 +704,7 @@ class AudioService : Service() {
                                         )
                                     }
                                     // Send response received signal for no command detected
-                                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                         putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.no_command_detected_message))
                                         putExtra(EXTRA_RESPONSE_SUCCESS, false)
                                     })
@@ -714,7 +714,7 @@ class AudioService : Service() {
                                     // Other error cases
                                     sendErrorMessage(getString(R.string.server_error, errorMessage))
                                     // Send response received signal for other errors
-                                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                         putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
                                         putExtra(EXTRA_RESPONSE_SUCCESS, false)
                                     })
@@ -725,7 +725,7 @@ class AudioService : Service() {
                                 Log.e("AudioSending", "Error parsing error response: ${e.message}")
                                 sendErrorMessage(getString(R.string.error_processing_response, e.message))
                                 // Send response received signal for parsing error
-                                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                                sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                     putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_processing_response, e.message))
                                     putExtra(EXTRA_RESPONSE_SUCCESS, false)
                                 })
@@ -735,7 +735,7 @@ class AudioService : Service() {
                             // Generic HTTP error
                             sendErrorMessage(getString(R.string.http_error, response.code, response.message))
                             // Send response received signal for HTTP error
-                            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                                 putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.http_error, response.code, response.message))
                                 putExtra(EXTRA_RESPONSE_SUCCESS, false)
                             })
@@ -748,7 +748,7 @@ class AudioService : Service() {
                     Log.e("AudioSending", "Error de red", e)
                     sendErrorMessage(getString(R.string.network_error, e.message ?: getString(R.string.connection_failed)))
                     // Send response received signal for network error
-                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                         putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.network_error, e.message ?: getString(R.string.connection_failed)))
                         putExtra(EXTRA_RESPONSE_SUCCESS, false)
                     })
@@ -760,7 +760,7 @@ class AudioService : Service() {
                 Log.e("AudioSending", "Error inesperado", e)
                 sendErrorMessage(getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
                 // Send response received signal for unexpected error
-                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                     putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
                     putExtra(EXTRA_RESPONSE_SUCCESS, false)
                 })
@@ -772,7 +772,7 @@ class AudioService : Service() {
             Log.e("AudioSending", "Error inesperado", e)
             sendErrorMessage(getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
             // Send response received signal for outer exception
-            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                 putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_unexpected, e.message ?: e.javaClass.simpleName))
                 putExtra(EXTRA_RESPONSE_SUCCESS, false)
             })
@@ -802,7 +802,7 @@ class AudioService : Service() {
                 if (status == "error") {
                     sendErrorMessage(errorMessage)
                     // Send response received signal for error case too
-                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                         putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
                         putExtra(EXTRA_RESPONSE_SUCCESS, false)
                     })
@@ -831,7 +831,7 @@ class AudioService : Service() {
                 // Signal completion with error
                 sendErrorMessage(errorMessage)
                 // Send response received signal for error case too
-                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                     putExtra(EXTRA_RESPONSE_MESSAGE, errorMessage)
                     putExtra(EXTRA_RESPONSE_SUCCESS, false)
                 })
@@ -886,7 +886,7 @@ class AudioService : Service() {
                 serviceScope.launch(Dispatchers.IO) {
                     downloadAudioResponse(transcription)
                     // Send response received signal
-                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                         putExtra(EXTRA_RESPONSE_MESSAGE, responseMessage)
                         putExtra(EXTRA_RESPONSE_SUCCESS, success)
                         putExtra(EXTRA_SCREEN_SUMMARY, summaryForUi)
@@ -899,7 +899,7 @@ class AudioService : Service() {
                 serviceScope.launch(Dispatchers.IO) {
                     createTextToSpeechResponse(transcription, responseMessage)
                     // Send response received signal
-                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                         putExtra(EXTRA_RESPONSE_MESSAGE, responseMessage)
                         putExtra(EXTRA_RESPONSE_SUCCESS, success)
                         putExtra(EXTRA_SCREEN_SUMMARY, summaryForUi)
@@ -913,7 +913,7 @@ class AudioService : Service() {
             Log.e("AudioResponse", "Error al procesar respuesta JSON", e)
             sendErrorMessage(getString(R.string.error_processing_response, e.message))
             // Send response received signal for JSON processing error
-            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                 putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.error_processing_response, e.message))
                 putExtra(EXTRA_RESPONSE_SUCCESS, false)
             })
@@ -943,7 +943,7 @@ class AudioService : Service() {
                     
                     // Announce the response is ready
                     sendAudioFileInfo(responseFile, "response")
-                    sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+                    sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                         putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.test_mode_tts_ready))
                         putExtra(EXTRA_RESPONSE_SUCCESS, true)
                     })
@@ -964,7 +964,7 @@ class AudioService : Service() {
             }
             
             // Broadcast that we have a "response" even though it's just text
-            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
+            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
                 putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.playing_audio_response))
                 putExtra(EXTRA_RESPONSE_SUCCESS, true)
             })
@@ -1119,7 +1119,7 @@ class AudioService : Service() {
                 
                 // Now let's announce we received a response
                 sendAudioFileInfo(responseFile, "response")
-                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
+                sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
                 
                 sendLogMessage(getString(R.string.test_mode_response_created, responseFile.length()))
             } else {
@@ -1139,7 +1139,7 @@ class AudioService : Service() {
                 
                 // Now let's announce we received a response
                 sendAudioFileInfo(responseFile, "response")
-                sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
+                sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
                 
                 sendLogMessage(getString(R.string.test_mode_empty_response_created, responseFile.length()))
             }
@@ -1238,7 +1238,7 @@ class AudioService : Service() {
             }
             
             sendLogMessage(getString(R.string.playing_audio_response))
-            sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
+            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED))
         } catch (e: Exception) {
             sendLogMessage(getString(R.string.error_playing_audio, e.message))
         }
@@ -1283,7 +1283,7 @@ class AudioService : Service() {
         val intent = Intent(ACTION_LOG_MESSAGE).apply {
             putExtra(EXTRA_LOG_MESSAGE, errorMessage)
         }
-        sendBroadcast(intent)
+        sendAppBroadcast(intent)
     }
 
     /**
@@ -1291,11 +1291,16 @@ class AudioService : Service() {
      * This can be used to hide progress indicators
      */
     private fun signalProcessingComplete() {
-        sendBroadcast(Intent(ACTION_PROCESSING_COMPLETED))
+        sendAppBroadcast(Intent(ACTION_PROCESSING_COMPLETED))
+    }
+
+    private fun sendAppBroadcast(intent: Intent) {
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
     }
 
     private fun sendTtsStatus(status: String) {
-        sendBroadcast(Intent(ACTION_TTS_STATUS).apply {
+        sendAppBroadcast(Intent(ACTION_TTS_STATUS).apply {
             putExtra(EXTRA_TTS_STATUS, status)
         })
     }

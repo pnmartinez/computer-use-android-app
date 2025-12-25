@@ -3,6 +3,8 @@ package com.example.myapplication
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import java.util.Locale
 import java.util.UUID
@@ -20,26 +22,27 @@ class TextToSpeechManager(
     private var ttsLocale: Locale = Locale("es", "ES")
     private var ttsRate: Float = 1.0f
     private var ttsPitch: Float = 1.0f
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onInit(status: Int) {
         isReady = status == TextToSpeech.SUCCESS
         if (isReady) {
             textToSpeech.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String) {
-                    onSpeakStart()
+                    mainHandler.post { onSpeakStart() }
                 }
 
                 override fun onDone(utteranceId: String) {
-                    onSpeakDone()
+                    mainHandler.post { onSpeakDone() }
                 }
 
                 @Deprecated("Deprecated in Java")
                 override fun onError(utteranceId: String) {
-                    onSpeakError(null)
+                    mainHandler.post { onSpeakError(null) }
                 }
 
                 override fun onError(utteranceId: String, errorCode: Int) {
-                    onSpeakError(errorCode.toString())
+                    mainHandler.post { onSpeakError(errorCode.toString()) }
                 }
             })
             val languageResult = textToSpeech.setLanguage(ttsLocale)
