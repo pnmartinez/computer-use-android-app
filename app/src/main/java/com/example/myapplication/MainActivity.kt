@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -50,6 +51,7 @@ import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
@@ -68,6 +70,8 @@ import com.example.myapplication.AudioService.Companion.KEY_SERVER_IP
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_PORT
 import kotlin.math.sqrt
 import android.widget.ProgressBar
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.color.MaterialColors
 
 class MainActivity : AppCompatActivity() {
     
@@ -95,11 +99,13 @@ class MainActivity : AppCompatActivity() {
     lateinit var screenshotLoadingProgress: ProgressBar
 
     // Screen summary section
+    private lateinit var summaryCard: MaterialCardView
     private lateinit var summaryTextView: TextView
     private lateinit var btnPlaySummary: MaterialButton
     private lateinit var summaryStatusTextView: TextView
     private var lastScreenSummary: String = ""
     private var isSummaryPlaying: Boolean = false
+    private var summaryUpdateAnimator: ValueAnimator? = null
     
     // Keep track of app state
     private var isRecording = false
@@ -434,9 +440,11 @@ class MainActivity : AppCompatActivity() {
         screenshotLoadingProgress = findViewById(R.id.screenshotLoadingProgress)
 
         // Screen summary section
+        summaryCard = findViewById(R.id.summaryCard)
         summaryTextView = findViewById(R.id.summaryText)
         btnPlaySummary = findViewById(R.id.btnPlaySummary)
         summaryStatusTextView = findViewById(R.id.summaryStatusText)
+        summaryCard.setCardForegroundColor(ColorStateList.valueOf(Color.TRANSPARENT))
         btnPlaySummary.setOnClickListener {
             if (lastScreenSummary.isNotBlank()) {
                 speakSummary(lastScreenSummary)
@@ -887,6 +895,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateScreenSummary(summary: String) {
         val trimmedSummary = summary.trim()
+        val previousSummary = lastScreenSummary
         lastScreenSummary = trimmedSummary
         val summaryText = if (trimmedSummary.isNotEmpty()) {
             trimmedSummary
@@ -904,10 +913,43 @@ class MainActivity : AppCompatActivity() {
                 }
             )
         }
+        if (trimmedSummary.isNotEmpty() && trimmedSummary != previousSummary) {
+            animateSummaryCardUpdate()
+        }
     }
 
     private fun updateSummaryStatus(status: String) {
         summaryStatusTextView.text = status
+    }
+
+    private fun animateSummaryCardUpdate() {
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            return
+        }
+        summaryUpdateAnimator?.cancel()
+        val highlightColor = MaterialColors.getColor(
+            summaryCard,
+            com.google.android.material.R.attr.colorSecondaryContainer
+        )
+        val transparentHighlight = MaterialColors.compositeARGBWithAlpha(highlightColor, 0)
+        summaryUpdateAnimator = ValueAnimator.ofArgb(
+            transparentHighlight,
+            highlightColor,
+            transparentHighlight
+        ).apply {
+            duration = 900L
+            interpolator = FastOutSlowInInterpolator()
+            addUpdateListener { animator ->
+                val color = animator.animatedValue as Int
+                summaryCard.setCardForegroundColor(ColorStateList.valueOf(color))
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    summaryCard.setCardForegroundColor(ColorStateList.valueOf(transparentHighlight))
+                }
+            })
+        }
+        summaryUpdateAnimator?.start()
     }
 
     /**
