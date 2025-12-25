@@ -83,6 +83,7 @@ class AudioService : Service() {
         const val EXTRA_CONNECTION_MESSAGE = "connection_message"
         const val EXTRA_RESPONSE_MESSAGE = "response_message"
         const val EXTRA_RESPONSE_SUCCESS = "response_success"
+        const val EXTRA_SCREEN_SUMMARY = "screen_summary"
         
         // Default server settings
         const val DEFAULT_SERVER_IP = "your_server_ip_here"
@@ -269,6 +270,21 @@ class AudioService : Service() {
             "STOP_RECORDING" -> stopRecordingAndSend()
                 "CANCEL_RECORDING" -> stopRecordingWithoutSending()
             "PLAY_RESPONSE" -> playLastResponse()
+                "SPEAK_SUMMARY" -> {
+                    val summaryText = intent.getStringExtra(EXTRA_SCREEN_SUMMARY).orEmpty()
+                    if (summaryText.isNotBlank()) {
+                        serviceScope.launch(Dispatchers.Main) {
+                            val didSpeak = textToSpeechManager?.speak(summaryText) ?: false
+                            if (didSpeak) {
+                                sendLogMessage(getString(R.string.tts_speaking_response))
+                            } else {
+                                sendLogMessage(getString(R.string.tts_not_ready))
+                            }
+                        }
+                    } else {
+                        sendLogMessage(getString(R.string.summary_unavailable))
+                    }
+                }
                 "TEST_CONNECTION" -> testServerConnection()
                 "RESET_STATE" -> {
                     // Force reset recording state regardless of current state
@@ -794,6 +810,7 @@ class AudioService : Service() {
             val language = jsonObject.optString("language", "unknown")
             val steps = jsonObject.optInt("steps", 0)
             val result = jsonObject.optString("result", "")
+            val screenSummary = jsonObject.optString("screen_summary", "").trim()
             val success = jsonObject.optBoolean("success", true) // Extract success field from server
             
             // Check if translation was performed
@@ -811,11 +828,15 @@ class AudioService : Service() {
             responseInfo.append("\n").append(getString(R.string.detected_language, language))
             responseInfo.append("\n").append(getString(R.string.steps_executed, steps))
             responseInfo.append("\n").append(getString(R.string.result, result))
+            if (screenSummary.isNotEmpty()) {
+                responseInfo.append("\n").append(getString(R.string.screen_summary_label, screenSummary))
+            }
             
             sendLogMessage(responseInfo.toString())
             
             // Check if audio response is available
             val hasAudioResponse = jsonObject.optBoolean("audio_response_available", false)
+            val responseMessage = if (screenSummary.isNotEmpty()) screenSummary else result
             
             if (hasAudioResponse) {
                 sendLogMessage(getString(R.string.audio_response_available))
@@ -824,8 +845,9 @@ class AudioService : Service() {
                     downloadAudioResponse(transcription)
                     // Send response received signal
                     sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
-                        putExtra(EXTRA_RESPONSE_MESSAGE, result)
+                        putExtra(EXTRA_RESPONSE_MESSAGE, responseMessage)
                         putExtra(EXTRA_RESPONSE_SUCCESS, success)
+                        putExtra(EXTRA_SCREEN_SUMMARY, screenSummary)
                     })
                     // Signal completion after downloading
                     signalProcessingComplete()
@@ -833,11 +855,12 @@ class AudioService : Service() {
             } else {
                 // Create a text-to-speech response instead
                 serviceScope.launch(Dispatchers.IO) {
-                    createTextToSpeechResponse(transcription, result)
+                    createTextToSpeechResponse(transcription, responseMessage)
                     // Send response received signal
                     sendBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
-                        putExtra(EXTRA_RESPONSE_MESSAGE, result)
+                        putExtra(EXTRA_RESPONSE_MESSAGE, responseMessage)
                         putExtra(EXTRA_RESPONSE_SUCCESS, success)
+                        putExtra(EXTRA_SCREEN_SUMMARY, screenSummary)
                     })
                     // Signal completion after TTS
                     signalProcessingComplete()

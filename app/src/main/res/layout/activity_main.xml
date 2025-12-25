@@ -181,6 +181,56 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/summaryCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="0dp"
+                android:stateListAnimator="@animator/card_state_list_anim"
+                app:layout_constraintTop_toBottomOf="@id/screenshotCard"
+                app:layout_constraintBottom_toTopOf="@id/commandHistoryCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/screen_summary_title"
+                            android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnPlaySummary"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/play_summary" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/summaryText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/summary_unavailable"
+                        android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Command History Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/commandHistoryCard"
@@ -191,7 +241,7 @@
                 app:cardCornerRadius="16dp"
                 app:strokeWidth="0dp"
                 android:stateListAnimator="@animator/card_state_list_anim"
-                app:layout_constraintTop_toBottomOf="@id/screenshotCard"
+                app:layout_constraintTop_toBottomOf="@id/summaryCard"
                 app:layout_constraintBottom_toTopOf="@id/favoritesCard">
 
                 <LinearLayout

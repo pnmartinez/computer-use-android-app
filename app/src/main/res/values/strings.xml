@@ -83,6 +83,7 @@
     <string name="detected_language">Detected language: %1$s</string>
     <string name="steps_executed">Steps executed: %1$d</string>
     <string name="result">Result: %1$s</string>
+    <string name="screen_summary_label">Screen summary: %1$s</string>
     <string name="audio_response_available">Audio response available, requesting download...</string>
     <string name="error_processing_json">Error processing JSON response: %1$s</string>
     <string name="error_processing_response">Error processing response: %1$s</string>
@@ -136,6 +137,9 @@
     <string name="audio_permission_granted">Audio permission granted</string>
     <string name="audio_permission_denied">Audio permission denied</string>
     <string name="audio_permission_required">Audio recording permission is required for this functionality</string>
+    <string name="screen_summary_title">Resumen</string>
+    <string name="summary_unavailable">Sin resumen disponible</string>
+    <string name="play_summary">Reproducir</string>
 
     <!-- MainActivity Messages -->
     <string name="recording_finished_processing">Recording finished, processing...</string>

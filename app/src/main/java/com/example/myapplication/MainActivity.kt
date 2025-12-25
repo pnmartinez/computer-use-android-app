@@ -107,6 +107,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnUnlockScreen: MaterialButton
     private lateinit var btnRefreshPeriod: MaterialButton
     lateinit var screenshotLoadingProgress: ProgressBar
+
+    // Screen summary section
+    private lateinit var summaryTextView: TextView
+    private lateinit var btnPlaySummary: MaterialButton
+    private var lastScreenSummary: String = ""
     
     // Keep track of app state
     private var isRecording = false
@@ -158,7 +163,10 @@ class MainActivity : AppCompatActivity() {
                     
                     // Show toast message for user feedback
                     val message = intent.getStringExtra(AudioService.EXTRA_RESPONSE_MESSAGE) ?: getString(R.string.command_processed_successfully)
+                    val screenSummary = intent.getStringExtra(AudioService.EXTRA_SCREEN_SUMMARY).orEmpty()
                     val success = intent.getBooleanExtra(AudioService.EXTRA_RESPONSE_SUCCESS, true)
+
+                    updateScreenSummary(screenSummary)
                     
                     // Call our handler with the response details
                     handleVoiceCommandResponse(success, message)
@@ -458,6 +466,18 @@ class MainActivity : AppCompatActivity() {
         btnUnlockScreen = findViewById(R.id.btnUnlockScreen)
         btnRefreshPeriod = findViewById(R.id.btnRefreshPeriod)
         screenshotLoadingProgress = findViewById(R.id.screenshotLoadingProgress)
+
+        // Screen summary section
+        summaryTextView = findViewById(R.id.summaryText)
+        btnPlaySummary = findViewById(R.id.btnPlaySummary)
+        btnPlaySummary.setOnClickListener {
+            if (lastScreenSummary.isNotBlank()) {
+                speakSummary(lastScreenSummary)
+            } else {
+                Toast.makeText(this, getString(R.string.summary_unavailable), Toast.LENGTH_SHORT).show()
+            }
+        }
+        updateScreenSummary("")
         
         // Setup log clear button
         btnClearLogs.setOnClickListener {
@@ -1108,6 +1128,26 @@ class MainActivity : AppCompatActivity() {
             this.action = action
         }
         context.startService(intent)
+    }
+
+    private fun speakSummary(summary: String) {
+        val intent = Intent(this, AudioService::class.java).apply {
+            action = "SPEAK_SUMMARY"
+            putExtra(AudioService.EXTRA_SCREEN_SUMMARY, summary)
+        }
+        startService(intent)
+    }
+
+    private fun updateScreenSummary(summary: String) {
+        val trimmedSummary = summary.trim()
+        lastScreenSummary = trimmedSummary
+        val summaryText = if (trimmedSummary.isNotEmpty()) {
+            trimmedSummary
+        } else {
+            getString(R.string.summary_unavailable)
+        }
+        summaryTextView.text = summaryText
+        btnPlaySummary.isEnabled = trimmedSummary.isNotEmpty()
     }
 
     /**

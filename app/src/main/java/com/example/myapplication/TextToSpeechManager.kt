@@ -17,7 +17,7 @@ class TextToSpeechManager(
     override fun onInit(status: Int) {
         isReady = status == TextToSpeech.SUCCESS
         if (isReady) {
-            val languageResult = textToSpeech.setLanguage(Locale.getDefault())
+            val languageResult = textToSpeech.setLanguage(Locale("es", "ES"))
             if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
                 languageResult == TextToSpeech.LANG_NOT_SUPPORTED
             ) {
