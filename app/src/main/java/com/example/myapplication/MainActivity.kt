@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -20,8 +19,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import android.widget.AutoCompleteTextView
-import android.widget.ArrayAdapter
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -29,8 +26,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.progressindicator.LinearProgressIndicator
-import com.google.android.material.slider.Slider
-import com.google.android.material.textfield.TextInputEditText
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -55,7 +50,6 @@ import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
-import android.app.NotificationManager
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -69,10 +63,6 @@ import kotlinx.coroutines.TimeoutCancellationException
 import com.example.myapplication.CommandHistoryUtils.CommandHistoryEntry
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_IP
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_PORT
-import com.example.myapplication.AudioService.Companion.KEY_TTS_LANGUAGE
-import com.example.myapplication.AudioService.Companion.KEY_TTS_PITCH
-import com.example.myapplication.AudioService.Companion.KEY_TTS_RATE
-import com.example.myapplication.AudioService.Companion.KEY_WHISPER_MODEL
 import kotlin.math.sqrt
 import android.widget.ProgressBar
 
@@ -91,20 +81,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var logsContent: LinearLayout
     private var isLogsExpanded = false
     
-    // Advanced settings
-    private lateinit var advancedSettingsContent: LinearLayout
-    private lateinit var btnExpandSettings: MaterialButton
-    private lateinit var serverIpInput: TextInputEditText
-    private lateinit var serverPortInput: TextInputEditText
-    private lateinit var unlockPasswordInput: TextInputEditText
-    private lateinit var responseTimeoutInput: TextInputEditText
-    private lateinit var ttsLanguageInput: TextInputEditText
-    private lateinit var ttsRateInput: TextInputEditText
-    private lateinit var ttsPitchInput: TextInputEditText
-    private lateinit var btnTestConnection: MaterialButton
-    private lateinit var btnSaveSettings: MaterialButton
-    private lateinit var connectionStatusText: TextView
-    private lateinit var whisperModelDropdown: AutoCompleteTextView
     
     // Screenshot section
     private lateinit var screenshotImageView: ImageView
@@ -125,7 +101,6 @@ class MainActivity : AppCompatActivity() {
     private var isRecording = false
     private var currentAudioFile: File? = null
     private val logBuffer = SpannableStringBuilder()
-    private var isAdvancedSettingsExpanded = false
     
     // Track active fullscreen dialog
     private var activeFullscreenDialog: FullscreenImageDialog? = null
@@ -223,35 +198,6 @@ class MainActivity : AppCompatActivity() {
                         showReadyState()
                     }
                     
-                    // Check for connection test completion in log messages (backup method)
-                    if (message.contains("TEST COMPLETADO:", ignoreCase = true)) {
-                        val isSuccess = message.contains("exitosa", ignoreCase = true)
-                        
-                        // Extract the message content
-                        val connectionMessage = if (isSuccess) {
-                            // Extract the connection time if possible
-                            val timePattern = "\\((\\d+)ms\\)".toRegex()
-                            val matchResult = timePattern.find(message)
-                            if (matchResult != null) {
-                                getString(R.string.connected_with_time, matchResult.groupValues[1].toInt())
-                            } else {
-                                getString(R.string.connected)
-                            }
-                        } else {
-                            // Extract error message if possible
-                            val errorPattern = "Error de conexión \\((.+)\\)".toRegex()
-                            val matchResult = errorPattern.find(message)
-                            if (matchResult != null) {
-                                getString(R.string.connection_error_with_message, matchResult.groupValues[1])
-                            } else {
-                                getString(R.string.connection_error)
-                            }
-                        }
-                        
-                        // Update connection status using our helper method
-                        updateConnectionStatus(isSuccess, connectionMessage)
-                    }
-                    
                     addLogMessage(message)
                 }
                 AudioService.ACTION_AUDIO_FILE_INFO -> {
@@ -278,12 +224,6 @@ class MainActivity : AppCompatActivity() {
                     
                     Log.d("MainActivity", getString(R.string.connection_test_received, success, message))
                     addLogMessage("[${getCurrentTime()}] ${getString(R.string.connection_test_received, success, message)}")
-                    
-                    // Ensure UI updates happen on the main thread
-                    Handler(mainLooper).post {
-                        // Update UI with test results
-                        updateConnectionStatus(success, message)
-                    }
                 }
             }
         }
@@ -297,10 +237,7 @@ class MainActivity : AppCompatActivity() {
         object Loading : ScreenshotState()
     }
 
-    private lateinit var btnToggleTheme: MaterialButton
-    private var isDarkTheme = false
     
-    private var connectionTestTimeoutHandler: Handler? = null
     
     // Add these properties to track refresh state
     private var refreshPeriodMs: Long = 30000 // Default: 30 seconds
@@ -331,15 +268,12 @@ class MainActivity : AppCompatActivity() {
         private const val RECORD_AUDIO_PERMISSION_REQUEST_CODE = 101
         private const val PREFS_NAME = "AppPreferences"
         private const val KEY_IS_LOGS_EXPANDED = "isLogsExpanded"
-        private const val KEY_IS_DARK_THEME = "isDarkTheme"
         private const val KEY_REFRESH_PERIOD = "refreshPeriod"
         private const val KEY_AUTO_REFRESH_ENABLED = "autoRefreshEnabled"
         private const val KEY_UNLOCK_PASSWORD = "unlockPassword"
         private const val KEY_IS_COMMAND_HISTORY_EXPANDED = "isCommandHistoryExpanded"
         private const val KEY_IS_FAVORITES_EXPANDED = "isFavoritesExpanded"
-        private const val KEY_IS_ADVANCED_SETTINGS_EXPANDED = "isAdvancedSettingsExpanded"
         private const val KEY_SCREENSHOT_REFRESH_PERIOD = "screenshotRefreshPeriod"
-        private const val KEY_RESPONSE_TIMEOUT = AudioService.KEY_RESPONSE_TIMEOUT
         private const val PERMISSION_REQUEST_RECORD_AUDIO = 100
     }
     
@@ -423,7 +357,6 @@ class MainActivity : AppCompatActivity() {
         saveAppPreferences()
         
         // Stop any scheduled timers
-        connectionTestTimeoutHandler?.removeCallbacksAndMessages(null)
         responseTimeoutHandler?.removeCallbacksAndMessages(null)
         stopAutoRefresh()
     }
@@ -449,14 +382,21 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun initViews() {
+        val topAppBar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.topAppBar)
+        topAppBar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_settings -> {
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                    true
+                }
+                else -> false
+            }
+        }
+
         // Main controls
         btnStartRecording = findViewById(R.id.btnStartRecording)
         btnProcessingRecording = findViewById(R.id.btnProcessingRecording)
         progressIndicator = findViewById(R.id.progressIndicator)
-        
-        // Theme toggle
-        btnToggleTheme = findViewById(R.id.btnToggleTheme)
-        updateThemeButtonText()
         
         // Logs - Find ScrollView directly by ID
         logsTextView = findViewById(R.id.logsTextView)
@@ -471,29 +411,6 @@ class MainActivity : AppCompatActivity() {
         
         // Command History section
         setupCommandHistory()
-        
-        // Advanced settings
-        advancedSettingsContent = findViewById(R.id.advancedSettingsContent)
-        btnExpandSettings = findViewById(R.id.btnExpandSettings)
-        serverIpInput = findViewById(R.id.serverIpInput)
-        serverPortInput = findViewById(R.id.serverPortInput)
-        unlockPasswordInput = findViewById(R.id.unlockPasswordInput)
-        responseTimeoutInput = findViewById(R.id.responseTimeoutInput)
-        ttsLanguageInput = findViewById(R.id.ttsLanguageInput)
-        ttsRateInput = findViewById(R.id.ttsRateInput)
-        ttsPitchInput = findViewById(R.id.ttsPitchInput)
-        btnTestConnection = findViewById(R.id.btnTestConnection)
-        btnSaveSettings = findViewById(R.id.btnSaveSettings)
-        connectionStatusText = findViewById(R.id.connectionStatusText)
-        whisperModelDropdown = findViewById(R.id.whisperModelDropdown)
-        
-        // Initialize the whisper model dropdown
-        val adapter = ArrayAdapter<String>(
-            this,
-            android.R.layout.simple_dropdown_item_1line,
-            resources.getStringArray(R.array.whisper_model_options)
-        )
-        whisperModelDropdown.setAdapter(adapter)
         
         // Screenshot section
         screenshotImageView = findViewById(R.id.screenshotImageView)
@@ -546,8 +463,6 @@ class MainActivity : AppCompatActivity() {
         
         addLogMessage("[${getCurrentTime()}] ${getString(R.string.recording_state_reset)}")
         
-        // Setup advanced settings
-        setupAdvancedSettings()
     }
     
     /**
@@ -634,269 +549,6 @@ class MainActivity : AppCompatActivity() {
             // Cancel any previous reset timer and set a new one
             highlightHandler.removeCallbacks(resetHighlightRunnable)
             highlightHandler.postDelayed(resetHighlightRunnable, 800) // Keep highlight for 800ms after last scroll
-        }
-    }
-    
-    private fun setupAdvancedSettings() {
-        // Load saved settings from SharedPreferences
-        loadServerSettings()
-        
-        // Setup expand/collapse button
-        btnExpandSettings.setOnClickListener {
-            isAdvancedSettingsExpanded = !isAdvancedSettingsExpanded
-            toggleAdvancedSettings()
-        }
-        
-        // Setup advanced settings header to toggle expansion when clicked
-        findViewById<LinearLayout>(R.id.advancedSettingsHeader).setOnClickListener {
-            isAdvancedSettingsExpanded = !isAdvancedSettingsExpanded
-            toggleAdvancedSettings()
-        }
-        
-        // Setup theme toggle
-        btnToggleTheme.setOnClickListener {
-            toggleTheme()
-        }
-        
-        // Setup server setup button
-        findViewById<MaterialButton>(R.id.btnServerSetup).setOnClickListener {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/pnmartinez/simple-computer-use"))
-            startActivity(intent)
-        }
-        
-        // Setup save button
-        btnSaveSettings.setOnClickListener {
-            saveServerSettings()
-        }
-        
-        // Setup test connection button
-        btnTestConnection.setOnClickListener {
-            testServerConnection()
-        }
-    }
-    
-    private fun toggleAdvancedSettings() {
-        // Always run UI updates on the main thread
-        runOnUiThread {
-            // Update button icon and visibility
-            val iconResId = if (isAdvancedSettingsExpanded) 
-                R.drawable.ic_collapse else R.drawable.ic_expand
-            btnExpandSettings.setIconResource(iconResId)
-            
-            // Update content visibility with animation
-            if (isAdvancedSettingsExpanded) {
-                advancedSettingsContent.visibility = View.VISIBLE
-                advancedSettingsContent.alpha = 0f
-                advancedSettingsContent.animate().alpha(1f).setDuration(500).start()
-                
-                // Find the parent NestedScrollView
-                val nestedScrollView = findViewById<androidx.core.widget.NestedScrollView>(R.id.nestedScrollView)
-                
-                // We need to wait until the content is laid out to calculate proper scroll position
-                advancedSettingsContent.post {
-                    // Get the coordinates of the card that contains this section
-                    val advancedSettingsCard = findViewById<View>(R.id.advancedSettingsCard)
-                    
-                    // Calculate the position to scroll to - we want to show the entire card
-                    // by scrolling to a position that makes the card visible
-                    if (advancedSettingsCard != null) {
-                        val scrollViewHeight = nestedScrollView.height
-                        val cardTop = advancedSettingsCard.top
-                        val cardBottom = advancedSettingsCard.bottom
-                        val cardHeight = advancedSettingsCard.height
-                        
-                        // Calculate the appropriate scroll position
-                        val targetScrollY = when {
-                            cardHeight > scrollViewHeight -> cardTop // If card is taller than scroll view, scroll to top
-                            cardBottom > (nestedScrollView.scrollY + scrollViewHeight) -> cardBottom - scrollViewHeight // Show bottom if below view
-                            cardTop < nestedScrollView.scrollY -> cardTop // Show top if above view
-                            else -> nestedScrollView.scrollY // Don't scroll if already visible
-                        }
-                        
-                        // Use a custom smooth scroll with 500ms duration
-                        smoothScrollTo(nestedScrollView, targetScrollY, 500)
-                    }
-                }
-            } else {
-                advancedSettingsContent.animate().alpha(0f).setDuration(500)
-                    .withEndAction { advancedSettingsContent.visibility = View.GONE }.start()
-            }
-        }
-    }
-    
-    private fun loadServerSettings() {
-        // Load from SharedPreferences
-        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
-        val serverIp = prefs.getString(KEY_SERVER_IP, AudioService.DEFAULT_SERVER_IP) 
-            ?: AudioService.DEFAULT_SERVER_IP
-        val serverPort = prefs.getInt(KEY_SERVER_PORT, AudioService.DEFAULT_SERVER_PORT)
-        val whisperModel = prefs.getString(KEY_WHISPER_MODEL, AudioService.DEFAULT_WHISPER_MODEL)
-            ?: AudioService.DEFAULT_WHISPER_MODEL
-        val unlockPassword = prefs.getString(KEY_UNLOCK_PASSWORD, "your_password") ?: "your_password"
-        val responseTimeout = prefs.getInt(KEY_RESPONSE_TIMEOUT, AudioService.DEFAULT_RESPONSE_TIMEOUT)
-        val ttsLanguage = prefs.getString(KEY_TTS_LANGUAGE, AudioService.DEFAULT_TTS_LANGUAGE)
-            ?: AudioService.DEFAULT_TTS_LANGUAGE
-        val ttsRate = prefs.getFloat(KEY_TTS_RATE, AudioService.DEFAULT_TTS_RATE)
-        val ttsPitch = prefs.getFloat(KEY_TTS_PITCH, AudioService.DEFAULT_TTS_PITCH)
-        
-        // Update UI
-        serverIpInput.setText(serverIp)
-        serverPortInput.setText(serverPort.toString())
-        whisperModelDropdown.setText(whisperModel, false)
-        unlockPasswordInput.setText(unlockPassword)
-        responseTimeoutInput.setText((responseTimeout / 1000).toString()) // Convert to seconds for display
-        ttsLanguageInput.setText(ttsLanguage)
-        ttsRateInput.setText(ttsRate.toString())
-        ttsPitchInput.setText(ttsPitch.toString())
-    }
-    
-    private fun saveServerSettings() {
-        val ip = serverIpInput.text.toString().trim()
-        val portText = serverPortInput.text.toString().trim()
-        val whisperModel = whisperModelDropdown.text.toString().trim()
-        val unlockPassword = unlockPasswordInput.text.toString()
-        val timeoutText = responseTimeoutInput.text.toString().trim()
-        val ttsLanguage = ttsLanguageInput.text.toString().trim()
-        val ttsRateText = ttsRateInput.text.toString().trim()
-        val ttsPitchText = ttsPitchInput.text.toString().trim()
-        
-        // Validate input
-        if (ip.isEmpty()) {
-            Toast.makeText(this, getString(R.string.empty_server_ip_error), Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        if (portText.isEmpty()) {
-            Toast.makeText(this, getString(R.string.empty_server_port_error), Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        val port = try {
-            portText.toInt()
-        } catch (e: NumberFormatException) {
-            Toast.makeText(this, getString(R.string.invalid_port_error), Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        if (whisperModel.isEmpty()) {
-            Toast.makeText(this, getString(R.string.empty_whisper_model_error), Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        val timeout = try {
-            val timeoutSeconds = timeoutText.toInt()
-            if (timeoutSeconds < 5 || timeoutSeconds > 120) {
-                Toast.makeText(this, getString(R.string.invalid_timeout_error), Toast.LENGTH_SHORT).show()
-                return
-            }
-            timeoutSeconds * 1000 // Convert to milliseconds
-        } catch (e: NumberFormatException) {
-            Toast.makeText(this, getString(R.string.invalid_timeout_error), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val rate = try {
-            ttsRateText.toFloat().also {
-                if (it < 0.1f || it > 2.0f) {
-                    Toast.makeText(this, getString(R.string.invalid_tts_rate_error), Toast.LENGTH_SHORT).show()
-                    return
-                }
-            }
-        } catch (e: NumberFormatException) {
-            Toast.makeText(this, getString(R.string.invalid_tts_rate_error), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val pitch = try {
-            ttsPitchText.toFloat().also {
-                if (it < 0.1f || it > 2.0f) {
-                    Toast.makeText(this, getString(R.string.invalid_tts_pitch_error), Toast.LENGTH_SHORT).show()
-                    return
-                }
-            }
-        } catch (e: NumberFormatException) {
-            Toast.makeText(this, getString(R.string.invalid_tts_pitch_error), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        if (ttsLanguage.isEmpty()) {
-            Toast.makeText(this, getString(R.string.invalid_tts_language_error), Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        // Save to SharedPreferences
-        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().apply {
-            putString(KEY_SERVER_IP, ip)
-            putInt(KEY_SERVER_PORT, port)
-            putString(KEY_WHISPER_MODEL, whisperModel)
-            putString(KEY_UNLOCK_PASSWORD, unlockPassword)  // Save unlock password
-            putInt(KEY_RESPONSE_TIMEOUT, timeout)
-            putString(KEY_TTS_LANGUAGE, ttsLanguage)
-            putFloat(KEY_TTS_RATE, rate)
-            putFloat(KEY_TTS_PITCH, pitch)
-            commit() // Use commit() instead of apply() for immediate write
-        }
-        
-        // Also save to app preferences to ensure consistency
-        saveAppPreferences()
-        
-        // Update service
-        val intent = Intent(this, AudioService::class.java).apply {
-            action = "UPDATE_SETTINGS"
-            putExtra(KEY_SERVER_IP, ip)
-            putExtra(KEY_SERVER_PORT, port as Int)
-            putExtra(KEY_WHISPER_MODEL, whisperModel)
-            putExtra(KEY_RESPONSE_TIMEOUT, timeout)
-            putExtra(KEY_TTS_LANGUAGE, ttsLanguage)
-            putExtra(KEY_TTS_RATE, rate)
-            putExtra(KEY_TTS_PITCH, pitch)
-        }
-        startService(intent)
-        
-        // Show confirmation
-        Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
-        addLogMessage("[${getCurrentTime()}] ${getString(R.string.server_settings_updated, ip, port, whisperModel)}")
-    }
-    
-    private fun testServerConnection() {
-        try {
-            // First, save current settings
-            saveServerSettings()
-            
-            // Clear previous status and set indication that test is in progress
-            connectionStatusText.text = getString(R.string.checking_connection)
-            connectionStatusText.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray))
-            
-            // Log the connection attempt
-            val ipPort = "${serverIpInput.text}:${serverPortInput.text}"
-            Log.d("MainActivity", "Iniciando prueba de conexión a $ipPort")
-            addLogMessage("[${getCurrentTime()}] ${getString(R.string.testing_connection, ipPort)}")
-            
-            // Cancel any existing timeout handler
-            connectionTestTimeoutHandler?.removeCallbacksAndMessages(null)
-            
-            // Create new timeout handler
-            connectionTestTimeoutHandler = Handler(mainLooper)
-            connectionTestTimeoutHandler?.postDelayed({
-                if (connectionStatusText.text == getString(R.string.checking_connection)) {
-                    connectionStatusText.text = getString(R.string.connection_timeout)
-                    connectionStatusText.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_light))
-                    addLogMessage("[${getCurrentTime()}] ❌ ${getString(R.string.timeout_connecting)}")
-                }
-            }, 10000) // 10 second timeout
-            
-            // Send test connection request to service
-            val intent = Intent(this, AudioService::class.java).apply {
-                action = "TEST_CONNECTION"
-            }
-            startService(intent)
-        } catch (e: Exception) {
-            // Handle any exceptions that might occur
-            Log.e("MainActivity", "Error al iniciar prueba de conexión", e)
-            connectionStatusText.text = getString(R.string.error_generic, e.message)
-            connectionStatusText.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_light))
-            addLogMessage("[${getCurrentTime()}] ${getString(R.string.error_starting_test, e.message)}")
         }
     }
     
@@ -1266,41 +918,9 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun updateConnectionStatus(status: Boolean, message: String) {
-        runOnUiThread {
-            connectionStatusText.text = message
-            connectionStatusText.setTextColor(
-                ContextCompat.getColor(
-                    this,
-                    if (!status) R.color.error else R.color.success
-                )
-            )
-        }
-    }
-
     private fun logMessage(message: String) {
         runOnUiThread {
             logsTextView.append("$message\n")
-        }
-    }
-
-    private fun testConnection() {
-        val serverUrl = serverIpInput.text.toString()
-        val model = whisperModelDropdown.text.toString()
-        
-        Log.d("MainActivity", getString(R.string.testing_connection, serverUrl))
-        
-        try {
-            // Simulate connection test
-            Thread.sleep(5000)
-            
-            if (serverUrl.isNotEmpty()) {
-                Log.d("MainActivity", getString(R.string.connection_successful, model))
-            } else {
-                Log.e("MainActivity", getString(R.string.connection_error_with_message, "Invalid server URL"))
-            }
-        } catch (e: Exception) {
-            Log.e("MainActivity", getString(R.string.error_starting_test, e.message))
         }
     }
 
@@ -1382,7 +1002,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 updateScreenshotState(ScreenshotState.Loading)
                 
-                val serverUrl = buildServerUrl()
+                val serverUrl = getServerUrl()
                 val request = buildApiRequest("$serverUrl/screenshots/latest?limit=1")
                 
                 withContext(Dispatchers.IO) {
@@ -1407,8 +1027,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private fun buildServerUrl() = "https://${serverIpInput.text}:${serverPortInput.text}"
-
     private fun buildApiRequest(url: String) = Request.Builder()
         .url(url)
         .build()
@@ -1605,7 +1223,7 @@ class MainActivity : AppCompatActivity() {
     private fun fetchScreenshot(filename: String) {
         screenshotScope.launch {
             try {
-                val serverUrl = "https://${serverIpInput.text}:${serverPortInput.text}"
+                val serverUrl = getServerUrl()
                 // Add a timestamp to prevent caching
                 val timestamp = System.currentTimeMillis()
                 val imageUrl = "$serverUrl/screenshots/$filename?t=$timestamp"
@@ -1832,56 +1450,20 @@ class MainActivity : AppCompatActivity() {
     private fun loadAppPreferences() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isLogsExpanded = prefs.getBoolean(KEY_IS_LOGS_EXPANDED, false)
-        isDarkTheme = prefs.getBoolean(KEY_IS_DARK_THEME, false)
         refreshPeriodMs = prefs.getLong(KEY_REFRESH_PERIOD, 30000)
         autoRefreshEnabled = prefs.getBoolean(KEY_AUTO_REFRESH_ENABLED, true)
-        
-        // Load unlock password or use default if not set
-        val savedPassword = prefs.getString(KEY_UNLOCK_PASSWORD, "your_password")
-        if (::unlockPasswordInput.isInitialized) {
-            unlockPasswordInput.setText(savedPassword)
-        }
     }
     
     private fun saveAppPreferences() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit()
-            .putString(KEY_SERVER_IP, serverIpInput.text.toString())
-            .putString(KEY_SERVER_PORT, serverPortInput.text.toString())
-            .putString(KEY_WHISPER_MODEL, whisperModelDropdown.text.toString())
-            .putString(KEY_UNLOCK_PASSWORD, unlockPasswordInput.text.toString())
             .putBoolean(KEY_IS_LOGS_EXPANDED, isLogsExpanded)
             .putBoolean(KEY_IS_COMMAND_HISTORY_EXPANDED, isCommandHistoryExpanded)
             .putBoolean(KEY_IS_FAVORITES_EXPANDED, isFavoritesExpanded)
-            .putBoolean(KEY_IS_ADVANCED_SETTINGS_EXPANDED, isAdvancedSettingsExpanded)
             .putString(KEY_SCREENSHOT_REFRESH_PERIOD, btnRefreshPeriod.text.toString())
             .apply()
     }
     
-    private fun updateTheme() {
-        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
-            if (isDarkTheme) 
-                androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
-            else 
-                androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
-        )
-    }
-    
-    private fun updateThemeButtonText() {
-        btnToggleTheme.text = if (isDarkTheme) getString(R.string.toggle_theme_light) else getString(R.string.toggle_theme_dark)
-        btnToggleTheme.setIconResource(
-            if (isDarkTheme) android.R.drawable.ic_menu_day
-            else android.R.drawable.ic_dialog_dialer  // Using a darker icon for night mode
-        )
-    }
-    
-    private fun toggleTheme() {
-        isDarkTheme = !isDarkTheme
-        saveAppPreferences()
-        updateThemeButtonText()
-        updateTheme()
-    }
-
     private fun captureNewScreenshot() {
         screenshotScope.launch {
             try {
@@ -2006,14 +1588,16 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun getServerUrl(): String {
-        // Safety check: if serverIpInput isn't initialized yet, use default values
-        if (!::serverIpInput.isInitialized || !::serverPortInput.isInitialized) {
-            return "https://${AudioService.DEFAULT_SERVER_IP}:${AudioService.DEFAULT_SERVER_PORT}"
-        }
-        
-        val serverIp = serverIpInput.text.toString().trim()
-        val serverPort = serverPortInput.text.toString().trim()
+        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        val serverIp = prefs.getString(KEY_SERVER_IP, AudioService.DEFAULT_SERVER_IP)
+            ?: AudioService.DEFAULT_SERVER_IP
+        val serverPort = prefs.getInt(KEY_SERVER_PORT, AudioService.DEFAULT_SERVER_PORT)
         return "https://$serverIp:$serverPort"
+    }
+
+    private fun getUnlockPassword(): String {
+        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getString(KEY_UNLOCK_PASSWORD, "your_password") ?: "your_password"
     }
 
     /**
@@ -2163,8 +1747,8 @@ class MainActivity : AppCompatActivity() {
                 // Get the server URL
                 val serverUrl = getServerUrl()
                 
-                // Get the password from the input field
-                val password = unlockPasswordInput.text.toString().trim()
+                // Get the password from saved settings
+                val password = getUnlockPassword()
                 
                 // Create a simple JSON object with unlock parameters
                 val jsonObject = JSONObject().apply {
