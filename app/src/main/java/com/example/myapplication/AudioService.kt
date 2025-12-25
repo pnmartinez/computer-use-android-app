@@ -963,11 +963,7 @@ class AudioService : Service() {
                 }
             }
             
-            // Broadcast that we have a "response" even though it's just text
-            sendAppBroadcast(Intent(ACTION_RESPONSE_RECEIVED).apply {
-                putExtra(EXTRA_RESPONSE_MESSAGE, getString(R.string.playing_audio_response))
-                putExtra(EXTRA_RESPONSE_SUCCESS, true)
-            })
+            // No extra response broadcast here; processJsonResponse already notifies the UI.
         }
     }
 

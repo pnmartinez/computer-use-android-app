@@ -184,6 +184,65 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/summaryCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="0dp"
+                android:stateListAnimator="@animator/card_state_list_anim"
+                app:layout_constraintTop_toBottomOf="@id/screenshotCard"
+                app:layout_constraintBottom_toTopOf="@id/commandHistoryCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/screen_summary_title"
+                            android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnPlaySummary"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/play_summary" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/summaryText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/summary_unavailable"
+                        android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                    <TextView
+                        android:id="@+id/summaryStatusText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/summary_status_empty"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textStyle="italic" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Command History Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/commandHistoryCard"
@@ -194,7 +253,7 @@
                 app:cardCornerRadius="16dp"
                 app:strokeWidth="0dp"
                 android:stateListAnimator="@animator/card_state_list_anim"
-                app:layout_constraintTop_toBottomOf="@id/screenshotCard"
+                app:layout_constraintTop_toBottomOf="@id/summaryCard"
                 app:layout_constraintBottom_toTopOf="@id/favoritesCard">
 
                 <LinearLayout
@@ -626,6 +685,57 @@
                                 android:inputType="number"
                                 android:maxLines="1"
                                 android:text="20" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/ttsLanguageLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/tts_language_hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/ttsLanguageInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:maxLines="1"
+                                android:text="es-ES" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/ttsRateLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/tts_rate_hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/ttsRateInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal"
+                                android:maxLines="1"
+                                android:text="1.0" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/ttsPitchLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:hint="@string/tts_pitch_hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/ttsPitchInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal"
+                                android:maxLines="1"
+                                android:text="1.0" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <!-- Test Connection Button -->
