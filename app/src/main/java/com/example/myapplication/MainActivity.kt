@@ -937,7 +937,7 @@ class MainActivity : AppCompatActivity() {
             highlightColor,
             transparentHighlight
         ).apply {
-            duration = 900L
+            duration = 1400L
             interpolator = FastOutSlowInInterpolator()
             addUpdateListener { animator ->
                 val color = animator.animatedValue as Int
