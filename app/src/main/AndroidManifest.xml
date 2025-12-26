@@ -35,6 +35,10 @@
             android:name=".SettingsActivity"
             android:exported="false"
             android:label="@string/settings_title" />
+        <activity
+            android:name=".CapturesActivity"
+            android:exported="false"
+            android:label="@string/captures_title" />
 
         <!-- Servicio de audio en primer plano -->
         <service
