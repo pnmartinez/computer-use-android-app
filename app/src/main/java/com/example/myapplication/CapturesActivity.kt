@@ -19,6 +19,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_IP
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_PORT
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,6 +40,11 @@ class CapturesActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var emptyText: TextView
     private lateinit var loadingProgress: ProgressBar
+    private lateinit var subtitleText: TextView
+    private lateinit var sortButton: MaterialButton
+
+    private var isNewestFirst = true
+    private var currentItems: List<ScreenshotItem> = emptyList()
 
     private val okHttpClient = NetworkUtils.createTrustAllClient(
         connectTimeout = 10,
@@ -64,6 +70,8 @@ class CapturesActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.capturesRecyclerView)
         emptyText = findViewById(R.id.capturesEmptyText)
         loadingProgress = findViewById(R.id.capturesLoadingProgress)
+        subtitleText = findViewById(R.id.capturesSubtitle)
+        sortButton = findViewById(R.id.capturesSortButton)
 
         setSupportActionBar(toolbar)
         toolbar.setNavigationOnClickListener { finish() }
@@ -72,6 +80,12 @@ class CapturesActivity : AppCompatActivity() {
         recyclerView.adapter = captureAdapter
 
         swipeRefresh.setOnRefreshListener { fetchCaptures() }
+        sortButton.setOnClickListener {
+            isNewestFirst = !isNewestFirst
+            updateSortButtonLabel()
+            updateCaptureList(currentItems)
+        }
+        updateSortButtonLabel()
 
         fetchCaptures()
     }
@@ -153,10 +167,12 @@ class CapturesActivity : AppCompatActivity() {
     }
 
     private fun updateCaptureList(items: List<ScreenshotItem>) {
+        currentItems = items
         loadingProgress.visibility = View.GONE
         emptyText.text = getString(R.string.captures_empty)
         emptyText.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
-        captureAdapter.submit(items)
+        subtitleText.text = getString(R.string.captures_subtitle, items.size)
+        captureAdapter.submit(sortItems(items))
     }
 
     private fun showLoadingState() {
@@ -169,6 +185,7 @@ class CapturesActivity : AppCompatActivity() {
         loadingProgress.visibility = View.GONE
         emptyText.visibility = View.VISIBLE
         emptyText.text = getString(R.string.captures_empty)
+        subtitleText.text = getString(R.string.captures_subtitle, 0)
         val message = error.message ?: getString(R.string.error_generic, "")
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
@@ -188,7 +205,7 @@ class CapturesActivity : AppCompatActivity() {
 
         uiScope.launch {
             val bitmapResult = withContext(Dispatchers.IO) {
-                runCatching { fetchBitmap(item.filename) }
+                runCatching { fetchBitmap(item.filename, imageView.width.takeIf { it > 0 } ?: imageView.resources.displayMetrics.widthPixels) }
             }
             val bitmap = bitmapResult.getOrNull() ?: return@launch
             bitmapCache.put(item.filename, bitmap)
@@ -198,7 +215,7 @@ class CapturesActivity : AppCompatActivity() {
         }
     }
 
-    private fun fetchBitmap(filename: String): Bitmap {
+    private fun fetchBitmap(filename: String, targetWidth: Int): Bitmap {
         val serverUrl = getServerUrl()
         val timestamp = System.currentTimeMillis()
         val imageUrl = "$serverUrl/screenshots/$filename?t=$timestamp"
@@ -208,7 +225,13 @@ class CapturesActivity : AppCompatActivity() {
                 throw IllegalStateException("HTTP ${response.code}")
             }
             val bytes = response.body?.bytes() ?: throw IllegalStateException("Empty body")
-            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+            val desiredWidth = targetWidth.coerceAtLeast(1)
+            val desiredHeight = (imageViewHeightPx()).coerceAtLeast(1)
+            options.inSampleSize = calculateInSampleSize(options, desiredWidth, desiredHeight)
+            options.inJustDecodeBounds = false
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
         }
     }
 
@@ -242,6 +265,44 @@ class CapturesActivity : AppCompatActivity() {
             second.toInt()
         )
         return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    }
+
+    private fun updateSortButtonLabel() {
+        val label = if (isNewestFirst) {
+            getString(R.string.captures_sort_newest)
+        } else {
+            getString(R.string.captures_sort_oldest)
+        }
+        sortButton.text = label
+    }
+
+    private fun sortItems(items: List<ScreenshotItem>): List<ScreenshotItem> {
+        if (items.isEmpty()) return items
+        val comparator = compareByDescending<ScreenshotItem> { it.timestampMillis ?: Long.MIN_VALUE }
+            .thenBy { it.originalIndex }
+        return if (isNewestFirst) {
+            items.sortedWith(comparator)
+        } else {
+            items.sortedWith(comparator).reversed()
+        }
+    }
+
+    private fun imageViewHeightPx(): Int {
+        val density = resources.displayMetrics.density
+        return (220 * density).toInt()
+    }
+
+    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+        val (height: Int, width: Int) = options.run { outHeight to outWidth }
+        var inSampleSize = 1
+        if (height > reqHeight || width > reqWidth) {
+            var halfHeight = height / 2
+            var halfWidth = width / 2
+            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize.coerceAtLeast(1)
     }
 
     private class CapturesAdapter(
