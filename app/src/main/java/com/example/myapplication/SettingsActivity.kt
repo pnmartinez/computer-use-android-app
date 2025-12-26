@@ -22,6 +22,7 @@ import com.example.myapplication.AudioService.Companion.KEY_TTS_RATE
 import com.example.myapplication.AudioService.Companion.KEY_WHISPER_MODEL
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
 
 class SettingsActivity : AppCompatActivity() {
@@ -33,6 +34,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var ttsLanguageInput: TextInputEditText
     private lateinit var ttsRateInput: TextInputEditText
     private lateinit var ttsPitchInput: TextInputEditText
+    private lateinit var audioPlaybackSwitch: SwitchMaterial
     private lateinit var btnTestConnection: MaterialButton
     private lateinit var btnSaveSettings: MaterialButton
     private lateinit var connectionStatusText: TextView
@@ -98,6 +100,7 @@ class SettingsActivity : AppCompatActivity() {
         ttsLanguageInput = findViewById(R.id.ttsLanguageInput)
         ttsRateInput = findViewById(R.id.ttsRateInput)
         ttsPitchInput = findViewById(R.id.ttsPitchInput)
+        audioPlaybackSwitch = findViewById(R.id.audioPlaybackSwitch)
         btnTestConnection = findViewById(R.id.btnTestConnection)
         btnSaveSettings = findViewById(R.id.btnSaveSettings)
         connectionStatusText = findViewById(R.id.connectionStatusText)
@@ -127,6 +130,10 @@ class SettingsActivity : AppCompatActivity() {
 
         btnTestConnection.setOnClickListener {
             testServerConnection()
+        }
+
+        audioPlaybackSwitch.setOnCheckedChangeListener { _, isChecked ->
+            updateAudioPlaybackSwitchText(isChecked)
         }
     }
 
@@ -186,6 +193,10 @@ class SettingsActivity : AppCompatActivity() {
             ?: AudioService.DEFAULT_TTS_LANGUAGE
         val ttsRate = prefs.getFloat(KEY_TTS_RATE, AudioService.DEFAULT_TTS_RATE)
         val ttsPitch = prefs.getFloat(KEY_TTS_PITCH, AudioService.DEFAULT_TTS_PITCH)
+        val audioPlaybackEnabled = prefs.getBoolean(
+            AudioService.KEY_AUDIO_PLAYBACK_ENABLED,
+            AudioService.DEFAULT_AUDIO_PLAYBACK_ENABLED
+        )
 
         serverIpInput.setText(serverIp)
         serverPortInput.setText(serverPort.toString())
@@ -195,6 +206,8 @@ class SettingsActivity : AppCompatActivity() {
         ttsLanguageInput.setText(ttsLanguage)
         ttsRateInput.setText(ttsRate.toString())
         ttsPitchInput.setText(ttsPitch.toString())
+        audioPlaybackSwitch.isChecked = audioPlaybackEnabled
+        updateAudioPlaybackSwitchText(audioPlaybackEnabled)
     }
 
     private fun saveServerSettings() {
@@ -206,6 +219,7 @@ class SettingsActivity : AppCompatActivity() {
         val ttsLanguage = ttsLanguageInput.text.toString().trim()
         val ttsRateText = ttsRateInput.text.toString().trim()
         val ttsPitchText = ttsPitchInput.text.toString().trim()
+        val audioPlaybackEnabled = audioPlaybackSwitch.isChecked
 
         if (ip.isEmpty()) {
             Toast.makeText(this, getString(R.string.empty_server_ip_error), Toast.LENGTH_SHORT).show()
@@ -280,6 +294,7 @@ class SettingsActivity : AppCompatActivity() {
             putString(KEY_TTS_LANGUAGE, ttsLanguage)
             putFloat(KEY_TTS_RATE, rate)
             putFloat(KEY_TTS_PITCH, pitch)
+            putBoolean(AudioService.KEY_AUDIO_PLAYBACK_ENABLED, audioPlaybackEnabled)
             commit()
         }
 
@@ -292,6 +307,7 @@ class SettingsActivity : AppCompatActivity() {
             putExtra(KEY_TTS_LANGUAGE, ttsLanguage)
             putExtra(KEY_TTS_RATE, rate)
             putExtra(KEY_TTS_PITCH, pitch)
+            putExtra(AudioService.KEY_AUDIO_PLAYBACK_ENABLED, audioPlaybackEnabled)
         }
         startService(intent)
 
@@ -338,6 +354,12 @@ class SettingsActivity : AppCompatActivity() {
                 )
             )
         }
+    }
+
+    private fun updateAudioPlaybackSwitchText(enabled: Boolean) {
+        audioPlaybackSwitch.text = getString(
+            if (enabled) R.string.audio_playback_enabled else R.string.audio_playback_disabled
+        )
     }
 
     companion object {
