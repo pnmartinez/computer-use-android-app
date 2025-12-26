@@ -403,6 +403,11 @@ class MainActivity : AppCompatActivity() {
         }
         navigationView.setNavigationItemSelectedListener { item ->
             when (item.itemId) {
+                R.id.nav_captures -> {
+                    startActivity(Intent(this, CapturesActivity::class.java))
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                    true
+                }
                 R.id.nav_settings -> {
                     startActivity(Intent(this, SettingsActivity::class.java))
                     drawerLayout.closeDrawer(GravityCompat.START)
