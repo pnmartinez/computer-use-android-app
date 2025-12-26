@@ -54,6 +54,12 @@
     <string name="start_server">Start your Simple Computer Use server</string>
     <string name="switch_to_dark_theme">Switch to dark theme</string>
     <string name="settings_title">Configuración</string>
+    <string name="captures_title">Capturas</string>
+    <string name="captures_loading">Cargando capturas...</string>
+    <string name="captures_empty">No hay capturas disponibles</string>
+    <string name="captures_refresh">Actualizar</string>
+    <string name="timestamp_unavailable">Timestamp no disponible</string>
+    <string name="capture_image_description">Captura tomada %1$s</string>
     
     <!-- Recording Section -->
     <string name="start_recording">Start Recording</string>
