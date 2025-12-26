@@ -40,7 +40,11 @@ class CapturesActivity : AppCompatActivity() {
     private lateinit var emptyText: TextView
     private lateinit var loadingProgress: ProgressBar
 
-    private val okHttpClient = OkHttpClient()
+    private val okHttpClient = NetworkUtils.createTrustAllClient(
+        connectTimeout = 10,
+        readTimeout = 30,
+        writeTimeout = 30
+    )
     private val uiScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val bitmapCache = object : LruCache<String, Bitmap>((Runtime.getRuntime().maxMemory() / 1024).toInt() / 8) {
