@@ -39,6 +39,7 @@ class AudioService : Service() {
     private var ttsLanguage: String = DEFAULT_TTS_LANGUAGE
     private var ttsRate: Float = DEFAULT_TTS_RATE
     private var ttsPitch: Float = DEFAULT_TTS_PITCH
+    private var audioPlaybackEnabled: Boolean = DEFAULT_AUDIO_PLAYBACK_ENABLED
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
     private val serviceJob = SupervisorJob()
@@ -98,6 +99,7 @@ class AudioService : Service() {
         const val DEFAULT_TTS_LANGUAGE = "es-ES"
         const val DEFAULT_TTS_RATE = 1.0f
         const val DEFAULT_TTS_PITCH = 1.0f
+        const val DEFAULT_AUDIO_PLAYBACK_ENABLED = true
         
         // SharedPreferences keys
         const val PREFS_NAME = "AudioServicePrefs"
@@ -108,6 +110,7 @@ class AudioService : Service() {
         const val KEY_TTS_LANGUAGE = "tts_language"
         const val KEY_TTS_RATE = "tts_rate"
         const val KEY_TTS_PITCH = "tts_pitch"
+        const val KEY_AUDIO_PLAYBACK_ENABLED = "audio_playback_enabled"
 
         const val TTS_STATUS_PLAYING = "playing"
         const val TTS_STATUS_IDLE = "idle"
@@ -283,6 +286,10 @@ class AudioService : Service() {
             val newTtsLanguage = intent.getStringExtra(KEY_TTS_LANGUAGE)
             val newTtsRate = intent.getFloatExtra(KEY_TTS_RATE, DEFAULT_TTS_RATE)
             val newTtsPitch = intent.getFloatExtra(KEY_TTS_PITCH, DEFAULT_TTS_PITCH)
+            val newAudioPlaybackEnabled = intent.getBooleanExtra(
+                KEY_AUDIO_PLAYBACK_ENABLED,
+                audioPlaybackEnabled
+            )
             
             if (newIp != null) {
                 updateServerSettings(
@@ -292,7 +299,8 @@ class AudioService : Service() {
                     newTimeout,
                     newTtsLanguage,
                     newTtsRate,
-                    newTtsPitch
+                    newTtsPitch,
+                    newAudioPlaybackEnabled
                 )
                 sendLogMessage(getString(R.string.server_configuration_updated, serverIp, serverPort, whisperModel))
             }
@@ -926,6 +934,10 @@ class AudioService : Service() {
      */
     private fun createTextToSpeechResponse(title: String, message: String) {
         // Native TTS plays the response text; saving synthesized audio remains a future step.
+        if (!audioPlaybackEnabled) {
+            sendLogMessage(getString(R.string.audio_playback_disabled))
+            return
+        }
         
         if (testMode) {
             sendLogMessage(getString(R.string.test_mode_tts))
@@ -970,6 +982,10 @@ class AudioService : Service() {
     private fun playAudioResponse(audioBytes: ByteString) {
         // This method is no longer used with REST API approach
         // Keeping it for backward compatibility
+        if (!audioPlaybackEnabled) {
+            sendLogMessage(getString(R.string.audio_playback_disabled))
+            return
+        }
         if (audioBytes.size == 0) {
             sendLogMessage(getString(R.string.empty_response))
             return
@@ -1006,6 +1022,10 @@ class AudioService : Service() {
 
     private fun playLastResponse() {
         // Por si el usuario quiere reproducir la última respuesta almacenada
+        if (!audioPlaybackEnabled) {
+            sendLogMessage(getString(R.string.audio_playback_disabled))
+            return
+        }
         val responseFile = getResponseFile()
         
         // Log more detailed file information for debugging
@@ -1218,6 +1238,10 @@ class AudioService : Service() {
      * Plays a downloaded audio file
      */
     private fun playDownloadedAudio(audioFile: File) {
+        if (!audioPlaybackEnabled) {
+            sendLogMessage(getString(R.string.audio_playback_disabled))
+            return
+        }
         if (!audioFile.exists() || audioFile.length() == 0L) {
             sendLogMessage(getString(R.string.error_downloaded_file))
             return
@@ -1320,6 +1344,10 @@ class AudioService : Service() {
         ttsLanguage = prefs.getString(KEY_TTS_LANGUAGE, DEFAULT_TTS_LANGUAGE) ?: DEFAULT_TTS_LANGUAGE
         ttsRate = prefs.getFloat(KEY_TTS_RATE, DEFAULT_TTS_RATE)
         ttsPitch = prefs.getFloat(KEY_TTS_PITCH, DEFAULT_TTS_PITCH)
+        audioPlaybackEnabled = prefs.getBoolean(
+            KEY_AUDIO_PLAYBACK_ENABLED,
+            DEFAULT_AUDIO_PLAYBACK_ENABLED
+        )
         sendLogMessage(getString(R.string.configuration_loaded, serverIp, serverPort, whisperModel))
     }
     
@@ -1333,7 +1361,8 @@ class AudioService : Service() {
         timeout: Int? = null,
         language: String? = null,
         rate: Float? = null,
-        pitch: Float? = null
+        pitch: Float? = null,
+        audioPlaybackEnabled: Boolean? = null
     ) {
         serverIp = ip
         serverPort = port
@@ -1352,6 +1381,9 @@ class AudioService : Service() {
         if (pitch != null) {
             ttsPitch = pitch
         }
+        if (audioPlaybackEnabled != null) {
+            this.audioPlaybackEnabled = audioPlaybackEnabled
+        }
         
         // Save to SharedPreferences
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -1363,6 +1395,7 @@ class AudioService : Service() {
             putString(KEY_TTS_LANGUAGE, ttsLanguage)
             putFloat(KEY_TTS_RATE, ttsRate)
             putFloat(KEY_TTS_PITCH, ttsPitch)
+            putBoolean(KEY_AUDIO_PLAYBACK_ENABLED, this@AudioService.audioPlaybackEnabled)
             apply()
         }
 
