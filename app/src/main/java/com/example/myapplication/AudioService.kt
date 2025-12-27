@@ -10,6 +10,8 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaRecorder
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -18,8 +20,6 @@ import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
-import androidx.media.session.MediaSessionCompat
-import androidx.media.session.PlaybackStateCompat
 import android.view.KeyEvent
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
@@ -49,7 +49,7 @@ class AudioService : Service() {
     private var ttsPitch: Float = DEFAULT_TTS_PITCH
     private var audioPlaybackEnabled: Boolean = DEFAULT_AUDIO_PLAYBACK_ENABLED
     private var lastResponseMessage: String? = null
-    private var mediaSession: MediaSessionCompat? = null
+    private var mediaSession: MediaSession? = null
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private val mediaButtonHandler = Handler(Looper.getMainLooper())
@@ -587,23 +587,23 @@ class AudioService : Service() {
 
     private fun setupMediaSession() {
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        mediaSession = MediaSessionCompat(this, "AudioService").apply {
+        mediaSession = MediaSession(this, "AudioService").apply {
             setFlags(
-                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+                MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or
+                    MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
             )
             setPlaybackState(
-                PlaybackStateCompat.Builder()
+                PlaybackState.Builder()
                     .setActions(
-                        PlaybackStateCompat.ACTION_PLAY or
-                            PlaybackStateCompat.ACTION_PAUSE or
-                            PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                            PlaybackStateCompat.ACTION_STOP
+                        PlaybackState.ACTION_PLAY or
+                            PlaybackState.ACTION_PAUSE or
+                            PlaybackState.ACTION_PLAY_PAUSE or
+                            PlaybackState.ACTION_STOP
                     )
-                    .setState(PlaybackStateCompat.STATE_PLAYING, 0L, 1.0f)
+                    .setState(PlaybackState.STATE_PLAYING, 0L, 1.0f)
                     .build()
             )
-            setCallback(object : MediaSessionCompat.Callback() {
+            setCallback(object : MediaSession.Callback() {
                 override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
                     val keyEvent = mediaButtonEvent?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
                     if (keyEvent?.action != KeyEvent.ACTION_DOWN) {

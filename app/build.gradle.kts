@@ -46,7 +46,6 @@ dependencies {
     // ExoPlayer
     implementation("com.google.android.exoplayer:exoplayer-core:2.18.7")
     implementation("com.google.android.exoplayer:exoplayer:2.18.7")
-    implementation("androidx.media:media:1.7.0")
 
     // Original dependencies
     implementation(libs.androidx.core.ktx)
