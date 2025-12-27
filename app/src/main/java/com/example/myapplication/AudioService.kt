@@ -3,6 +3,7 @@ package com.example.myapplication
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -52,6 +53,7 @@ class AudioService : Service() {
     private var mediaSession: MediaSession? = null
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
+    private var isForegroundStarted = false
     private val mediaButtonHandler = Handler(Looper.getMainLooper())
     private var mediaButtonPressCount = 0
     private var mediaButtonLastPressTime = 0L
@@ -293,20 +295,12 @@ class AudioService : Service() {
 
         setupMediaSession()
         
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            startForeground(
-                1,
-                createNotification(),
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-            )
-        } else {
-            startForeground(1, createNotification())
-        }
+        ensureForegroundServiceStarted()
         sendLogMessage(getString(R.string.simple_computer_use_service_started) + if (testMode) " (MODO PRUEBA)" else "")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        ensureForegroundServiceStarted()
         if (intent?.action == ACTION_MEDIA_BUTTON_EVENT) {
             val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
             if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
@@ -321,6 +315,7 @@ class AudioService : Service() {
                 }
             }
         }
+        mediaSession?.isActive = true
         // Check if we need to update settings
         if (intent?.action == "UPDATE_SETTINGS") {
             val newIp = intent.getStringExtra(KEY_SERVER_IP)
@@ -420,6 +415,7 @@ class AudioService : Service() {
         mediaSession?.release()
         mediaSession = null
         abandonAudioFocus()
+        isForegroundStarted = false
     }
 
     /**
@@ -649,9 +645,36 @@ class AudioService : Service() {
                 },
                 Handler(Looper.getMainLooper())
             )
+            val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                setClass(this@AudioService, HeadsetMediaButtonReceiver::class.java)
+            }
+            val mediaButtonPendingIntent = PendingIntent.getBroadcast(
+                this@AudioService,
+                0,
+                mediaButtonIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            setMediaButtonReceiver(mediaButtonPendingIntent)
             isActive = true
         }
         requestAudioFocus()
+    }
+
+    private fun ensureForegroundServiceStarted() {
+        if (isForegroundStarted) {
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            startForeground(
+                1,
+                createNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            )
+        } else {
+            startForeground(1, createNotification())
+        }
+        isForegroundStarted = true
     }
 
     private fun requestAudioFocus() {

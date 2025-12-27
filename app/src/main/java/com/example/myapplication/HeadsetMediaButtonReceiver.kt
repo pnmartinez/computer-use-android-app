@@ -14,11 +14,17 @@ class HeadsetMediaButtonReceiver : BroadcastReceiver() {
         }
         val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT) ?: return
         Log.d("HeadsetReceiver", "Media button event: ${keyEvent.keyCode}")
+        context.sendBroadcast(Intent(AudioService.ACTION_LOG_MESSAGE).apply {
+            setPackage(context.packageName)
+            putExtra(
+                AudioService.EXTRA_LOG_MESSAGE,
+                "Media button event recibido: ${keyEvent.keyCode}"
+            )
+        })
         val serviceIntent = Intent(context, AudioService::class.java).apply {
             action = AudioService.ACTION_MEDIA_BUTTON_EVENT
             putExtra(Intent.EXTRA_KEY_EVENT, keyEvent)
         }
         ContextCompat.startForegroundService(context, serviceIntent)
-        abortBroadcast()
     }
 }

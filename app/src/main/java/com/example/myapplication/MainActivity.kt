@@ -905,7 +905,7 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(context, AudioService::class.java).apply {
             this.action = action
         }
-        context.startService(intent)
+        ContextCompat.startForegroundService(context, intent)
     }
 
     private fun speakSummary(summary: String) {
@@ -913,7 +913,7 @@ class MainActivity : AppCompatActivity() {
             action = "SPEAK_SUMMARY"
             putExtra(AudioService.EXTRA_SCREEN_SUMMARY, summary)
         }
-        startService(intent)
+        ContextCompat.startForegroundService(this, intent)
     }
 
     private fun updateScreenSummary(summary: String) {
@@ -2777,7 +2777,7 @@ private class FullscreenImageDialog(
                 val action = if (!isRecordingLocal) "START_RECORDING" else "STOP_RECORDING"
                 val svcIntent = Intent(context, AudioService::class.java).apply { this.action = action }
                 try {
-                    context.startService(svcIntent)
+                    ContextCompat.startForegroundService(context, svcIntent)
                 } catch (_: Exception) { /* ignore */ }
             }
         }
