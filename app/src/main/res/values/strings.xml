@@ -20,6 +20,8 @@
     <string name="tts_language_hint">TTS Language (e.g. es-ES)</string>
     <string name="tts_rate_hint">TTS Speed (0.1 - 2.0)</string>
     <string name="tts_pitch_hint">TTS Pitch (0.1 - 2.0)</string>
+    <string name="tts_system_settings">Ajustes de síntesis de voz</string>
+    <string name="tts_settings_unavailable">No se pudieron abrir los ajustes de síntesis de voz</string>
     <string name="test_connection">Test Connection</string>
     <string name="whisper_model_hint">Whisper Model Size</string>
     <string name="whisper_model_help">More accurate models require more resources:\n• tiny: ~39M parameters (~75 MB) - Very fast, less accurate\n• base: ~74M parameters (~142 MB) - Balanced (default)\n• small: ~244M parameters (~466 MB) - Good accuracy and speed\n• medium: ~769M parameters (~1.5 GB) - More accurate, slower\n• large: ~1550M parameters (~2.9 GB) - Maximum accuracy</string>

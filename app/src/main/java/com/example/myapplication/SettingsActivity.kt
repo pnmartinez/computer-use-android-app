@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -7,6 +8,7 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
+import android.provider.Settings
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
@@ -34,6 +36,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var ttsLanguageInput: TextInputEditText
     private lateinit var ttsRateInput: TextInputEditText
     private lateinit var ttsPitchInput: TextInputEditText
+    private lateinit var btnTtsSystemSettings: MaterialButton
     private lateinit var audioPlaybackSwitch: SwitchMaterial
     private lateinit var btnTestConnection: MaterialButton
     private lateinit var btnSaveSettings: MaterialButton
@@ -100,6 +103,7 @@ class SettingsActivity : AppCompatActivity() {
         ttsLanguageInput = findViewById(R.id.ttsLanguageInput)
         ttsRateInput = findViewById(R.id.ttsRateInput)
         ttsPitchInput = findViewById(R.id.ttsPitchInput)
+        btnTtsSystemSettings = findViewById(R.id.btnTtsSystemSettings)
         audioPlaybackSwitch = findViewById(R.id.audioPlaybackSwitch)
         btnTestConnection = findViewById(R.id.btnTestConnection)
         btnSaveSettings = findViewById(R.id.btnSaveSettings)
@@ -130,6 +134,10 @@ class SettingsActivity : AppCompatActivity() {
 
         btnTestConnection.setOnClickListener {
             testServerConnection()
+        }
+
+        btnTtsSystemSettings.setOnClickListener {
+            openTtsSystemSettings()
         }
 
         audioPlaybackSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -362,10 +370,25 @@ class SettingsActivity : AppCompatActivity() {
         )
     }
 
+    private fun openTtsSystemSettings() {
+        try {
+            startActivity(Intent(TTS_SETTINGS_ACTION))
+        } catch (e: ActivityNotFoundException) {
+            try {
+                startActivity(Intent(Settings.ACTION_SETTINGS))
+            } catch (fallbackException: ActivityNotFoundException) {
+                Log.e("SettingsActivity", "TTS settings unavailable", fallbackException)
+                Toast.makeText(this, getString(R.string.tts_settings_unavailable), Toast.LENGTH_SHORT)
+                    .show()
+            }
+        }
+    }
+
     companion object {
         private const val PREFS_NAME = "AppPreferences"
         private const val KEY_IS_DARK_THEME = "isDarkTheme"
         private const val KEY_UNLOCK_PASSWORD = "unlockPassword"
         private const val KEY_RESPONSE_TIMEOUT = AudioService.KEY_RESPONSE_TIMEOUT
+        private const val TTS_SETTINGS_ACTION = "android.speech.tts.engine.TTS_SETTINGS"
     }
 }
