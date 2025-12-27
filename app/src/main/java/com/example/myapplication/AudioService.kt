@@ -14,14 +14,10 @@ import android.media.MediaRecorder
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
-import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
 import android.widget.Toast
-import androidx.core.app.NotificationCompat
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import kotlinx.coroutines.CoroutineScope
@@ -54,9 +50,6 @@ class AudioService : Service() {
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var isForegroundStarted = false
-    private val mediaButtonHandler = Handler(Looper.getMainLooper())
-    private var mediaButtonPressCount = 0
-    private var mediaButtonLastPressTime = 0L
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
     private val serviceJob = SupervisorJob()
@@ -109,7 +102,7 @@ class AudioService : Service() {
         const val EXTRA_RESPONSE_SUCCESS = "response_success"
         const val EXTRA_SCREEN_SUMMARY = "screen_summary"
         const val EXTRA_TTS_STATUS = "tts_status"
-        const val EXTRA_MEDIA_BUTTON_TAP_COUNT = "media_button_tap_count"
+        const val EXTRA_MEDIA_BUTTON_KEYCODE = "media_button_keycode"
         
         // Default server settings
         const val DEFAULT_SERVER_IP = "your_server_ip_here"
@@ -136,8 +129,6 @@ class AudioService : Service() {
         const val TTS_STATUS_IDLE = "idle"
         const val TTS_STATUS_ERROR = "error"
 
-        private const val MEDIA_BUTTON_TAP_TIMEOUT_MS = 450L
-        
         // Get current response timeout from SharedPreferences
         fun getCurrentResponseTimeout(context: Context): Int {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -304,15 +295,8 @@ class AudioService : Service() {
         if (intent?.action == ACTION_MEDIA_BUTTON_EVENT) {
             val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
             if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
-                when (keyEvent.keyCode) {
-                    KeyEvent.KEYCODE_HEADSETHOOK,
-                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                    KeyEvent.KEYCODE_MEDIA_PLAY,
-                    KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                        handleMediaButtonPress()
-                        return START_STICKY
-                    }
-                }
+                handleMediaButtonKeycode(keyEvent.keyCode)
+                return START_STICKY
             }
         }
         mediaSession?.isActive = true
@@ -410,7 +394,6 @@ class AudioService : Service() {
         textToSpeechManager?.shutdown()
         textToSpeechManager = null
 
-        mediaButtonHandler.removeCallbacksAndMessages(null)
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
@@ -458,19 +441,19 @@ class AudioService : Service() {
             android.app.PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(this, channelId)
+        val statusText = if (isRecording) "Grabando audio..." else "Servicio activo"
+        val mediaStyle = Notification.MediaStyle()
+        mediaSession?.sessionToken?.let { mediaStyle.setMediaSession(it) }
+
+        return Notification.Builder(this, channelId)
             .setContentTitle("Simple Computer Use")
-            .setContentText(if (isRecording) "Grabando audio..." else "Servicio activo")
+            .setContentText(statusText)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setCategory(Notification.CATEGORY_SERVICE)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(if (isRecording) 
-                    "Grabando audio para enviar al servidor" 
-                    else "Servicio de audio activo y listo para grabar"))
+            .setStyle(mediaStyle)
             .build()
     }
 
@@ -631,19 +614,10 @@ class AudioService : Service() {
                         if (keyEvent?.action != KeyEvent.ACTION_DOWN) {
                             return true
                         }
-                        return when (keyEvent.keyCode) {
-                            KeyEvent.KEYCODE_HEADSETHOOK,
-                            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                            KeyEvent.KEYCODE_MEDIA_PLAY,
-                            KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                                handleMediaButtonPress()
-                                true
-                            }
-                            else -> super.onMediaButtonEvent(mediaButtonIntent)
-                        }
+                        handleMediaButtonKeycode(keyEvent.keyCode)
+                        return true
                     }
-                },
-                Handler(Looper.getMainLooper())
+                }
             )
             val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON).apply {
                 setClass(this@AudioService, HeadsetMediaButtonReceiver::class.java)
@@ -710,51 +684,37 @@ class AudioService : Service() {
         audioFocusRequest = null
     }
 
-    private fun handleMediaButtonPress() {
-        val now = SystemClock.elapsedRealtime()
-        if (now - mediaButtonLastPressTime > MEDIA_BUTTON_TAP_TIMEOUT_MS) {
-            mediaButtonPressCount = 0
-        }
-        mediaButtonPressCount += 1
-        mediaButtonLastPressTime = now
-        mediaButtonHandler.removeCallbacks(resolveMediaButtonRunnable)
-        mediaButtonHandler.postDelayed(resolveMediaButtonRunnable, MEDIA_BUTTON_TAP_TIMEOUT_MS)
-        sendLogMessage(getString(R.string.media_button_event_detected, mediaButtonPressCount))
+    private fun handleMediaButtonKeycode(keyCode: Int) {
+        sendLogMessage(getString(R.string.media_button_keycode_detected, keyCode))
         sendAppBroadcast(Intent(ACTION_MEDIA_BUTTON_TAP).apply {
-            putExtra(EXTRA_MEDIA_BUTTON_TAP_COUNT, mediaButtonPressCount)
+            putExtra(EXTRA_MEDIA_BUTTON_KEYCODE, keyCode)
         })
-    }
-
-    private val resolveMediaButtonRunnable = Runnable {
-        val pressCount = mediaButtonPressCount.coerceAtMost(3)
-        mediaButtonPressCount = 0
-        when (pressCount) {
-            1 -> handleSingleTapAction()
-            2 -> handleDoubleTapAction()
-            3 -> handleTripleTapAction()
-        }
-    }
-
-    private fun handleSingleTapAction() {
-        sendLogMessage(getString(R.string.media_button_single_tap))
-        if (isRecording) {
-            stopRecordingAndSend()
-        } else {
-            startRecording()
-        }
-    }
-
-    private fun handleDoubleTapAction() {
-        sendLogMessage(getString(R.string.media_button_double_tap))
-        speakLastResponse()
-    }
-
-    private fun handleTripleTapAction() {
-        sendLogMessage(getString(R.string.media_button_triple_tap))
-        if (isRecording) {
-            stopRecordingWithoutSending()
-        } else {
-            sendLogMessage(getString(R.string.media_button_no_active_recording))
+        when (keyCode) {
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+            KeyEvent.KEYCODE_MEDIA_PLAY,
+            KeyEvent.KEYCODE_MEDIA_PAUSE,
+            KeyEvent.KEYCODE_HEADSETHOOK -> {
+                if (isRecording) {
+                    stopRecordingAndSend()
+                } else {
+                    startRecording()
+                }
+            }
+            KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                speakLastResponse()
+            }
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                if (isRecording) {
+                    stopRecordingWithoutSending()
+                } else {
+                    speakLastResponse()
+                }
+            }
+            KeyEvent.KEYCODE_MEDIA_STOP -> {
+                if (isRecording) {
+                    stopRecordingWithoutSending()
+                }
+            }
         }
     }
 
