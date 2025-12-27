@@ -255,6 +255,8 @@
     <string name="invalid_tts_language_error">Invalid TTS language</string>
     <string name="invalid_tts_rate_error">TTS speed must be between 0.1 and 2.0</string>
     <string name="invalid_tts_pitch_error">TTS pitch must be between 0.1 and 2.0</string>
+    <string name="headset_tap_indicator">Headset button activity indicator</string>
+    <string name="media_button_event_detected">Evento de auricular detectado (%1$d)</string>
     <string name="audio_focus_lost">Audio focus lost; media buttons may be unavailable</string>
     <string name="audio_focus_not_granted">Unable to obtain audio focus; media buttons may not work</string>
     <string name="media_button_single_tap">Botón de auriculares: toque simple</string>

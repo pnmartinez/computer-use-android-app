@@ -57,6 +57,16 @@
                 android:text="@string/app_name"
                 android:textAppearance="?attr/textAppearanceTitleLarge" />
 
+            <View
+                android:id="@+id/headsetTapIndicator"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="8dp"
+                android:alpha="0.35"
+                android:background="@drawable/indicator_dot"
+                android:contentDescription="@string/headset_tap_indicator" />
+
             <!-- Add an invisible view to adjust navigation icon size -->
             <View
                 android:layout_width="24dp"

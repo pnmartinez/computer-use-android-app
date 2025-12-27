@@ -93,6 +93,7 @@ class AudioService : Service() {
         const val ACTION_PROCESSING_COMPLETED = "com.example.myapplication.PROCESSING_COMPLETED"
         const val ACTION_CONNECTION_TESTED = "com.example.myapplication.CONNECTION_TESTED"
         const val ACTION_TTS_STATUS = "com.example.myapplication.TTS_STATUS"
+        const val ACTION_MEDIA_BUTTON_TAP = "com.example.myapplication.MEDIA_BUTTON_TAP"
         
         const val EXTRA_LOG_MESSAGE = "log_message"
         const val EXTRA_AUDIO_FILE_PATH = "audio_file_path"
@@ -105,6 +106,7 @@ class AudioService : Service() {
         const val EXTRA_RESPONSE_SUCCESS = "response_success"
         const val EXTRA_SCREEN_SUMMARY = "screen_summary"
         const val EXTRA_TTS_STATUS = "tts_status"
+        const val EXTRA_MEDIA_BUTTON_TAP_COUNT = "media_button_tap_count"
         
         // Default server settings
         const val DEFAULT_SERVER_IP = "your_server_ip_here"
@@ -671,6 +673,10 @@ class AudioService : Service() {
         mediaButtonLastPressTime = now
         mediaButtonHandler.removeCallbacks(resolveMediaButtonRunnable)
         mediaButtonHandler.postDelayed(resolveMediaButtonRunnable, MEDIA_BUTTON_TAP_TIMEOUT_MS)
+        sendLogMessage(getString(R.string.media_button_event_detected, mediaButtonPressCount))
+        sendAppBroadcast(Intent(ACTION_MEDIA_BUTTON_TAP).apply {
+            putExtra(EXTRA_MEDIA_BUTTON_TAP_COUNT, mediaButtonPressCount)
+        })
     }
 
     private val resolveMediaButtonRunnable = Runnable {
