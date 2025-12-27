@@ -49,6 +49,7 @@ class AudioService : Service() {
     private var mediaSession: MediaSession? = null
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
+    private var audioFocusListener: AudioManager.OnAudioFocusChangeListener? = null
     private var isForegroundStarted = false
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
@@ -602,7 +603,9 @@ class AudioService : Service() {
                         PlaybackState.ACTION_PLAY or
                             PlaybackState.ACTION_PAUSE or
                             PlaybackState.ACTION_PLAY_PAUSE or
-                            PlaybackState.ACTION_STOP
+                            PlaybackState.ACTION_STOP or
+                            PlaybackState.ACTION_SKIP_TO_NEXT or
+                            PlaybackState.ACTION_SKIP_TO_PREVIOUS
                     )
                     .setState(PlaybackState.STATE_PLAYING, 0L, 1.0f)
                     .build()
@@ -653,23 +656,36 @@ class AudioService : Service() {
 
     private fun requestAudioFocus() {
         val focusManager = audioManager ?: return
+        if (audioFocusListener == null) {
+            audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+                if (focusChange <= 0) {
+                    sendLogMessage(getString(R.string.audio_focus_lost))
+                    mediaSession?.isActive = false
+                } else {
+                    mediaSession?.isActive = true
+                }
+            }
+        }
         val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+            .setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(audioAttributes)
-                .setOnAudioFocusChangeListener { focusChange ->
-                    if (focusChange <= 0) {
-                        sendLogMessage(getString(R.string.audio_focus_lost))
-                        mediaSession?.isActive = false
-                    } else {
-                        mediaSession?.isActive = true
-                    }
-                }
+                .setOnAudioFocusChangeListener(audioFocusListener!!)
                 .build()
             val result = focusManager.requestAudioFocus(audioFocusRequest!!)
+            if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                sendLogMessage(getString(R.string.audio_focus_not_granted))
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            val result = focusManager.requestAudioFocus(
+                audioFocusListener,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN
+            )
             if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                 sendLogMessage(getString(R.string.audio_focus_not_granted))
             }
@@ -680,8 +696,12 @@ class AudioService : Service() {
         val focusManager = audioManager ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest?.let { focusManager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioFocusListener?.let { focusManager.abandonAudioFocus(it) }
         }
         audioFocusRequest = null
+        audioFocusListener = null
     }
 
     private fun handleMediaButtonKeycode(keyCode: Int) {
