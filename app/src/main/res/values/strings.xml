@@ -71,12 +71,12 @@
     <string name="tutorial_steps_title">Cómo empezar</string>
     <string name="tutorial_steps_body">1. Configura la IP/puerto del servidor.\n2. Pulsa “Start Recording” y dicta tu comando.\n3. Espera la respuesta y revisa los pasos ejecutados.\n4. Usa las capturas y el resumen para validar el resultado.</string>
     <string name="tutorial_commands_title">Ejemplos de comandos</string>
-    <string name="tutorial_commands_body">Describe la acción con claridad. Puedes combinar navegación, escritura y confirmaciones.</string>
-    <string name="tutorial_commands_examples">“Abre el navegador y busca hoteles en Madrid.”\n“Haz clic en la primera opción y desplázate hacia abajo.”\n“Escribe mi correo en el formulario y envíalo.”\n“Cambia a modo oscuro y sube el brillo al 80%.”</string>
+    <string name="tutorial_commands_body">Describe la acción con claridad usando keywords simples como click, escribe o presiona.</string>
+    <string name="tutorial_commands_examples">“Click en Ajustes”\n“escribe hola mundo Lorem ipsum”\n“scroll abajo”\n“presiona Control Shift T”</string>
     <string name="tutorial_voice_title">Comandos de voz y texto</string>
     <string name="tutorial_voice_body">Habla de forma natural o usa comandos directos. El sistema traduce a pasos accionables y puedes repetir una orden desde el historial.</string>
     <string name="tutorial_tips_title">Consejos pro</string>
-    <string name="tutorial_tips_body">• Sé específico con botones, campos o pestañas.\n• Indica cuándo confirmar o cancelar.\n• Usa “captura pantalla” para actualizar la vista antes de una nueva orden.\n• Ajusta el modelo Whisper según velocidad o precisión.</string>
+    <string name="tutorial_tips_body">• Sé específico con el texto en botones, campos o pestañas.\n• Usa “captura pantalla” para actualizar la vista antes de una nueva orden.</string>
     <string name="tutorial_settings_button">Configurar servidor</string>
     <string name="tutorial_close_button">Entendido</string>
     
