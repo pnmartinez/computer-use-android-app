@@ -8,7 +8,7 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
-import android.provider.Settings
+import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
@@ -371,7 +371,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun openTtsSystemSettings() {
-        val intent = Intent(Settings.ACTION_TTS_SETTINGS)
+        val intent = Intent(TextToSpeech.Engine.ACTION_TTS_SETTINGS)
         try {
             startActivity(intent)
         } catch (e: ActivityNotFoundException) {
