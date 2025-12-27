@@ -255,6 +255,13 @@
     <string name="invalid_tts_language_error">Invalid TTS language</string>
     <string name="invalid_tts_rate_error">TTS speed must be between 0.1 and 2.0</string>
     <string name="invalid_tts_pitch_error">TTS pitch must be between 0.1 and 2.0</string>
+    <string name="audio_focus_lost">Audio focus lost; media buttons may be unavailable</string>
+    <string name="audio_focus_not_granted">Unable to obtain audio focus; media buttons may not work</string>
+    <string name="media_button_single_tap">Botón de auriculares: toque simple</string>
+    <string name="media_button_double_tap">Botón de auriculares: doble toque</string>
+    <string name="media_button_triple_tap">Botón de auriculares: triple toque</string>
+    <string name="media_button_no_response">No hay respuesta reciente para reproducir</string>
+    <string name="media_button_no_active_recording">No hay grabación activa para cancelar</string>
     <string name="empty_whisper_model_error">You must select a Whisper model</string>
     <string name="settings_saved">Settings saved</string>
     <string name="last_capture">Last capture: %1$s</string>
