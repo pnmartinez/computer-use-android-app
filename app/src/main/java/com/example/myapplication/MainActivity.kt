@@ -285,6 +285,7 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_IS_COMMAND_HISTORY_EXPANDED = "isCommandHistoryExpanded"
         private const val KEY_IS_FAVORITES_EXPANDED = "isFavoritesExpanded"
         private const val KEY_SCREENSHOT_REFRESH_PERIOD = "screenshotRefreshPeriod"
+        private const val KEY_TUTORIAL_SHOWN = "tutorialShown"
         private const val PERMISSION_REQUEST_RECORD_AUDIO = 100
     }
     
@@ -306,6 +307,8 @@ class MainActivity : AppCompatActivity() {
         
         // Load app preferences
         loadAppPreferences()
+
+        maybeShowTutorial()
         
         // Configure initial button states
         updateButtonStates()
@@ -410,6 +413,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.nav_settings -> {
                     startActivity(Intent(this, SettingsActivity::class.java))
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                    true
+                }
+                R.id.nav_tutorial -> {
+                    showTutorialDialog(markAsSeen = false)
                     drawerLayout.closeDrawer(GravityCompat.START)
                     true
                 }
@@ -1512,6 +1520,40 @@ class MainActivity : AppCompatActivity() {
         isLogsExpanded = prefs.getBoolean(KEY_IS_LOGS_EXPANDED, false)
         refreshPeriodMs = prefs.getLong(KEY_REFRESH_PERIOD, 30000)
         autoRefreshEnabled = prefs.getBoolean(KEY_AUTO_REFRESH_ENABLED, true)
+    }
+
+    private fun maybeShowTutorial() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_TUTORIAL_SHOWN, false)) {
+            window.decorView.post {
+                showTutorialDialog(markAsSeen = true)
+            }
+        }
+    }
+
+    private fun showTutorialDialog(markAsSeen: Boolean) {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_tutorial)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.setCancelable(true)
+
+        dialog.findViewById<MaterialButton>(R.id.tutorialCloseButton).setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.findViewById<MaterialButton>(R.id.tutorialSettingsButton).setOnClickListener {
+            dialog.dismiss()
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        dialog.setOnDismissListener {
+            if (markAsSeen) {
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit().putBoolean(KEY_TUTORIAL_SHOWN, true).apply()
+            }
+        }
+
+        dialog.show()
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
     }
     
     private fun saveAppPreferences() {
