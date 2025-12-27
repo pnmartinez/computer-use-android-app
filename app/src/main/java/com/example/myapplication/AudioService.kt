@@ -3,6 +3,7 @@ package com.example.myapplication
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -18,9 +19,9 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import android.view.KeyEvent
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
-import android.view.KeyEvent
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import kotlinx.coroutines.CoroutineScope
@@ -296,6 +297,20 @@ class AudioService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == Intent.ACTION_MEDIA_BUTTON) {
+            val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+            if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+                when (keyEvent.keyCode) {
+                    KeyEvent.KEYCODE_HEADSETHOOK,
+                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                    KeyEvent.KEYCODE_MEDIA_PLAY,
+                    KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                        handleMediaButtonPress()
+                        return START_STICKY
+                    }
+                }
+            }
+        }
         // Check if we need to update settings
         if (intent?.action == "UPDATE_SETTINGS") {
             val newIp = intent.getStringExtra(KEY_SERVER_IP)
@@ -603,24 +618,14 @@ class AudioService : Service() {
                     .setState(PlaybackState.STATE_PLAYING, 0L, 1.0f)
                     .build()
             )
-            setCallback(object : MediaSession.Callback() {
-                override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
-                    val keyEvent = mediaButtonEvent?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
-                    if (keyEvent?.action != KeyEvent.ACTION_DOWN) {
-                        return true
-                    }
-                    return when (keyEvent.keyCode) {
-                        KeyEvent.KEYCODE_HEADSETHOOK,
-                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                        KeyEvent.KEYCODE_MEDIA_PLAY,
-                        KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                            handleMediaButtonPress()
-                            true
-                        }
-                        else -> super.onMediaButtonEvent(mediaButtonEvent)
-                    }
-                }
-            })
+            val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON, null, this@AudioService, AudioService::class.java)
+            val mediaButtonPendingIntent = PendingIntent.getService(
+                this@AudioService,
+                0,
+                mediaButtonIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            setMediaButtonReceiver(mediaButtonPendingIntent)
             isActive = true
         }
         requestAudioFocus()
