@@ -94,6 +94,7 @@ class AudioService : Service() {
         const val ACTION_CONNECTION_TESTED = "com.example.myapplication.CONNECTION_TESTED"
         const val ACTION_TTS_STATUS = "com.example.myapplication.TTS_STATUS"
         const val ACTION_MEDIA_BUTTON_TAP = "com.example.myapplication.MEDIA_BUTTON_TAP"
+        const val ACTION_MEDIA_BUTTON_EVENT = "com.example.myapplication.MEDIA_BUTTON_EVENT"
         
         const val EXTRA_LOG_MESSAGE = "log_message"
         const val EXTRA_AUDIO_FILE_PATH = "audio_file_path"
@@ -292,12 +293,34 @@ class AudioService : Service() {
 
         setupMediaSession()
         
-        // Use FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK for services that play or record media
-        startForeground(1, createNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            startForeground(
+                1,
+                createNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            )
+        } else {
+            startForeground(1, createNotification())
+        }
         sendLogMessage(getString(R.string.simple_computer_use_service_started) + if (testMode) " (MODO PRUEBA)" else "")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_MEDIA_BUTTON_EVENT) {
+            val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+            if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+                when (keyEvent.keyCode) {
+                    KeyEvent.KEYCODE_HEADSETHOOK,
+                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                    KeyEvent.KEYCODE_MEDIA_PLAY,
+                    KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                        handleMediaButtonPress()
+                        return START_STICKY
+                    }
+                }
+            }
+        }
         // Check if we need to update settings
         if (intent?.action == "UPDATE_SETTINGS") {
             val newIp = intent.getStringExtra(KEY_SERVER_IP)
