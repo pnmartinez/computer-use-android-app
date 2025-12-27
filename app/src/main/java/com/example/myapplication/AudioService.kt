@@ -6,13 +6,21 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.media.session.MediaSessionCompat
+import androidx.media.session.PlaybackStateCompat
+import android.view.KeyEvent
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +48,13 @@ class AudioService : Service() {
     private var ttsRate: Float = DEFAULT_TTS_RATE
     private var ttsPitch: Float = DEFAULT_TTS_PITCH
     private var audioPlaybackEnabled: Boolean = DEFAULT_AUDIO_PLAYBACK_ENABLED
+    private var lastResponseMessage: String? = null
+    private var mediaSession: MediaSessionCompat? = null
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private val mediaButtonHandler = Handler(Looper.getMainLooper())
+    private var mediaButtonPressCount = 0
+    private var mediaButtonLastPressTime = 0L
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
     private val serviceJob = SupervisorJob()
@@ -115,6 +130,8 @@ class AudioService : Service() {
         const val TTS_STATUS_PLAYING = "playing"
         const val TTS_STATUS_IDLE = "idle"
         const val TTS_STATUS_ERROR = "error"
+
+        private const val MEDIA_BUTTON_TAP_TIMEOUT_MS = 450L
         
         // Get current response timeout from SharedPreferences
         fun getCurrentResponseTimeout(context: Context): Int {
@@ -270,6 +287,8 @@ class AudioService : Service() {
             onSpeakDone = { sendTtsStatus(TTS_STATUS_IDLE) },
             onSpeakError = { sendTtsStatus(TTS_STATUS_ERROR) }
         )
+
+        setupMediaSession()
         
         // Use FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK for services that play or record media
         startForeground(1, createNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
@@ -370,6 +389,12 @@ class AudioService : Service() {
 
         textToSpeechManager?.shutdown()
         textToSpeechManager = null
+
+        mediaButtonHandler.removeCallbacksAndMessages(null)
+        mediaSession?.isActive = false
+        mediaSession?.release()
+        mediaSession = null
+        abandonAudioFocus()
     }
 
     /**
@@ -558,6 +583,141 @@ class AudioService : Service() {
         }
         
         // No need to send the audio file since the recording was canceled
+    }
+
+    private fun setupMediaSession() {
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        mediaSession = MediaSessionCompat(this, "AudioService").apply {
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+            )
+            setPlaybackState(
+                PlaybackStateCompat.Builder()
+                    .setActions(
+                        PlaybackStateCompat.ACTION_PLAY or
+                            PlaybackStateCompat.ACTION_PAUSE or
+                            PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                            PlaybackStateCompat.ACTION_STOP
+                    )
+                    .setState(PlaybackStateCompat.STATE_PLAYING, 0L, 1.0f)
+                    .build()
+            )
+            setCallback(object : MediaSessionCompat.Callback() {
+                override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
+                    val keyEvent = mediaButtonEvent?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                    if (keyEvent?.action != KeyEvent.ACTION_DOWN) {
+                        return true
+                    }
+                    return when (keyEvent.keyCode) {
+                        KeyEvent.KEYCODE_HEADSETHOOK,
+                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                        KeyEvent.KEYCODE_MEDIA_PLAY,
+                        KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                            handleMediaButtonPress()
+                            true
+                        }
+                        else -> super.onMediaButtonEvent(mediaButtonEvent)
+                    }
+                }
+            })
+            isActive = true
+        }
+        requestAudioFocus()
+    }
+
+    private fun requestAudioFocus() {
+        val focusManager = audioManager ?: return
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(audioAttributes)
+                .setOnAudioFocusChangeListener { focusChange ->
+                    if (focusChange <= 0) {
+                        sendLogMessage(getString(R.string.audio_focus_lost))
+                        mediaSession?.isActive = false
+                    } else {
+                        mediaSession?.isActive = true
+                    }
+                }
+                .build()
+            val result = focusManager.requestAudioFocus(audioFocusRequest!!)
+            if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                sendLogMessage(getString(R.string.audio_focus_not_granted))
+            }
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        val focusManager = audioManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { focusManager.abandonAudioFocusRequest(it) }
+        }
+        audioFocusRequest = null
+    }
+
+    private fun handleMediaButtonPress() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - mediaButtonLastPressTime > MEDIA_BUTTON_TAP_TIMEOUT_MS) {
+            mediaButtonPressCount = 0
+        }
+        mediaButtonPressCount += 1
+        mediaButtonLastPressTime = now
+        mediaButtonHandler.removeCallbacks(resolveMediaButtonRunnable)
+        mediaButtonHandler.postDelayed(resolveMediaButtonRunnable, MEDIA_BUTTON_TAP_TIMEOUT_MS)
+    }
+
+    private val resolveMediaButtonRunnable = Runnable {
+        val pressCount = mediaButtonPressCount.coerceAtMost(3)
+        mediaButtonPressCount = 0
+        when (pressCount) {
+            1 -> handleSingleTapAction()
+            2 -> handleDoubleTapAction()
+            3 -> handleTripleTapAction()
+        }
+    }
+
+    private fun handleSingleTapAction() {
+        sendLogMessage(getString(R.string.media_button_single_tap))
+        if (isRecording) {
+            stopRecordingAndSend()
+        } else {
+            startRecording()
+        }
+    }
+
+    private fun handleDoubleTapAction() {
+        sendLogMessage(getString(R.string.media_button_double_tap))
+        speakLastResponse()
+    }
+
+    private fun handleTripleTapAction() {
+        sendLogMessage(getString(R.string.media_button_triple_tap))
+        if (isRecording) {
+            stopRecordingWithoutSending()
+        } else {
+            sendLogMessage(getString(R.string.media_button_no_active_recording))
+        }
+    }
+
+    private fun speakLastResponse() {
+        val message = lastResponseMessage?.trim().orEmpty()
+        if (message.isEmpty()) {
+            sendLogMessage(getString(R.string.media_button_no_response))
+            return
+        }
+        serviceScope.launch(Dispatchers.Main) {
+            val didSpeak = textToSpeechManager?.speak(message) ?: false
+            if (didSpeak) {
+                sendLogMessage(getString(R.string.tts_speaking_response))
+            } else {
+                sendLogMessage(getString(R.string.tts_not_ready))
+                sendTtsStatus(TTS_STATUS_ERROR)
+            }
+        }
     }
 
     private fun sendAudioOverWebSocket(file: File) {
@@ -887,6 +1047,7 @@ class AudioService : Service() {
             // Check if audio response is available
             val hasAudioResponse = jsonObject.optBoolean("audio_response_available", false)
             val responseMessage = if (summaryForUi.isNotEmpty()) summaryForUi else result
+            lastResponseMessage = responseMessage
             
             if (hasAudioResponse) {
                 sendLogMessage(getString(R.string.audio_response_available))
@@ -938,6 +1099,7 @@ class AudioService : Service() {
             sendLogMessage(getString(R.string.audio_playback_disabled))
             return
         }
+        lastResponseMessage = message
         
         if (testMode) {
             sendLogMessage(getString(R.string.test_mode_tts))
