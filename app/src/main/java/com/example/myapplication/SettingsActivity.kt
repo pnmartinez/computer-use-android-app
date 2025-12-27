@@ -8,7 +8,7 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
-import android.speech.tts.TextToSpeech
+import android.provider.Settings
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
@@ -371,13 +371,16 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun openTtsSystemSettings() {
-        val intent = Intent(TextToSpeech.Engine.ACTION_TTS_SETTINGS)
         try {
-            startActivity(intent)
+            startActivity(Intent(TTS_SETTINGS_ACTION))
         } catch (e: ActivityNotFoundException) {
-            Log.e("SettingsActivity", "TTS settings unavailable", e)
-            Toast.makeText(this, getString(R.string.tts_settings_unavailable), Toast.LENGTH_SHORT)
-                .show()
+            try {
+                startActivity(Intent(Settings.ACTION_SETTINGS))
+            } catch (fallbackException: ActivityNotFoundException) {
+                Log.e("SettingsActivity", "TTS settings unavailable", fallbackException)
+                Toast.makeText(this, getString(R.string.tts_settings_unavailable), Toast.LENGTH_SHORT)
+                    .show()
+            }
         }
     }
 
@@ -386,5 +389,6 @@ class SettingsActivity : AppCompatActivity() {
         private const val KEY_IS_DARK_THEME = "isDarkTheme"
         private const val KEY_UNLOCK_PASSWORD = "unlockPassword"
         private const val KEY_RESPONSE_TIMEOUT = AudioService.KEY_RESPONSE_TIMEOUT
+        private const val TTS_SETTINGS_ACTION = "android.speech.tts.engine.TTS_SETTINGS"
     }
 }
