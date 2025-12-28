@@ -55,6 +55,7 @@ class AudioService : Service() {
     private var clickCount = 0
     private var audioFocusRequest: AudioFocusRequest? = null
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    private var headsetControlEnabled = false
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
     private val serviceJob = SupervisorJob()
@@ -93,6 +94,8 @@ class AudioService : Service() {
         const val ACTION_PROCESSING_COMPLETED = "com.example.myapplication.PROCESSING_COMPLETED"
         const val ACTION_CONNECTION_TESTED = "com.example.myapplication.CONNECTION_TESTED"
         const val ACTION_TTS_STATUS = "com.example.myapplication.TTS_STATUS"
+        const val ACTION_ENABLE_HEADSET_CONTROL = "com.example.myapplication.ENABLE_HEADSET_CONTROL"
+        const val ACTION_DISABLE_HEADSET_CONTROL = "com.example.myapplication.DISABLE_HEADSET_CONTROL"
         
         const val EXTRA_LOG_MESSAGE = "log_message"
         const val EXTRA_AUDIO_FILE_PATH = "audio_file_path"
@@ -290,6 +293,10 @@ class AudioService : Service() {
                     val event = mediaButtonIntent
                         ?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
                         ?: return false
+                    Log.d(
+                        "AudioService",
+                        "MediaButton keyCode=${event.keyCode} action=${event.action}"
+                    )
                     if (event.action != KeyEvent.ACTION_DOWN) return false
                     return when (event.keyCode) {
                         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
@@ -301,7 +308,7 @@ class AudioService : Service() {
                     }
                 }
             })
-            isActive = true
+            isActive = false
         }
         textToSpeechManager = TextToSpeechManager(
             this,
@@ -329,6 +336,7 @@ class AudioService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d("AudioService", "onStartCommand action=${intent?.action}")
         if (intent != null) {
             MediaButtonReceiver.handleIntent(mediaSession, intent)
         }
@@ -365,6 +373,8 @@ class AudioService : Service() {
             "START_RECORDING" -> startRecording()
             "STOP_RECORDING" -> stopRecordingAndSend()
                 "CANCEL_RECORDING" -> stopRecordingWithoutSending()
+            ACTION_ENABLE_HEADSET_CONTROL -> enableHeadsetControlMode()
+            ACTION_DISABLE_HEADSET_CONTROL -> disableHeadsetControlMode()
             "PLAY_RESPONSE" -> playLastResponse()
                 "SPEAK_SUMMARY" -> {
                     val summaryText = intent.getStringExtra(EXTRA_SCREEN_SUMMARY).orEmpty()
@@ -420,7 +430,7 @@ class AudioService : Service() {
         serviceJob.cancel()
 
         mediaButtonHandler.removeCallbacksAndMessages(null)
-        mediaSession.isActive = false
+        disableHeadsetControlMode()
         mediaSession.release()
         abandonAudioFocus()
 
@@ -512,6 +522,39 @@ class AudioService : Service() {
                 clickCount = 0
             }
         }
+    }
+
+    private fun enableHeadsetControlMode() {
+        if (headsetControlEnabled) return
+        if (!requestAudioFocus()) {
+            sendLogMessage("AudioFocus DENIED: no puedo tomar control de botones")
+            return
+        }
+        val state = PlaybackStateCompat.Builder()
+            .setActions(
+                PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                    PlaybackStateCompat.ACTION_PLAY or
+                    PlaybackStateCompat.ACTION_PAUSE
+            )
+            .setState(PlaybackStateCompat.STATE_PLAYING, 0L, 1.0f)
+            .build()
+        mediaSession.setPlaybackState(state)
+        mediaSession.isActive = true
+        headsetControlEnabled = true
+        sendLogMessage("Headset control ENABLED")
+    }
+
+    private fun disableHeadsetControlMode() {
+        if (!headsetControlEnabled) return
+        val state = PlaybackStateCompat.Builder()
+            .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE)
+            .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1.0f)
+            .build()
+        mediaSession.setPlaybackState(state)
+        abandonAudioFocus()
+        mediaSession.isActive = false
+        headsetControlEnabled = false
+        sendLogMessage("Headset control DISABLED")
     }
 
     private fun requestAudioFocus(): Boolean {
