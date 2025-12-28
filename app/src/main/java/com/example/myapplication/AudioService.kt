@@ -18,6 +18,7 @@ import android.util.Log
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.media.app.NotificationCompat as MediaNotificationCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media.session.MediaButtonReceiver
@@ -340,8 +341,11 @@ class AudioService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d("AudioService", "onStartCommand action=${intent?.action}")
-        if (intent != null && headsetControlEnabled) {
+        Log.d(
+            "AudioService",
+            "onStartCommand action=${intent?.action} extras=${intent?.extras?.keySet()}"
+        )
+        if (intent != null) {
             MediaButtonReceiver.handleIntent(mediaSession, intent)
         }
         // Check if we need to update settings
@@ -486,7 +490,7 @@ class AudioService : Service() {
             android.app.PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(this, channelId)
+        val builder = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Simple Computer Use")
             .setContentText(if (isRecording) "Grabando audio..." else "Servicio activo")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
@@ -499,7 +503,13 @@ class AudioService : Service() {
                 .bigText(if (isRecording) 
                     "Grabando audio para enviar al servidor" 
                     else "Servicio de audio activo y listo para grabar"))
-            .build()
+        if (headsetControlEnabled) {
+            builder.setStyle(
+                MediaNotificationCompat.MediaStyle()
+                    .setMediaSession(mediaSession.sessionToken)
+            )
+        }
+        return builder.build()
     }
 
     private fun handleMultiClick() {
@@ -555,6 +565,8 @@ class AudioService : Service() {
         sendLogMessage("Headset control ENABLED")
         Log.d("AudioService", "Headset control ENABLED")
         sendHeadsetControlStatus(true)
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(1, createNotification())
     }
 
     private fun disableHeadsetControlMode() {
@@ -574,6 +586,8 @@ class AudioService : Service() {
         sendLogMessage("Headset control DISABLED")
         Log.d("AudioService", "Headset control DISABLED")
         sendHeadsetControlStatus(false)
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(1, createNotification())
     }
 
     private fun sendHeadsetControlStatus(enabled: Boolean) {
@@ -594,10 +608,10 @@ class AudioService : Service() {
 
     private fun requestAudioFocus(): Boolean {
         val attrs = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
             .build()
-        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(attrs)
             .setOnAudioFocusChangeListener { }
             .build()
