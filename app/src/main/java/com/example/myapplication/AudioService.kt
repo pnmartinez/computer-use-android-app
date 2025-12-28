@@ -20,6 +20,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.media.session.MediaButtonReceiver
 import androidx.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import kotlinx.coroutines.CoroutineScope
@@ -271,6 +272,19 @@ class AudioService : Service() {
         // Load settings from SharedPreferences
         loadSettings()
         mediaSession = MediaSessionCompat(this, "HeadsetControls").apply {
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+            )
+            val state = PlaybackStateCompat.Builder()
+                .setActions(
+                    PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                        PlaybackStateCompat.ACTION_PLAY or
+                        PlaybackStateCompat.ACTION_PAUSE
+                )
+                .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1.0f)
+                .build()
+            setPlaybackState(state)
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onMediaButtonEvent(mediaButtonIntent: Intent?): Boolean {
                     val event = mediaButtonIntent
@@ -304,8 +318,13 @@ class AudioService : Service() {
             onSpeakError = { sendTtsStatus(TTS_STATUS_ERROR) }
         )
         
-        // Use FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK for services that play or record media
-        startForeground(1, createNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        // Use microphone and media playback for recording and audio responses.
+        startForeground(
+            1,
+            createNotification(),
+            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        )
         sendLogMessage(getString(R.string.simple_computer_use_service_started) + if (testMode) " (MODO PRUEBA)" else "")
     }
 

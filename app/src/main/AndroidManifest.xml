@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- Permiso para servicios en primer plano de tipo media -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Permiso para servicios en primer plano de tipo micrófono -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <application
         android:allowBackup="true"
@@ -45,7 +47,11 @@
             android:name=".AudioService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="microphone|mediaPlayback">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </service>
 
         <receiver
             android:name="androidx.media.session.MediaButtonReceiver"
