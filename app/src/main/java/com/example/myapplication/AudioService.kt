@@ -337,7 +337,7 @@ class AudioService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("AudioService", "onStartCommand action=${intent?.action}")
-        if (intent != null) {
+        if (intent != null && headsetControlEnabled) {
             MediaButtonReceiver.handleIntent(mediaSession, intent)
         }
         // Check if we need to update settings
@@ -528,6 +528,7 @@ class AudioService : Service() {
         if (headsetControlEnabled) return
         if (!requestAudioFocus()) {
             sendLogMessage("AudioFocus DENIED: no puedo tomar control de botones")
+            Log.d("AudioService", "Headset control ENABLED failed: audio focus denied")
             return
         }
         val state = PlaybackStateCompat.Builder()
@@ -542,6 +543,7 @@ class AudioService : Service() {
         mediaSession.isActive = true
         headsetControlEnabled = true
         sendLogMessage("Headset control ENABLED")
+        Log.d("AudioService", "Headset control ENABLED")
     }
 
     private fun disableHeadsetControlMode() {
@@ -555,6 +557,7 @@ class AudioService : Service() {
         mediaSession.isActive = false
         headsetControlEnabled = false
         sendLogMessage("Headset control DISABLED")
+        Log.d("AudioService", "Headset control DISABLED")
     }
 
     private fun requestAudioFocus(): Boolean {
