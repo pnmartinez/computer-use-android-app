@@ -18,9 +18,9 @@ import android.util.Log
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
-import androidx.media.session.MediaButtonReceiver
-import androidx.media.session.MediaSessionCompat
+import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import androidx.media.session.MediaButtonReceiver
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import kotlinx.coroutines.CoroutineScope
