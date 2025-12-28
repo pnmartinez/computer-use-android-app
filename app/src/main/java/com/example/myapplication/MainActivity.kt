@@ -692,6 +692,8 @@ class MainActivity : AppCompatActivity() {
             } else {
                 AudioService.ACTION_ENABLE_HEADSET_CONTROL
             }
+            headsetStatusText.text = getString(R.string.headset_control_status_pending)
+            addLogMessage("[${getCurrentTime()}] ${headsetStatusText.text}")
             startAudioService(this, action)
         }
         

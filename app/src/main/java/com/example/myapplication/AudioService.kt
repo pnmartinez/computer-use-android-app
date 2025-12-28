@@ -530,10 +530,15 @@ class AudioService : Service() {
     }
 
     private fun enableHeadsetControlMode() {
-        if (headsetControlEnabled) return
+        if (headsetControlEnabled) {
+            sendHeadsetControlStatus(true)
+            Log.d("AudioService", "Headset control ENABLED (no change)")
+            return
+        }
         if (!requestAudioFocus()) {
             sendLogMessage("AudioFocus DENIED: no puedo tomar control de botones")
             Log.d("AudioService", "Headset control ENABLED failed: audio focus denied")
+            sendHeadsetControlStatus(false)
             return
         }
         val state = PlaybackStateCompat.Builder()
@@ -553,7 +558,11 @@ class AudioService : Service() {
     }
 
     private fun disableHeadsetControlMode() {
-        if (!headsetControlEnabled) return
+        if (!headsetControlEnabled) {
+            sendHeadsetControlStatus(false)
+            Log.d("AudioService", "Headset control DISABLED (no change)")
+            return
+        }
         val state = PlaybackStateCompat.Builder()
             .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE)
             .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1.0f)
