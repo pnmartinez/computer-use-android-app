@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import android.view.KeyEvent
+import android.widget.Toast
 
 class HeadsetMediaButtonReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -14,6 +15,11 @@ class HeadsetMediaButtonReceiver : BroadcastReceiver() {
         }
         val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT) ?: return
         Log.d("HeadsetReceiver", "Media button event: ${keyEvent.keyCode}")
+        Toast.makeText(
+            context,
+            "MEDIA_BUTTON ${keyEvent.keyCode}",
+            Toast.LENGTH_SHORT
+        ).show()
         context.sendBroadcast(Intent(AudioService.ACTION_LOG_MESSAGE).apply {
             setPackage(context.packageName)
             putExtra(
@@ -29,9 +35,6 @@ class HeadsetMediaButtonReceiver : BroadcastReceiver() {
             context.startForegroundService(serviceIntent)
         } else {
             context.startService(serviceIntent)
-        }
-        if (isOrderedBroadcast) {
-            abortBroadcast()
         }
     }
 }

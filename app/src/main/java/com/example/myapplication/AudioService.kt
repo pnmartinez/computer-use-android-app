@@ -50,6 +50,7 @@ class AudioService : Service() {
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var audioFocusListener: AudioManager.OnAudioFocusChangeListener? = null
+    private var focusProbePlayer: ExoPlayer? = null
     private var isForegroundStarted = false
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
@@ -294,6 +295,7 @@ class AudioService : Service() {
         setupMediaSession()
         
         ensureForegroundServiceStarted()
+        startAudioFocusProbe()
         sendLogMessage(getString(R.string.simple_computer_use_service_started) + if (testMode) " (MODO PRUEBA)" else "")
     }
 
@@ -398,6 +400,8 @@ class AudioService : Service() {
         // Liberar ExoPlayer
         player?.release()
         player = null
+        focusProbePlayer?.release()
+        focusProbePlayer = null
 
         textToSpeechManager?.shutdown()
         textToSpeechManager = null
@@ -651,6 +655,28 @@ class AudioService : Service() {
             startForeground(1, createNotification())
         }
         isForegroundStarted = true
+    }
+
+    private fun startAudioFocusProbe() {
+        if (focusProbePlayer != null) {
+            return
+        }
+        val focusGranted = requestAudioFocus()
+        if (!focusGranted) {
+            return
+        }
+        focusProbePlayer = ExoPlayer.Builder(this).build().apply {
+            volume = 0f
+            playWhenReady = true
+        }
+        serviceScope.launch(Dispatchers.Main) {
+            delay(2000)
+            focusProbePlayer?.release()
+            focusProbePlayer = null
+            if (!isRecording) {
+                setSessionState(false)
+            }
+        }
     }
 
     private fun requestAudioFocus(): Boolean {
