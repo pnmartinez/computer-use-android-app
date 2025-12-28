@@ -83,6 +83,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnHeadsetControl: MaterialButton
     private lateinit var headsetStatusText: TextView
     private lateinit var headsetEventText: TextView
+    private val headsetControlHandler = Handler(Looper.getMainLooper())
+    private var headsetControlTimeout: Runnable? = null
+    private var headsetControlPending = false
     
     // Logs - Find ScrollView directly by ID
     private lateinit var logsTextView: TextView
@@ -631,6 +634,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateHeadsetControlUi(enabled: Boolean) {
+        headsetControlPending = false
+        btnHeadsetControl.isEnabled = true
+        headsetControlTimeout?.let { headsetControlHandler.removeCallbacks(it) }
         btnHeadsetControl.text = if (enabled) {
             getString(R.string.headset_control_disable)
         } else {
@@ -692,8 +698,20 @@ class MainActivity : AppCompatActivity() {
             } else {
                 AudioService.ACTION_ENABLE_HEADSET_CONTROL
             }
+            headsetControlPending = true
             headsetStatusText.text = getString(R.string.headset_control_status_pending)
+            btnHeadsetControl.isEnabled = false
             addLogMessage("[${getCurrentTime()}] ${headsetStatusText.text}")
+            headsetControlTimeout?.let { headsetControlHandler.removeCallbacks(it) }
+            headsetControlTimeout = Runnable {
+                if (headsetControlPending) {
+                    headsetControlPending = false
+                    btnHeadsetControl.isEnabled = true
+                    headsetStatusText.text = getString(R.string.headset_control_status_off)
+                    addLogMessage("[${getCurrentTime()}] ${headsetStatusText.text}")
+                }
+            }
+            headsetControlHandler.postDelayed(headsetControlTimeout!!, 3000)
             startAudioService(this, action)
         }
         
@@ -954,7 +972,7 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(context, AudioService::class.java).apply {
             this.action = action
         }
-        context.startService(intent)
+        ContextCompat.startForegroundService(context, intent)
     }
 
     private fun speakSummary(summary: String) {

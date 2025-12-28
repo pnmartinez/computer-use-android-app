@@ -13,7 +13,7 @@ fun startAudioService(context: Context, action: String) {
     val serviceIntent = Intent(context, AudioService::class.java).apply {
         this.action = action
     }
-    context.startService(serviceIntent)
+    ContextCompat.startForegroundService(context, serviceIntent)
 }
 
 /**
