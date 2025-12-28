@@ -6,13 +6,20 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaRecorder
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
+import android.view.KeyEvent
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.media.session.MediaButtonReceiver
+import androidx.media.session.MediaSessionCompat
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +47,13 @@ class AudioService : Service() {
     private var ttsRate: Float = DEFAULT_TTS_RATE
     private var ttsPitch: Float = DEFAULT_TTS_PITCH
     private var audioPlaybackEnabled: Boolean = DEFAULT_AUDIO_PLAYBACK_ENABLED
+    private lateinit var mediaSession: MediaSessionCompat
+    private val mediaButtonHandler = Handler(Looper.getMainLooper())
+    private val multiClickWindowMs = 300L
+    private var lastClickAt = 0L
+    private var clickCount = 0
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
     private val serviceJob = SupervisorJob()
@@ -256,6 +270,25 @@ class AudioService : Service() {
         super.onCreate()
         // Load settings from SharedPreferences
         loadSettings()
+        mediaSession = MediaSessionCompat(this, "HeadsetControls").apply {
+            setCallback(object : MediaSessionCompat.Callback() {
+                override fun onMediaButtonEvent(mediaButtonIntent: Intent?): Boolean {
+                    val event = mediaButtonIntent
+                        ?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                        ?: return false
+                    if (event.action != KeyEvent.ACTION_DOWN) return false
+                    return when (event.keyCode) {
+                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                        KeyEvent.KEYCODE_HEADSETHOOK -> {
+                            handleMultiClick()
+                            true
+                        }
+                        else -> false
+                    }
+                }
+            })
+            isActive = true
+        }
         textToSpeechManager = TextToSpeechManager(
             this,
             onReadyChanged = { isReady ->
@@ -277,6 +310,9 @@ class AudioService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent != null) {
+            MediaButtonReceiver.handleIntent(mediaSession, intent)
+        }
         // Check if we need to update settings
         if (intent?.action == "UPDATE_SETTINGS") {
             val newIp = intent.getStringExtra(KEY_SERVER_IP)
@@ -364,6 +400,11 @@ class AudioService : Service() {
         // Cancelar coroutines en curso
         serviceJob.cancel()
 
+        mediaButtonHandler.removeCallbacksAndMessages(null)
+        mediaSession.isActive = false
+        mediaSession.release()
+        abandonAudioFocus()
+
         // Liberar ExoPlayer
         player?.release()
         player = null
@@ -428,6 +469,49 @@ class AudioService : Service() {
             .build()
     }
 
+    private fun handleMultiClick() {
+        val now = SystemClock.uptimeMillis()
+        clickCount = if (now - lastClickAt <= multiClickWindowMs) clickCount + 1 else 1
+        lastClickAt = now
+
+        mediaButtonHandler.removeCallbacksAndMessages(null)
+        when (clickCount) {
+            1 -> {
+                mediaButtonHandler.postDelayed({
+                    if (clickCount == 1) {
+                        startRecording()
+                        clickCount = 0
+                    }
+                }, multiClickWindowMs)
+            }
+            2 -> {
+                stopRecordingAndSend()
+                clickCount = 0
+            }
+            3 -> {
+                stopRecordingWithoutSending()
+                clickCount = 0
+            }
+        }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build()
+        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+            .setAudioAttributes(attrs)
+            .setOnAudioFocusChangeListener { }
+            .build()
+        return audioManager.requestAudioFocus(audioFocusRequest!!) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    private fun abandonAudioFocus() {
+        audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        audioFocusRequest = null
+    }
+
     private fun startRecording() {
         if (isRecording) {
             sendLogMessage(getString(R.string.already_recording))
@@ -437,6 +521,7 @@ class AudioService : Service() {
         try {
             sendLogMessage(getString(R.string.starting_recording))
             try {
+                requestAudioFocus()
                 recorder = MediaRecorder().apply {
                     setAudioSource(MediaRecorder.AudioSource.MIC)
                     setOutputFormat(MediaRecorder.OutputFormat.OGG)
@@ -465,6 +550,7 @@ class AudioService : Service() {
                 recorder?.release()
                 recorder = null
                 isRecording = false
+                abandonAudioFocus()
                 signalProcessingComplete()
             } catch (e: Exception) {
                 // Generic error
@@ -474,6 +560,7 @@ class AudioService : Service() {
                 recorder?.release()
                 recorder = null
                 isRecording = false
+                abandonAudioFocus()
                 signalProcessingComplete()
             }
         } catch (e: Exception) {
@@ -483,6 +570,7 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            abandonAudioFocus()
             signalProcessingComplete()
         }
     }
@@ -504,6 +592,7 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            abandonAudioFocus()
             
             // Update notification
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -541,6 +630,7 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            abandonAudioFocus()
             
             // Update notification
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
