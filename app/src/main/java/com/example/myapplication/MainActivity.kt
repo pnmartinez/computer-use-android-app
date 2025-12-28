@@ -80,6 +80,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnProcessingRecording: MaterialButton
     private lateinit var progressIndicator: LinearProgressIndicator
     private lateinit var drawerLayout: DrawerLayout
+    private lateinit var btnHeadsetControl: MaterialButton
+    private lateinit var headsetStatusText: TextView
+    private lateinit var headsetEventText: TextView
     
     // Logs - Find ScrollView directly by ID
     private lateinit var logsTextView: TextView
@@ -111,6 +114,7 @@ class MainActivity : AppCompatActivity() {
     private var isRecording = false
     private var currentAudioFile: File? = null
     private val logBuffer = SpannableStringBuilder()
+    private var headsetControlEnabled = false
     
     // Track active fullscreen dialog
     private var activeFullscreenDialog: FullscreenImageDialog? = null
@@ -189,6 +193,18 @@ class MainActivity : AppCompatActivity() {
                             updateSummaryStatus(getString(R.string.summary_status_error))
                         }
                     }
+                }
+                AudioService.ACTION_HEADSET_CONTROL_STATUS -> {
+                    val enabled = intent.getBooleanExtra(
+                        AudioService.EXTRA_HEADSET_CONTROL_ENABLED,
+                        false
+                    )
+                    headsetControlEnabled = enabled
+                    updateHeadsetControlUi(enabled)
+                }
+                AudioService.ACTION_HEADSET_EVENT -> {
+                    val count = intent.getIntExtra(AudioService.EXTRA_HEADSET_EVENT_COUNT, 0)
+                    updateHeadsetEvent(count)
                 }
                 AudioService.ACTION_LOG_MESSAGE -> {
                     val message = intent.getStringExtra(AudioService.EXTRA_LOG_MESSAGE) ?: return
@@ -393,6 +409,8 @@ class MainActivity : AppCompatActivity() {
             addAction(AudioService.ACTION_PROCESSING_COMPLETED)
             addAction(AudioService.ACTION_CONNECTION_TESTED)
             addAction(AudioService.ACTION_TTS_STATUS)
+            addAction(AudioService.ACTION_HEADSET_CONTROL_STATUS)
+            addAction(AudioService.ACTION_HEADSET_EVENT)
         }
         registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
     }
@@ -429,6 +447,9 @@ class MainActivity : AppCompatActivity() {
         btnStartRecording = findViewById(R.id.btnStartRecording)
         btnProcessingRecording = findViewById(R.id.btnProcessingRecording)
         progressIndicator = findViewById(R.id.progressIndicator)
+        btnHeadsetControl = findViewById(R.id.btnHeadsetControl)
+        headsetStatusText = findViewById(R.id.headsetStatusText)
+        headsetEventText = findViewById(R.id.headsetEventText)
         
         // Logs - Find ScrollView directly by ID
         logsTextView = findViewById(R.id.logsTextView)
@@ -466,6 +487,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
         updateScreenSummary("")
+
+        updateHeadsetControlUi(headsetControlEnabled)
+        updateHeadsetEvent(0)
         
         // Setup log clear button
         btnClearLogs.setOnClickListener {
@@ -605,6 +629,30 @@ class MainActivity : AppCompatActivity() {
             btnStartRecording.setBackgroundColor(Color.parseColor("#006400"));
         }
     }
+
+    private fun updateHeadsetControlUi(enabled: Boolean) {
+        btnHeadsetControl.text = if (enabled) {
+            getString(R.string.headset_control_disable)
+        } else {
+            getString(R.string.headset_control_enable)
+        }
+        headsetStatusText.text = if (enabled) {
+            getString(R.string.headset_control_status_on)
+        } else {
+            getString(R.string.headset_control_status_off)
+        }
+        if (!enabled) {
+            headsetEventText.text = getString(R.string.headset_control_event_none)
+        }
+    }
+
+    private fun updateHeadsetEvent(count: Int) {
+        headsetEventText.text = if (count > 0) {
+            getString(R.string.headset_control_event_count, count)
+        } else {
+            getString(R.string.headset_control_event_none)
+        }
+    }
     
     private fun setupButtonListeners() {
         // Setup the main recording button
@@ -636,6 +684,15 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Estado de grabación reiniciado", Toast.LENGTH_SHORT).show()
             
             true // Consume the long press
+        }
+
+        btnHeadsetControl.setOnClickListener {
+            val action = if (headsetControlEnabled) {
+                AudioService.ACTION_DISABLE_HEADSET_CONTROL
+            } else {
+                AudioService.ACTION_ENABLE_HEADSET_CONTROL
+            }
+            startAudioService(this, action)
         }
         
         // Setup log clear button

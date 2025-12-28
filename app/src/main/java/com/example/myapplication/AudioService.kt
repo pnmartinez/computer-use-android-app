@@ -96,6 +96,8 @@ class AudioService : Service() {
         const val ACTION_TTS_STATUS = "com.example.myapplication.TTS_STATUS"
         const val ACTION_ENABLE_HEADSET_CONTROL = "com.example.myapplication.ENABLE_HEADSET_CONTROL"
         const val ACTION_DISABLE_HEADSET_CONTROL = "com.example.myapplication.DISABLE_HEADSET_CONTROL"
+        const val ACTION_HEADSET_CONTROL_STATUS = "com.example.myapplication.HEADSET_CONTROL_STATUS"
+        const val ACTION_HEADSET_EVENT = "com.example.myapplication.HEADSET_EVENT"
         
         const val EXTRA_LOG_MESSAGE = "log_message"
         const val EXTRA_AUDIO_FILE_PATH = "audio_file_path"
@@ -108,6 +110,8 @@ class AudioService : Service() {
         const val EXTRA_RESPONSE_SUCCESS = "response_success"
         const val EXTRA_SCREEN_SUMMARY = "screen_summary"
         const val EXTRA_TTS_STATUS = "tts_status"
+        const val EXTRA_HEADSET_CONTROL_ENABLED = "headset_control_enabled"
+        const val EXTRA_HEADSET_EVENT_COUNT = "headset_event_count"
         
         // Default server settings
         const val DEFAULT_SERVER_IP = "your_server_ip_here"
@@ -504,6 +508,7 @@ class AudioService : Service() {
         lastClickAt = now
 
         mediaButtonHandler.removeCallbacksAndMessages(null)
+        sendHeadsetEvent(clickCount)
         when (clickCount) {
             1 -> {
                 mediaButtonHandler.postDelayed({
@@ -544,6 +549,7 @@ class AudioService : Service() {
         headsetControlEnabled = true
         sendLogMessage("Headset control ENABLED")
         Log.d("AudioService", "Headset control ENABLED")
+        sendHeadsetControlStatus(true)
     }
 
     private fun disableHeadsetControlMode() {
@@ -558,6 +564,23 @@ class AudioService : Service() {
         headsetControlEnabled = false
         sendLogMessage("Headset control DISABLED")
         Log.d("AudioService", "Headset control DISABLED")
+        sendHeadsetControlStatus(false)
+    }
+
+    private fun sendHeadsetControlStatus(enabled: Boolean) {
+        val intent = Intent(ACTION_HEADSET_CONTROL_STATUS).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_HEADSET_CONTROL_ENABLED, enabled)
+        }
+        sendBroadcast(intent)
+    }
+
+    private fun sendHeadsetEvent(count: Int) {
+        val intent = Intent(ACTION_HEADSET_EVENT).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_HEADSET_EVENT_COUNT, count)
+        }
+        sendBroadcast(intent)
     }
 
     private fun requestAudioFocus(): Boolean {

@@ -283,6 +283,13 @@
     <string name="log_initial_hint">📱 SCROLLABLE AREA - Touch and drag to scroll here</string>
     <string name="log_highlight_hint">🔍 Border will highlight while scrolling</string>
     <string name="log_separator">-----------------------------------</string>
+    <string name="headset_control_title">Modo manos libres</string>
+    <string name="headset_control_enable">Activar</string>
+    <string name="headset_control_disable">Desactivar</string>
+    <string name="headset_control_status_on">Manos libres: activo</string>
+    <string name="headset_control_status_off">Manos libres: desactivado</string>
+    <string name="headset_control_event_none">Último evento: ninguno</string>
+    <string name="headset_control_event_count">Último evento: %1$d toque(s)</string>
 
     <!-- Favorites functionality -->
     <string name="favorites_title">Favorites</string>
