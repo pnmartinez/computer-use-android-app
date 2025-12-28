@@ -99,6 +99,7 @@ class AudioService : Service() {
         const val ACTION_DISABLE_HEADSET_CONTROL = "com.example.myapplication.DISABLE_HEADSET_CONTROL"
         const val ACTION_HEADSET_CONTROL_STATUS = "com.example.myapplication.HEADSET_CONTROL_STATUS"
         const val ACTION_HEADSET_EVENT = "com.example.myapplication.HEADSET_EVENT"
+        const val ACTION_QUERY_HEADSET_CONTROL_STATUS = "com.example.myapplication.QUERY_HEADSET_CONTROL_STATUS"
         
         const val EXTRA_LOG_MESSAGE = "log_message"
         const val EXTRA_AUDIO_FILE_PATH = "audio_file_path"
@@ -315,6 +316,7 @@ class AudioService : Service() {
             })
             isActive = false
         }
+        sendHeadsetControlStatus(false)
         textToSpeechManager = TextToSpeechManager(
             this,
             onReadyChanged = { isReady ->
@@ -383,6 +385,7 @@ class AudioService : Service() {
                 "CANCEL_RECORDING" -> stopRecordingWithoutSending()
             ACTION_ENABLE_HEADSET_CONTROL -> enableHeadsetControlMode()
             ACTION_DISABLE_HEADSET_CONTROL -> disableHeadsetControlMode()
+            ACTION_QUERY_HEADSET_CONTROL_STATUS -> sendHeadsetControlStatus(headsetControlEnabled)
             "PLAY_RESPONSE" -> playLastResponse()
                 "SPEAK_SUMMARY" -> {
                     val summaryText = intent.getStringExtra(EXTRA_SCREEN_SUMMARY).orEmpty()

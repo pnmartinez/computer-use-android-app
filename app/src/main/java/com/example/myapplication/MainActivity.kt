@@ -707,12 +707,15 @@ class MainActivity : AppCompatActivity() {
                 if (headsetControlPending) {
                     headsetControlPending = false
                     btnHeadsetControl.isEnabled = true
-                    headsetStatusText.text = getString(R.string.headset_control_status_off)
+                    headsetStatusText.text = getString(R.string.headset_control_status_timeout)
                     addLogMessage("[${getCurrentTime()}] ${headsetStatusText.text}")
                 }
             }
             headsetControlHandler.postDelayed(headsetControlTimeout!!, 3000)
             startAudioService(this, action)
+            headsetControlHandler.postDelayed({
+                startAudioService(this, AudioService.ACTION_QUERY_HEADSET_CONTROL_STATUS)
+            }, 250)
         }
         
         // Setup log clear button
