@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
@@ -51,7 +50,6 @@ class AudioService : Service() {
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var audioFocusListener: AudioManager.OnAudioFocusChangeListener? = null
-    private var mediaButtonComponent: ComponentName? = null
     private var isForegroundStarted = false
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
@@ -282,8 +280,14 @@ class AudioService : Service() {
                     sendLogMessage(getString(R.string.tts_init_failed))
                 }
             },
-            onSpeakStart = { sendTtsStatus(TTS_STATUS_PLAYING) },
-            onSpeakDone = { sendTtsStatus(TTS_STATUS_IDLE) },
+            onSpeakStart = {
+                setSessionState(true)
+                sendTtsStatus(TTS_STATUS_PLAYING)
+            },
+            onSpeakDone = {
+                setSessionState(isRecording)
+                sendTtsStatus(TTS_STATUS_IDLE)
+            },
             onSpeakError = { sendTtsStatus(TTS_STATUS_ERROR) }
         )
 
@@ -298,6 +302,7 @@ class AudioService : Service() {
         if (intent?.action == ACTION_MEDIA_BUTTON_EVENT) {
             val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
             if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+                setSessionState(true)
                 handleMediaButtonKeycode(keyEvent.keyCode)
                 return START_STICKY
             }
@@ -400,11 +405,6 @@ class AudioService : Service() {
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
-        mediaButtonComponent?.let { component ->
-            @Suppress("DEPRECATION")
-            audioManager?.unregisterMediaButtonEventReceiver(component)
-        }
-        mediaButtonComponent = null
         abandonAudioFocus()
         isForegroundStarted = false
     }
@@ -483,6 +483,7 @@ class AudioService : Service() {
                     start()
                 }
                 isRecording = true
+                setSessionState(true)
                 
                 // Update notification to reflect recording state
                 (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -541,6 +542,7 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            setSessionState(true)
             
             // Update notification
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -578,6 +580,7 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            setSessionState(false)
             
             // Update notification
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -599,25 +602,12 @@ class AudioService : Service() {
 
     private fun setupMediaSession() {
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        mediaButtonComponent = ComponentName(this, HeadsetMediaButtonReceiver::class.java)
         mediaSession = MediaSession(this, "AudioService").apply {
             setFlags(
                 MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or
                     MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
             )
-            setPlaybackState(
-                PlaybackState.Builder()
-                    .setActions(
-                        PlaybackState.ACTION_PLAY or
-                            PlaybackState.ACTION_PAUSE or
-                            PlaybackState.ACTION_PLAY_PAUSE or
-                            PlaybackState.ACTION_STOP or
-                            PlaybackState.ACTION_SKIP_TO_NEXT or
-                            PlaybackState.ACTION_SKIP_TO_PREVIOUS
-                    )
-                    .setState(PlaybackState.STATE_PLAYING, 0L, 1.0f)
-                    .build()
-            )
+            setSessionState(false)
             setCallback(
                 object : MediaSession.Callback() {
                     override fun onMediaButtonEvent(mediaButtonIntent: Intent): Boolean {
@@ -625,6 +615,7 @@ class AudioService : Service() {
                         if (keyEvent?.action != KeyEvent.ACTION_DOWN) {
                             return true
                         }
+                        setSessionState(true)
                         handleMediaButtonKeycode(keyEvent.keyCode)
                         return true
                     }
@@ -641,10 +632,6 @@ class AudioService : Service() {
             )
             setMediaButtonReceiver(mediaButtonPendingIntent)
             isActive = true
-        }
-        mediaButtonComponent?.let { component ->
-            @Suppress("DEPRECATION")
-            audioManager?.registerMediaButtonEventReceiver(component)
         }
         requestAudioFocus()
     }
@@ -666,15 +653,15 @@ class AudioService : Service() {
         isForegroundStarted = true
     }
 
-    private fun requestAudioFocus() {
-        val focusManager = audioManager ?: return
+    private fun requestAudioFocus(): Boolean {
+        val focusManager = audioManager ?: return false
         if (audioFocusListener == null) {
             audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
                 if (focusChange <= 0) {
                     sendLogMessage(getString(R.string.audio_focus_lost))
-                    mediaSession?.isActive = false
+                    setSessionState(false)
                 } else {
-                    mediaSession?.isActive = true
+                    setSessionState(true)
                 }
             }
         }
@@ -683,24 +670,29 @@ class AudioService : Service() {
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 .setAudioAttributes(audioAttributes)
+                .setWillPauseWhenDucked(true)
                 .setOnAudioFocusChangeListener(audioFocusListener!!)
                 .build()
             val result = focusManager.requestAudioFocus(audioFocusRequest!!)
+            sendLogMessage(getString(R.string.audio_focus_request_result, result))
             if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                 sendLogMessage(getString(R.string.audio_focus_not_granted))
             }
+            return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         } else {
             @Suppress("DEPRECATION")
             val result = focusManager.requestAudioFocus(
                 audioFocusListener,
                 AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
             )
+            sendLogMessage(getString(R.string.audio_focus_request_result, result))
             if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                 sendLogMessage(getString(R.string.audio_focus_not_granted))
             }
+            return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         }
     }
 
@@ -733,7 +725,11 @@ class AudioService : Service() {
                 }
             }
             KeyEvent.KEYCODE_MEDIA_NEXT -> {
-                speakLastResponse()
+                if (isRecording) {
+                    stopRecordingWithoutSending()
+                } else {
+                    speakLastResponse()
+                }
             }
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
                 if (isRecording) {
@@ -748,6 +744,27 @@ class AudioService : Service() {
                 }
             }
         }
+    }
+
+    private fun setSessionState(isActive: Boolean) {
+        val state = if (isActive) {
+            PlaybackState.STATE_PLAYING
+        } else {
+            PlaybackState.STATE_PAUSED
+        }
+        mediaSession?.setPlaybackState(
+            PlaybackState.Builder()
+                .setActions(
+                    PlaybackState.ACTION_PLAY or
+                        PlaybackState.ACTION_PAUSE or
+                        PlaybackState.ACTION_PLAY_PAUSE or
+                        PlaybackState.ACTION_STOP or
+                        PlaybackState.ACTION_SKIP_TO_NEXT or
+                        PlaybackState.ACTION_SKIP_TO_PREVIOUS
+                )
+                .setState(state, PlaybackState.PLAYBACK_POSITION_UNKNOWN, 1.0f)
+                .build()
+        )
     }
 
     private fun speakLastResponse() {

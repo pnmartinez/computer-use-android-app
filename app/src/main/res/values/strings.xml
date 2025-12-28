@@ -259,6 +259,7 @@
     <string name="media_button_keycode_detected">Media button recibido: %1$d</string>
     <string name="audio_focus_lost">Audio focus lost; media buttons may be unavailable</string>
     <string name="audio_focus_not_granted">Unable to obtain audio focus; media buttons may not work</string>
+    <string name="audio_focus_request_result">Audio focus result: %1$d</string>
     <string name="media_button_no_response">No hay respuesta reciente para reproducir</string>
     <string name="empty_whisper_model_error">You must select a Whisper model</string>
     <string name="settings_saved">Settings saved</string>

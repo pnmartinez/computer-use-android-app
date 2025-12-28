@@ -3,9 +3,9 @@ package com.example.myapplication
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import android.view.KeyEvent
-import androidx.core.content.ContextCompat
 
 class HeadsetMediaButtonReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -25,6 +25,13 @@ class HeadsetMediaButtonReceiver : BroadcastReceiver() {
             action = AudioService.ACTION_MEDIA_BUTTON_EVENT
             putExtra(Intent.EXTRA_KEY_EVENT, keyEvent)
         }
-        ContextCompat.startForegroundService(context, serviceIntent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(serviceIntent)
+        } else {
+            context.startService(serviceIntent)
+        }
+        if (isOrderedBroadcast) {
+            abortBroadcast()
+        }
     }
 }
