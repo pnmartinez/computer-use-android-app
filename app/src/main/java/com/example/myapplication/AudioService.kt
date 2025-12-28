@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
@@ -50,6 +51,7 @@ class AudioService : Service() {
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var audioFocusListener: AudioManager.OnAudioFocusChangeListener? = null
+    private var mediaButtonComponent: ComponentName? = null
     private var isForegroundStarted = false
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
@@ -398,6 +400,11 @@ class AudioService : Service() {
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
+        mediaButtonComponent?.let { component ->
+            @Suppress("DEPRECATION")
+            audioManager?.unregisterMediaButtonEventReceiver(component)
+        }
+        mediaButtonComponent = null
         abandonAudioFocus()
         isForegroundStarted = false
     }
@@ -592,6 +599,7 @@ class AudioService : Service() {
 
     private fun setupMediaSession() {
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        mediaButtonComponent = ComponentName(this, HeadsetMediaButtonReceiver::class.java)
         mediaSession = MediaSession(this, "AudioService").apply {
             setFlags(
                 MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or
@@ -633,6 +641,10 @@ class AudioService : Service() {
             )
             setMediaButtonReceiver(mediaButtonPendingIntent)
             isActive = true
+        }
+        mediaButtonComponent?.let { component ->
+            @Suppress("DEPRECATION")
+            audioManager?.registerMediaButtonEventReceiver(component)
         }
         requestAudioFocus()
     }

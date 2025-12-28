@@ -51,7 +51,8 @@
         <receiver
             android:name=".HeadsetMediaButtonReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_MEDIA_BUTTON">
             <intent-filter android:priority="1000">
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
