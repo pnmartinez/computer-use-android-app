@@ -46,6 +46,9 @@ dependencies {
     // ExoPlayer
     implementation("com.google.android.exoplayer:exoplayer-core:2.18.7")
     implementation("com.google.android.exoplayer:exoplayer:2.18.7")
+    implementation("androidx.media3:media3-session:1.3.1")
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-common:1.3.1")
 
     // Original dependencies
     implementation(libs.androidx.core.ktx)

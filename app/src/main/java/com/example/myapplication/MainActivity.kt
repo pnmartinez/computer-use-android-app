@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -106,6 +108,8 @@ class MainActivity : AppCompatActivity() {
     private var lastScreenSummary: String = ""
     private var isSummaryPlaying: Boolean = false
     private var summaryUpdateAnimator: ValueAnimator? = null
+    private lateinit var headsetTapIndicator: View
+    private var headsetIndicatorAnimator: AnimatorSet? = null
     
     // Keep track of app state
     private var isRecording = false
@@ -209,6 +213,9 @@ class MainActivity : AppCompatActivity() {
                     }
                     
                     addLogMessage(message)
+                }
+                AudioService.ACTION_MEDIA_BUTTON_TAP -> {
+                    pulseHeadsetIndicator()
                 }
                 AudioService.ACTION_AUDIO_FILE_INFO -> {
                     val filePath = intent.getStringExtra(AudioService.EXTRA_AUDIO_FILE_PATH) ?: return
@@ -327,6 +334,8 @@ class MainActivity : AppCompatActivity() {
         
         // Register broadcast receiver
         registerReceiver()
+
+        startVoiceMediaSessionService()
         
         // Start capturing logcat
         AudioService.startLogCapture(applicationContext)
@@ -381,6 +390,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         // Cancel any ongoing screenshot jobs
         screenshotJob.cancel()
+        headsetIndicatorAnimator?.cancel()
     }
     
     private fun registerReceiver() {
@@ -393,6 +403,7 @@ class MainActivity : AppCompatActivity() {
             addAction(AudioService.ACTION_PROCESSING_COMPLETED)
             addAction(AudioService.ACTION_CONNECTION_TESTED)
             addAction(AudioService.ACTION_TTS_STATUS)
+            addAction(AudioService.ACTION_MEDIA_BUTTON_TAP)
         }
         registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
     }
@@ -428,6 +439,7 @@ class MainActivity : AppCompatActivity() {
         // Main controls
         btnStartRecording = findViewById(R.id.btnStartRecording)
         btnProcessingRecording = findViewById(R.id.btnProcessingRecording)
+        headsetTapIndicator = findViewById(R.id.headsetTapIndicator)
         progressIndicator = findViewById(R.id.progressIndicator)
         
         // Logs - Find ScrollView directly by ID
@@ -895,7 +907,12 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(context, AudioService::class.java).apply {
             this.action = action
         }
-        context.startService(intent)
+        ContextCompat.startForegroundService(context, intent)
+    }
+
+    private fun startVoiceMediaSessionService() {
+        val intent = Intent(this, VoiceMediaSessionService::class.java)
+        ContextCompat.startForegroundService(this, intent)
     }
 
     private fun speakSummary(summary: String) {
@@ -903,7 +920,7 @@ class MainActivity : AppCompatActivity() {
             action = "SPEAK_SUMMARY"
             putExtra(AudioService.EXTRA_SCREEN_SUMMARY, summary)
         }
-        startService(intent)
+        ContextCompat.startForegroundService(this, intent)
     }
 
     private fun updateScreenSummary(summary: String) {
@@ -963,6 +980,26 @@ class MainActivity : AppCompatActivity() {
             })
         }
         summaryUpdateAnimator?.start()
+    }
+
+    private fun pulseHeadsetIndicator() {
+        headsetIndicatorAnimator?.cancel()
+        headsetTapIndicator.alpha = 1f
+        headsetTapIndicator.scaleX = 1.35f
+        headsetTapIndicator.scaleY = 1.35f
+        val alphaAnimator = ObjectAnimator.ofFloat(headsetTapIndicator, View.ALPHA, 1f, 0.35f).apply {
+            duration = 600L
+        }
+        val scaleXAnimator = ObjectAnimator.ofFloat(headsetTapIndicator, View.SCALE_X, 1.35f, 1f).apply {
+            duration = 600L
+        }
+        val scaleYAnimator = ObjectAnimator.ofFloat(headsetTapIndicator, View.SCALE_Y, 1.35f, 1f).apply {
+            duration = 600L
+        }
+        headsetIndicatorAnimator = AnimatorSet().apply {
+            playTogether(alphaAnimator, scaleXAnimator, scaleYAnimator)
+            start()
+        }
     }
 
     /**
@@ -2747,7 +2784,7 @@ private class FullscreenImageDialog(
                 val action = if (!isRecordingLocal) "START_RECORDING" else "STOP_RECORDING"
                 val svcIntent = Intent(context, AudioService::class.java).apply { this.action = action }
                 try {
-                    context.startService(svcIntent)
+                    ContextCompat.startForegroundService(context, svcIntent)
                 } catch (_: Exception) { /* ignore */ }
             }
         }

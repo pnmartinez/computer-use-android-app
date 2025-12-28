@@ -3,13 +3,13 @@ package com.example.myapplication
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.media.MediaRecorder
-import android.os.Handler
+import android.os.Build
 import android.os.IBinder
-import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -40,6 +40,8 @@ class AudioService : Service() {
     private var ttsRate: Float = DEFAULT_TTS_RATE
     private var ttsPitch: Float = DEFAULT_TTS_PITCH
     private var audioPlaybackEnabled: Boolean = DEFAULT_AUDIO_PLAYBACK_ENABLED
+    private var lastResponseMessage: String? = null
+    private var isForegroundStarted = false
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
     private val serviceJob = SupervisorJob()
@@ -78,6 +80,7 @@ class AudioService : Service() {
         const val ACTION_PROCESSING_COMPLETED = "com.example.myapplication.PROCESSING_COMPLETED"
         const val ACTION_CONNECTION_TESTED = "com.example.myapplication.CONNECTION_TESTED"
         const val ACTION_TTS_STATUS = "com.example.myapplication.TTS_STATUS"
+        const val ACTION_MEDIA_BUTTON_TAP = "com.example.myapplication.MEDIA_BUTTON_TAP"
         
         const val EXTRA_LOG_MESSAGE = "log_message"
         const val EXTRA_AUDIO_FILE_PATH = "audio_file_path"
@@ -90,6 +93,7 @@ class AudioService : Service() {
         const val EXTRA_RESPONSE_SUCCESS = "response_success"
         const val EXTRA_SCREEN_SUMMARY = "screen_summary"
         const val EXTRA_TTS_STATUS = "tts_status"
+        const val EXTRA_MEDIA_BUTTON_KEYCODE = "media_button_keycode"
         
         // Default server settings
         const val DEFAULT_SERVER_IP = "your_server_ip_here"
@@ -111,11 +115,12 @@ class AudioService : Service() {
         const val KEY_TTS_RATE = "tts_rate"
         const val KEY_TTS_PITCH = "tts_pitch"
         const val KEY_AUDIO_PLAYBACK_ENABLED = "audio_playback_enabled"
+        const val KEY_IS_RECORDING = "is_recording"
 
         const val TTS_STATUS_PLAYING = "playing"
         const val TTS_STATUS_IDLE = "idle"
         const val TTS_STATUS_ERROR = "error"
-        
+
         // Get current response timeout from SharedPreferences
         fun getCurrentResponseTimeout(context: Context): Int {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -271,12 +276,12 @@ class AudioService : Service() {
             onSpeakError = { sendTtsStatus(TTS_STATUS_ERROR) }
         )
         
-        // Use FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK for services that play or record media
-        startForeground(1, createNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        ensureForegroundServiceStarted()
         sendLogMessage(getString(R.string.simple_computer_use_service_started) + if (testMode) " (MODO PRUEBA)" else "")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        ensureForegroundServiceStarted()
         // Check if we need to update settings
         if (intent?.action == "UPDATE_SETTINGS") {
             val newIp = intent.getStringExtra(KEY_SERVER_IP)
@@ -311,6 +316,7 @@ class AudioService : Service() {
             "STOP_RECORDING" -> stopRecordingAndSend()
                 "CANCEL_RECORDING" -> stopRecordingWithoutSending()
             "PLAY_RESPONSE" -> playLastResponse()
+                "SPEAK_LAST_RESPONSE" -> speakLastResponse()
                 "SPEAK_SUMMARY" -> {
                     val summaryText = intent.getStringExtra(EXTRA_SCREEN_SUMMARY).orEmpty()
                     if (summaryText.isNotBlank()) {
@@ -337,6 +343,8 @@ class AudioService : Service() {
                         recorder?.release()
                         recorder = null
                         isRecording = false
+                        setRecordingState(false)
+                        setRecordingState(false)
                         
                         // Update notification
                         (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -370,6 +378,8 @@ class AudioService : Service() {
 
         textToSpeechManager?.shutdown()
         textToSpeechManager = null
+
+        isForegroundStarted = false
     }
 
     /**
@@ -412,19 +422,16 @@ class AudioService : Service() {
             android.app.PendingIntent.FLAG_IMMUTABLE
         )
 
+        val statusText = if (isRecording) "Grabando audio..." else "Servicio activo"
+
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("Simple Computer Use")
-            .setContentText(if (isRecording) "Grabando audio..." else "Servicio activo")
+            .setContentText(statusText)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(if (isRecording) 
-                    "Grabando audio para enviar al servidor" 
-                    else "Servicio de audio activo y listo para grabar"))
             .build()
     }
 
@@ -446,6 +453,8 @@ class AudioService : Service() {
                     start()
                 }
                 isRecording = true
+                setRecordingState(true)
+                setSessionState(true)
                 
                 // Update notification to reflect recording state
                 (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -483,6 +492,7 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            setRecordingState(false)
             signalProcessingComplete()
         }
     }
@@ -504,6 +514,8 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            setRecordingState(false)
+            setSessionState(true)
             
             // Update notification
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -541,6 +553,7 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            setSessionState(false)
             
             // Update notification
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -558,6 +571,70 @@ class AudioService : Service() {
         }
         
         // No need to send the audio file since the recording was canceled
+    }
+
+    private fun setRecordingState(recording: Boolean) {
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_IS_RECORDING, recording)
+            .apply()
+    }
+
+    private fun ensureForegroundServiceStarted() {
+        if (isForegroundStarted) {
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            startForeground(
+                1,
+                createNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            )
+        } else {
+            startForeground(1, createNotification())
+        }
+        isForegroundStarted = true
+    }
+
+    private fun startAudioFocusProbe() {
+        if (focusProbePlayer != null) {
+            return
+        }
+        val focusGranted = requestAudioFocus()
+        if (!focusGranted) {
+            return
+        }
+        focusProbePlayer = ExoPlayer.Builder(this).build().apply {
+            volume = 0f
+            playWhenReady = true
+        }
+        serviceScope.launch(Dispatchers.Main) {
+            delay(2000)
+            focusProbePlayer?.release()
+            focusProbePlayer = null
+            if (!isRecording) {
+                setSessionState(false)
+            }
+        }
+    }
+
+
+    private fun speakLastResponse() {
+        val message = lastResponseMessage?.trim().orEmpty()
+        if (message.isEmpty()) {
+            sendLogMessage(getString(R.string.media_button_no_response))
+            return
+        }
+        serviceScope.launch(Dispatchers.Main) {
+            val didSpeak = textToSpeechManager?.speak(message) ?: false
+            if (didSpeak) {
+                sendLogMessage(getString(R.string.tts_speaking_response))
+            } else {
+                sendLogMessage(getString(R.string.tts_not_ready))
+                sendTtsStatus(TTS_STATUS_ERROR)
+            }
+        }
     }
 
     private fun sendAudioOverWebSocket(file: File) {
@@ -887,6 +964,7 @@ class AudioService : Service() {
             // Check if audio response is available
             val hasAudioResponse = jsonObject.optBoolean("audio_response_available", false)
             val responseMessage = if (summaryForUi.isNotEmpty()) summaryForUi else result
+            lastResponseMessage = responseMessage
             
             if (hasAudioResponse) {
                 sendLogMessage(getString(R.string.audio_response_available))
@@ -938,6 +1016,7 @@ class AudioService : Service() {
             sendLogMessage(getString(R.string.audio_playback_disabled))
             return
         }
+        lastResponseMessage = message
         
         if (testMode) {
             sendLogMessage(getString(R.string.test_mode_tts))
