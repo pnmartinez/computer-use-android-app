@@ -1032,6 +1032,16 @@ class AudioService : Service() {
             sendLogMessage("🔍 Buscando micrófono Bluetooth (API moderna)...")
             Log.d("AudioService", "Using modern Bluetooth SCO method (setCommunicationDevice)")
             
+            // Verificar permiso BLUETOOTH_CONNECT (requerido en Android 12+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                    sendLogMessage("⚠️ Falta permiso BLUETOOTH_CONNECT")
+                    Log.w("AudioService", "BLUETOOTH_CONNECT permission not granted, trying legacy method")
+                    // Intentar con método legacy como fallback
+                    return startBluetoothScoLegacy()
+                }
+            }
+            
             // CRÍTICO: Establecer modo de comunicación ANTES de buscar dispositivos
             val previousMode = audioManager.mode
             audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
@@ -1108,10 +1118,12 @@ class AudioService : Service() {
                     Log.d("AudioService", "✓ Bluetooth communication device set successfully: $deviceName")
                     return true
                 } else {
-                    sendLogMessage("❌ Falló setCommunicationDevice")
-                    Log.e("AudioService", "✗ Failed to set Bluetooth communication device")
+                    sendLogMessage("⚠️ setCommunicationDevice falló, probando método legacy...")
+                    Log.w("AudioService", "setCommunicationDevice failed, trying legacy startBluetoothSco")
                     audioManager.mode = previousMode
-                    return false
+                    
+                    // Fallback: intentar con método legacy
+                    return startBluetoothScoLegacy()
                 }
             } else {
                 sendLogMessage("❌ No hay dispositivo Bluetooth SCO disponible")
