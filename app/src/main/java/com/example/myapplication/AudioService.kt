@@ -1224,17 +1224,10 @@ class AudioService : Service() {
                     AudioManager.SCO_AUDIO_STATE_DISCONNECTED -> {
                         Log.d("AudioService", "Bluetooth SCO DISCONNECTED")
                         isBluetoothScoOn = false
-                        
-                        // Auto-reconectar si el modo manos libres sigue activo
-                        if (headsetControlEnabled && !isRecording) {
-                            Log.d("AudioService", "Auto-reconnecting SCO (headset mode active)")
-                            sendLogMessage("🔄 Reconectando micrófono Bluetooth...")
-                            // Delay pequeño antes de reconectar para evitar loops
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                if (headsetControlEnabled && !isBluetoothScoOn) {
-                                    startBluetoothScoLegacy()
-                                }
-                            }, 500)
+                        // No reconectamos automáticamente - lo haremos cuando se necesite grabar
+                        // La reconexión automática interfiere con la detección de botones de media
+                        if (headsetControlEnabled) {
+                            sendMicrophoneChanged(null) // Actualizar UI
                         }
                     }
                     AudioManager.SCO_AUDIO_STATE_ERROR -> {
