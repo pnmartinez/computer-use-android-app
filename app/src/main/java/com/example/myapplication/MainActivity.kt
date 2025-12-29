@@ -415,7 +415,7 @@ class MainActivity : AppCompatActivity() {
             addAction(AudioService.ACTION_HEADSET_CONTROL_STATUS)
             addAction(AudioService.ACTION_HEADSET_EVENT)
         }
-        registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        registerReceiver(serviceReceiver, filter)
     }
     
     private fun initViews() {

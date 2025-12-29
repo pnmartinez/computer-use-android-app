@@ -543,54 +543,67 @@ class AudioService : Service() {
     }
 
     private fun enableHeadsetControlMode() {
-        if (headsetControlEnabled) {
+        try {
+            if (headsetControlEnabled) {
+                sendHeadsetControlStatus(true)
+                Log.d("AudioService", "Headset control ENABLED (no change)")
+                return
+            }
+            if (!requestAudioFocus()) {
+                sendLogMessage("AudioFocus DENIED: no puedo tomar control de botones")
+                Log.d("AudioService", "Headset control ENABLED failed: audio focus denied")
+                headsetControlEnabled = false
+                sendHeadsetControlStatus(false)
+                return
+            }
+            val state = PlaybackStateCompat.Builder()
+                .setActions(
+                    PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                        PlaybackStateCompat.ACTION_PLAY or
+                        PlaybackStateCompat.ACTION_PAUSE
+                )
+                .setState(PlaybackStateCompat.STATE_PLAYING, 0L, 1.0f)
+                .build()
+            mediaSession.setPlaybackState(state)
+            mediaSession.isActive = true
+            headsetControlEnabled = true
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .notify(1, createNotification())
+            sendLogMessage("Headset control ENABLED")
+            Log.d("AudioService", "Headset control ENABLED")
             sendHeadsetControlStatus(true)
-            Log.d("AudioService", "Headset control ENABLED (no change)")
-            return
-        }
-        if (!requestAudioFocus()) {
-            sendLogMessage("AudioFocus DENIED: no puedo tomar control de botones")
-            Log.d("AudioService", "Headset control ENABLED failed: audio focus denied")
+        } catch (t: Throwable) {
+            Log.e("AudioService", "enableHeadsetControlMode crashed", t)
+            headsetControlEnabled = false
             sendHeadsetControlStatus(false)
-            return
         }
-        val state = PlaybackStateCompat.Builder()
-            .setActions(
-                PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                    PlaybackStateCompat.ACTION_PLAY or
-                    PlaybackStateCompat.ACTION_PAUSE
-            )
-            .setState(PlaybackStateCompat.STATE_PLAYING, 0L, 1.0f)
-            .build()
-        mediaSession.setPlaybackState(state)
-        mediaSession.isActive = true
-        headsetControlEnabled = true
-        sendLogMessage("Headset control ENABLED")
-        Log.d("AudioService", "Headset control ENABLED")
-        sendHeadsetControlStatus(true)
-        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-            .notify(1, createNotification())
     }
 
     private fun disableHeadsetControlMode() {
-        if (!headsetControlEnabled) {
+        try {
+            if (!headsetControlEnabled) {
+                sendHeadsetControlStatus(false)
+                Log.d("AudioService", "Headset control DISABLED (no change)")
+                return
+            }
+            val state = PlaybackStateCompat.Builder()
+                .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE)
+                .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1.0f)
+                .build()
+            mediaSession.setPlaybackState(state)
+            abandonAudioFocus()
+            mediaSession.isActive = false
+            headsetControlEnabled = false
+            sendLogMessage("Headset control DISABLED")
+            Log.d("AudioService", "Headset control DISABLED")
             sendHeadsetControlStatus(false)
-            Log.d("AudioService", "Headset control DISABLED (no change)")
-            return
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .notify(1, createNotification())
+        } catch (t: Throwable) {
+            Log.e("AudioService", "disableHeadsetControlMode crashed", t)
+            headsetControlEnabled = false
+            sendHeadsetControlStatus(false)
         }
-        val state = PlaybackStateCompat.Builder()
-            .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE)
-            .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1.0f)
-            .build()
-        mediaSession.setPlaybackState(state)
-        abandonAudioFocus()
-        mediaSession.isActive = false
-        headsetControlEnabled = false
-        sendLogMessage("Headset control DISABLED")
-        Log.d("AudioService", "Headset control DISABLED")
-        sendHeadsetControlStatus(false)
-        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-            .notify(1, createNotification())
     }
 
     private fun sendHeadsetControlStatus(enabled: Boolean) {
