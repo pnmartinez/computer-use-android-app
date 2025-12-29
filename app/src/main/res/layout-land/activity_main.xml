@@ -205,7 +205,7 @@
                 app:strokeWidth="0dp"
                 android:stateListAnimator="@animator/card_state_list_anim"
                 app:layout_constraintTop_toBottomOf="@id/screenshotCard"
-                app:layout_constraintBottom_toTopOf="@id/headsetControlCard">
+                app:layout_constraintBottom_toTopOf="@id/commandHistoryCard">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -263,73 +263,6 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Headset Control Card -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/headsetControlCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="0dp"
-                app:cardElevation="2dp"
-                app:cardCornerRadius="16dp"
-                app:strokeWidth="0dp"
-                android:stateListAnimator="@animator/card_state_list_anim"
-                app:layout_constraintTop_toBottomOf="@id/summaryCard"
-                app:layout_constraintBottom_toTopOf="@id/commandHistoryCard">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <!-- Divider between sections -->
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginBottom="16dp"
-                        android:background="?attr/colorOutlineVariant"
-                        android:alpha="0.5" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/headset_control_title"
-                            android:textAppearance="?attr/textAppearanceTitleMedium" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnHeadsetControl"
-                            style="@style/Widget.Material3.Button.TextButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/headset_control_enable" />
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/headsetStatusText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="@string/headset_control_status_off"
-                        android:textAppearance="?attr/textAppearanceBodySmall"
-                        android:textStyle="italic" />
-
-                    <TextView
-                        android:id="@+id/headsetEventText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/headset_control_event_none"
-                        android:textAppearance="?attr/textAppearanceBodySmall" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
             <!-- Command History Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/commandHistoryCard"
@@ -340,7 +273,7 @@
                 app:cardCornerRadius="16dp"
                 app:strokeWidth="0dp"
                 android:stateListAnimator="@animator/card_state_list_anim"
-                app:layout_constraintTop_toBottomOf="@id/headsetControlCard"
+                app:layout_constraintTop_toBottomOf="@id/summaryCard"
                 app:layout_constraintBottom_toTopOf="@id/favoritesCard">
 
                 <LinearLayout
@@ -694,6 +627,19 @@
         android:layout_gravity="start"
         android:fitsSystemWindows="true"
         app:headerLayout="@layout/drawer_header"
-        app:menu="@menu/drawer_menu" />
+        app:menu="@menu/drawer_menu">
+
+        <!-- Footer for handsfree mode -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="vertical">
+
+            <include layout="@layout/drawer_footer" />
+
+        </LinearLayout>
+
+    </com.google.android.material.navigation.NavigationView>
 
 </androidx.drawerlayout.widget.DrawerLayout>

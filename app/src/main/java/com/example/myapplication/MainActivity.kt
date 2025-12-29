@@ -73,6 +73,7 @@ import kotlin.math.sqrt
 import android.widget.ProgressBar
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.switchmaterial.SwitchMaterial
 
 class MainActivity : AppCompatActivity() {
     
@@ -81,9 +82,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnProcessingRecording: MaterialButton
     private lateinit var progressIndicator: LinearProgressIndicator
     private lateinit var drawerLayout: DrawerLayout
-    private lateinit var btnHeadsetControl: MaterialButton
-    private lateinit var headsetStatusText: TextView
-    private lateinit var headsetEventText: TextView
+    
+    // Drawer footer - Handsfree controls
+    private lateinit var drawerHandsfreeSwitch: SwitchMaterial
+    private lateinit var drawerMicrophoneStatus: TextView
     private val headsetControlHandler = Handler(Looper.getMainLooper())
     private var headsetControlTimeout: Runnable? = null
     private var headsetControlPending = false
@@ -206,9 +208,9 @@ class MainActivity : AppCompatActivity() {
                     headsetControlEnabled = enabled
                     updateHeadsetControlUi(enabled)
                 }
-                AudioService.ACTION_HEADSET_EVENT -> {
-                    val count = intent.getIntExtra(AudioService.EXTRA_HEADSET_EVENT_COUNT, 0)
-                    updateHeadsetEvent(count)
+                AudioService.ACTION_MICROPHONE_CHANGED -> {
+                    val micName = intent.getStringExtra(AudioService.EXTRA_MICROPHONE_NAME)
+                    updateMicrophoneStatus(micName)
                 }
                 AudioService.ACTION_LOG_MESSAGE -> {
                     val message = intent.getStringExtra(AudioService.EXTRA_LOG_MESSAGE) ?: return
@@ -414,7 +416,7 @@ class MainActivity : AppCompatActivity() {
             addAction(AudioService.ACTION_CONNECTION_TESTED)
             addAction(AudioService.ACTION_TTS_STATUS)
             addAction(AudioService.ACTION_HEADSET_CONTROL_STATUS)
-            addAction(AudioService.ACTION_HEADSET_EVENT)
+            addAction(AudioService.ACTION_MICROPHONE_CHANGED)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -455,9 +457,10 @@ class MainActivity : AppCompatActivity() {
         btnStartRecording = findViewById(R.id.btnStartRecording)
         btnProcessingRecording = findViewById(R.id.btnProcessingRecording)
         progressIndicator = findViewById(R.id.progressIndicator)
-        btnHeadsetControl = findViewById(R.id.btnHeadsetControl)
-        headsetStatusText = findViewById(R.id.headsetStatusText)
-        headsetEventText = findViewById(R.id.headsetEventText)
+        
+        // Drawer footer - Handsfree controls
+        drawerHandsfreeSwitch = findViewById(R.id.drawerHandsfreeSwitch)
+        drawerMicrophoneStatus = findViewById(R.id.drawerMicrophoneStatus)
         
         // Logs - Find ScrollView directly by ID
         logsTextView = findViewById(R.id.logsTextView)
@@ -504,7 +507,7 @@ class MainActivity : AppCompatActivity() {
         updateScreenSummary("")
 
         updateHeadsetControlUi(headsetControlEnabled)
-        updateHeadsetEvent(0)
+        updateMicrophoneStatus(null) // Initial state
         
         // Setup log clear button
         btnClearLogs.setOnClickListener {
@@ -647,28 +650,51 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateHeadsetControlUi(enabled: Boolean) {
         headsetControlPending = false
-        btnHeadsetControl.isEnabled = true
+        drawerHandsfreeSwitch.isEnabled = true
         headsetControlTimeout?.let { headsetControlHandler.removeCallbacks(it) }
-        btnHeadsetControl.text = if (enabled) {
-            getString(R.string.headset_control_disable)
-        } else {
-            getString(R.string.headset_control_enable)
-        }
-        headsetStatusText.text = if (enabled) {
-            getString(R.string.headset_control_status_on)
-        } else {
-            getString(R.string.headset_control_status_off)
-        }
+        
+        // Update switch state without triggering listener
+        drawerHandsfreeSwitch.setOnCheckedChangeListener(null)
+        drawerHandsfreeSwitch.isChecked = enabled
+        setupHandsfreeSwitchListener()
+        
+        // Update microphone status when disabled
         if (!enabled) {
-            headsetEventText.text = getString(R.string.headset_control_event_none)
+            updateMicrophoneStatus(null)
         }
     }
-
-    private fun updateHeadsetEvent(count: Int) {
-        headsetEventText.text = if (count > 0) {
-            getString(R.string.headset_control_event_count, count)
+    
+    private fun updateMicrophoneStatus(micName: String?) {
+        drawerMicrophoneStatus.text = if (micName != null) {
+            getString(R.string.drawer_mic_device, micName)
         } else {
-            getString(R.string.headset_control_event_none)
+            getString(R.string.drawer_mic_inactive)
+        }
+    }
+    
+    private fun setupHandsfreeSwitchListener() {
+        drawerHandsfreeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            val action = if (isChecked) {
+                AudioService.ACTION_ENABLE_HEADSET_CONTROL
+            } else {
+                AudioService.ACTION_DISABLE_HEADSET_CONTROL
+            }
+            headsetControlPending = true
+            drawerHandsfreeSwitch.isEnabled = false
+            addLogMessage("[${getCurrentTime()}] ${getString(R.string.headset_control_status_pending)}")
+            headsetControlTimeout?.let { headsetControlHandler.removeCallbacks(it) }
+            headsetControlTimeout = Runnable {
+                if (headsetControlPending) {
+                    headsetControlPending = false
+                    drawerHandsfreeSwitch.isEnabled = true
+                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.headset_control_status_timeout)}")
+                }
+            }
+            headsetControlHandler.postDelayed(headsetControlTimeout!!, 3000)
+            startAudioService(this, action)
+            headsetControlHandler.postDelayed({
+                startAudioService(this, AudioService.ACTION_QUERY_HEADSET_CONTROL_STATUS)
+            }, 250)
         }
     }
     
@@ -704,39 +730,8 @@ class MainActivity : AppCompatActivity() {
             true // Consume the long press
         }
 
-        btnHeadsetControl.setOnClickListener {
-            val action = if (headsetControlEnabled) {
-                AudioService.ACTION_DISABLE_HEADSET_CONTROL
-            } else {
-                AudioService.ACTION_ENABLE_HEADSET_CONTROL
-            }
-            headsetControlPending = true
-            headsetStatusText.text = getString(R.string.headset_control_status_pending)
-            btnHeadsetControl.isEnabled = false
-            addLogMessage("[${getCurrentTime()}] ${headsetStatusText.text}")
-            headsetControlTimeout?.let { headsetControlHandler.removeCallbacks(it) }
-            headsetControlTimeout = Runnable {
-                if (headsetControlPending) {
-                    headsetControlPending = false
-                    btnHeadsetControl.isEnabled = true
-                    headsetStatusText.text = getString(R.string.headset_control_status_timeout)
-                    addLogMessage("[${getCurrentTime()}] ${headsetStatusText.text}")
-                }
-            }
-            headsetControlHandler.postDelayed(headsetControlTimeout!!, 3000)
-            startAudioService(this, action)
-            headsetControlHandler.postDelayed({
-                startAudioService(this, AudioService.ACTION_QUERY_HEADSET_CONTROL_STATUS)
-            }, 250)
-        }
-        
-        // Long-press to simulate media button for testing (useful on emulators without Bluetooth)
-        btnHeadsetControl.setOnLongClickListener {
-            addLogMessage("[${getCurrentTime()}] 🧪 Testing media button simulation...")
-            Toast.makeText(this, "Simulating headset button press", Toast.LENGTH_SHORT).show()
-            startAudioService(this, AudioService.ACTION_TEST_MEDIA_BUTTON)
-            true
-        }
+        // Setup handsfree switch listener
+        setupHandsfreeSwitchListener()
         
         // Setup log clear button
         btnClearLogs.setOnClickListener {
