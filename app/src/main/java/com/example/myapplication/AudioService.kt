@@ -379,19 +379,32 @@ class AudioService : Service() {
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_NEXT -> {
-                            // Muchos auriculares envían NEXT como doble toque nativo
-                            Log.d("AudioService", "Handling MEDIA_NEXT as double-tap -> stop & send")
-                            sendLogMessage("🎧 Doble toque (NEXT) → detener y enviar")
-                            if (headsetFeedbackEnabled) playClickFeedback(2)
-                            stopRecordingAndSend()
+                            // Algunos auriculares envían NEXT como toque único
+                            // Si hay grabación: detener y enviar. Si no: iniciar.
+                            if (isRecording) {
+                                Log.d("AudioService", "MEDIA_NEXT while recording -> stop & send")
+                                sendLogMessage("🎧 Toque (NEXT) → detener y enviar")
+                                if (headsetFeedbackEnabled) playClickFeedback(2)
+                                stopRecordingAndSend()
+                            } else {
+                                Log.d("AudioService", "MEDIA_NEXT no recording -> starting recording")
+                                sendLogMessage("🎧 Toque (NEXT) → iniciar grabación")
+                                if (headsetFeedbackEnabled) playClickFeedback(1)
+                                startRecording()
+                            }
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
-                            // Muchos auriculares envían PREVIOUS como triple toque nativo
-                            Log.d("AudioService", "Handling MEDIA_PREVIOUS as triple-tap -> cancel")
-                            sendLogMessage("🎧 Triple toque (PREV) → cancelar")
-                            if (headsetFeedbackEnabled) playClickFeedback(3)
-                            stopRecordingWithoutSending()
+                            // Algunos auriculares envían PREVIOUS como toque
+                            if (isRecording) {
+                                Log.d("AudioService", "MEDIA_PREVIOUS while recording -> cancel")
+                                sendLogMessage("🎧 Toque (PREV) → cancelar grabación")
+                                if (headsetFeedbackEnabled) playClickFeedback(3)
+                                stopRecordingWithoutSending()
+                            } else {
+                                Log.d("AudioService", "MEDIA_PREVIOUS no recording -> ignored")
+                                sendLogMessage("🎧 Toque (PREV) → nada que cancelar")
+                            }
                             true
                         }
                         else -> {
