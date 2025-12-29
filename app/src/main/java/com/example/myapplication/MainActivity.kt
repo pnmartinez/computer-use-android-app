@@ -494,6 +494,13 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, getString(R.string.summary_unavailable), Toast.LENGTH_SHORT).show()
             }
         }
+        
+        // Voice control info button
+        val btnVoiceControlInfo = findViewById<MaterialButton>(R.id.btnVoiceControlInfo)
+        btnVoiceControlInfo.setOnClickListener {
+            showVoiceControlInfoDialog()
+        }
+        
         updateScreenSummary("")
 
         updateHeadsetControlUi(headsetControlEnabled)
@@ -1647,6 +1654,27 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+    }
+    
+    private fun showVoiceControlInfoDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Control de Voz Manos Libres")
+            .setMessage("""
+                Este modo te permite controlar la aplicación usando los botones de tus auriculares Bluetooth.
+                
+                Cómo funciona:
+                
+                • 1 toque: Iniciar/Detener grabación
+                • 2 toques rápidos: Detener y enviar
+                • 3 toques rápidos: Cancelar grabación
+                
+                El sistema reproduce audio silencioso en segundo plano para mantener el control de los botones.
+                
+                Nota: Desactiva el modo cuando no lo uses para ahorrar batería.
+            """.trimIndent())
+            .setIcon(android.R.drawable.ic_menu_info_details)
+            .setPositiveButton("Entendido") { dialog, _ -> dialog.dismiss() }
+            .show()
     }
     
     private fun saveAppPreferences() {

@@ -303,6 +303,13 @@ class AudioService : Service() {
                     Log.d("AudioService", "Intent action: ${mediaButtonIntent?.action}")
                     Log.d("AudioService", "headsetControlEnabled: $headsetControlEnabled")
                     
+                    // MASTER SWITCH: If headset control is disabled, ignore all button events
+                    if (!headsetControlEnabled) {
+                        Log.d("AudioService", "Headset control disabled - ignoring button event")
+                        sendLogMessage("⚠️ Button pressed but headset control is OFF")
+                        return false
+                    }
+                    
                     val event = mediaButtonIntent
                         ?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
                     
@@ -756,26 +763,41 @@ class AudioService : Service() {
 
     private fun disableHeadsetControlMode() {
         try {
+            Log.d("AudioService", "disableHeadsetControlMode() called, current state: $headsetControlEnabled")
+            
             if (!headsetControlEnabled) {
                 sendHeadsetControlStatus(false)
                 Log.d("AudioService", "Headset control DISABLED (no change)")
                 return
             }
             
-            // Stop silent playback
+            // Stop silent playback immediately
             stopSilentPlayback()
             
+            // Set MediaSession to inactive and stopped state
             val state = PlaybackStateCompat.Builder()
                 .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE)
-                .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1.0f)
+                .setState(PlaybackStateCompat.STATE_STOPPED, 0L, 1.0f)
                 .build()
             mediaSession.setPlaybackState(state)
-            abandonAudioFocus()
+            
+            // Deactivate MediaSession completely
             mediaSession.isActive = false
+            
+            // Release audio focus
+            abandonAudioFocus()
+            
+            // Clear state
             headsetControlEnabled = false
-            sendLogMessage("🎧 Headset control DISABLED")
-            Log.d("AudioService", "Headset control DISABLED")
+            clickCount = 0
+            lastClickAt = 0
+            mediaButtonHandler.removeCallbacksAndMessages(null)
+            
+            sendLogMessage("🎧 Headset control DISABLED - All resources released")
+            Log.d("AudioService", "Headset control DISABLED - MediaSession inactive, silent playback stopped")
             sendHeadsetControlStatus(false)
+            
+            // Update notification
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
                 .notify(1, createNotification())
         } catch (t: Throwable) {

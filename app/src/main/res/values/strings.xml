@@ -292,6 +292,7 @@
     <string name="headset_control_status_timeout">Manos libres: sin respuesta</string>
     <string name="headset_control_event_none">Último evento: ninguno</string>
     <string name="headset_control_event_count">Último evento: %1$d toque(s)</string>
+    <string name="voice_control_info">Información sobre control de voz</string>
 
     <!-- Favorites functionality -->
     <string name="favorites_title">Favorites</string>
