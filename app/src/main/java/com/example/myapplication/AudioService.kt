@@ -1029,50 +1029,64 @@ class AudioService : Service() {
     @Suppress("DEPRECATION")
     private fun startBluetoothScoModern(): Boolean {
         try {
+            sendLogMessage("🔍 Buscando micrófono Bluetooth (API moderna)...")
             Log.d("AudioService", "Using modern Bluetooth SCO method (setCommunicationDevice)")
             
             // CRÍTICO: Establecer modo de comunicación ANTES de buscar dispositivos
             val previousMode = audioManager.mode
             audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            sendLogMessage("📞 Modo audio: COMUNICACIÓN")
             Log.d("AudioService", "Audio mode set to MODE_IN_COMMUNICATION (previous: $previousMode)")
             
             // Buscar dispositivo Bluetooth SCO (el único que soporta micrófono)
             val inputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
             var bluetoothDevice: AudioDeviceInfo? = null
             
+            sendLogMessage("📋 Dispositivos de entrada: ${inputDevices.size}")
             Log.d("AudioService", "Searching ${inputDevices.size} input devices for Bluetooth SCO...")
+            
+            // Listar todos los dispositivos en la UI
             for (device in inputDevices) {
                 val type = device.type
                 val name = device.productName?.toString() ?: "Unknown"
                 val hasMic = device.isSource
+                val typeName = when (type) {
+                    AudioDeviceInfo.TYPE_BUILTIN_MIC -> "MIC_INTERNO"
+                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "BT_SCO ✓"
+                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "BT_A2DP"
+                    AudioDeviceInfo.TYPE_WIRED_HEADSET -> "CABLE"
+                    AudioDeviceInfo.TYPE_USB_HEADSET -> "USB"
+                    else -> "TIPO_$type"
+                }
                 
+                sendLogMessage("  • $name ($typeName)")
                 Log.d("AudioService", "Input device: type=$type (SCO=${AudioDeviceInfo.TYPE_BLUETOOTH_SCO}), name=$name, isSource=$hasMic")
                 
                 // SOLO TYPE_BLUETOOTH_SCO soporta micrófono bidireccional
-                // TYPE_BLUETOOTH_A2DP es solo para audio de salida (música)
                 if (type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
                     bluetoothDevice = device
+                    sendLogMessage("✅ Encontrado SCO: $name")
                     Log.d("AudioService", "✓ Found Bluetooth SCO device: $name")
                     break
                 }
             }
             
-            // Si no encontramos SCO en inputs, buscar en outputs y luego verificar si tiene input
+            // Si no encontramos SCO en inputs, buscar en outputs
             if (bluetoothDevice == null) {
                 val outputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                sendLogMessage("🔍 Buscando en salidas: ${outputDevices.size}")
                 Log.d("AudioService", "Searching ${outputDevices.size} output devices for Bluetooth SCO...")
                 for (device in outputDevices) {
                     val type = device.type
                     val name = device.productName?.toString() ?: "Unknown"
                     Log.d("AudioService", "Output device: type=$type, name=$name")
                     
-                    // Solo buscar SCO
                     if (type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
-                        // Un dispositivo SCO de salida generalmente tiene también entrada
-                        // Buscar el correspondiente dispositivo de entrada
+                        sendLogMessage("  • $name (BT_SCO salida)")
                         for (inputDevice in inputDevices) {
                             if (inputDevice.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
                                 bluetoothDevice = inputDevice
+                                sendLogMessage("✅ SCO entrada encontrado")
                                 Log.d("AudioService", "✓ Found matching SCO input device: ${inputDevice.productName}")
                                 break
                             }
@@ -1084,47 +1098,31 @@ class AudioService : Service() {
             
             if (bluetoothDevice != null) {
                 val deviceName = bluetoothDevice.productName?.toString() ?: "Bluetooth"
+                sendLogMessage("⚙️ Configurando dispositivo: $deviceName")
                 
-                // Establecer dispositivo de comunicación
                 val result = audioManager.setCommunicationDevice(bluetoothDevice)
                 if (result) {
                     bluetoothCommunicationDevice = bluetoothDevice
                     isBluetoothScoOn = true
-                    sendLogMessage("🎧 Micrófono Bluetooth activado ($deviceName)")
+                    sendLogMessage("🎧 ¡Micrófono Bluetooth ACTIVADO! ($deviceName)")
                     Log.d("AudioService", "✓ Bluetooth communication device set successfully: $deviceName")
                     return true
                 } else {
+                    sendLogMessage("❌ Falló setCommunicationDevice")
                     Log.e("AudioService", "✗ Failed to set Bluetooth communication device")
-                    sendLogMessage("⚠️ Error al activar micrófono Bluetooth")
-                    // Restaurar modo de audio
                     audioManager.mode = previousMode
                     return false
                 }
             } else {
+                sendLogMessage("❌ No hay dispositivo Bluetooth SCO disponible")
+                sendLogMessage("💡 Asegúrate que los auriculares están conectados como 'Audio para llamadas'")
                 Log.w("AudioService", "✗ No Bluetooth SCO device found")
-                sendLogMessage("⚠️ No se encontró auricular Bluetooth con micrófono (SCO)")
-                
-                // Restaurar modo de audio
                 audioManager.mode = previousMode
-                
-                // Log todos los dispositivos para debugging
-                Log.d("AudioService", "=== All available input devices ===")
-                for (device in inputDevices) {
-                    val typeName = when (device.type) {
-                        AudioDeviceInfo.TYPE_BUILTIN_MIC -> "BUILTIN_MIC"
-                        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "BLUETOOTH_SCO"
-                        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "BLUETOOTH_A2DP"
-                        AudioDeviceInfo.TYPE_WIRED_HEADSET -> "WIRED_HEADSET"
-                        AudioDeviceInfo.TYPE_USB_HEADSET -> "USB_HEADSET"
-                        else -> "TYPE_${device.type}"
-                    }
-                    Log.d("AudioService", "  - ${device.productName} ($typeName, isSource=${device.isSource})")
-                }
                 return false
             }
         } catch (e: Exception) {
             Log.e("AudioService", "Error in modern Bluetooth SCO: ${e.message}", e)
-            sendLogMessage("⚠️ Error: ${e.message}")
+            sendLogMessage("❌ Error: ${e.message}")
             return false
         }
     }
@@ -1134,8 +1132,13 @@ class AudioService : Service() {
      */
     @Suppress("DEPRECATION")
     private fun startBluetoothScoLegacy(): Boolean {
+        sendLogMessage("🔍 Buscando micrófono Bluetooth (API legacy)...")
+        
         // Verificar si hay dispositivo BT conectado con micrófono
-        if (audioManager.isBluetoothScoAvailableOffCall) {
+        val scoAvailable = audioManager.isBluetoothScoAvailableOffCall
+        sendLogMessage("📋 SCO disponible: ${if (scoAvailable) "SÍ" else "NO"}")
+        
+        if (scoAvailable) {
             Log.d("AudioService", "Bluetooth SCO available (legacy), starting...")
             
             // Registrar receiver para saber cuando SCO está listo
@@ -1144,6 +1147,7 @@ class AudioService : Service() {
             try {
                 // CRÍTICO: Establecer modo de comunicación ANTES de iniciar SCO
                 audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+                sendLogMessage("📞 Modo audio: COMUNICACIÓN")
                 Log.d("AudioService", "Audio mode set to MODE_IN_COMMUNICATION (legacy)")
                 
                 // Iniciar SCO
@@ -1151,16 +1155,19 @@ class AudioService : Service() {
                 audioManager.isBluetoothScoOn = true
                 isBluetoothScoOn = true
                 
-                sendLogMessage("🎧 Activando micrófono Bluetooth...")
+                sendLogMessage("🎧 Activando micrófono Bluetooth (esperando conexión)...")
                 return true
             } catch (e: Exception) {
                 Log.e("AudioService", "Error starting Bluetooth SCO: ${e.message}", e)
+                sendLogMessage("❌ Error SCO: ${e.message}")
                 audioManager.mode = AudioManager.MODE_NORMAL
                 isBluetoothScoOn = false
                 return false
             }
         }
         
+        sendLogMessage("❌ Bluetooth SCO no disponible")
+        sendLogMessage("💡 Verifica conexión de auriculares Bluetooth")
         Log.d("AudioService", "Bluetooth SCO not available (legacy)")
         return false
     }
