@@ -361,21 +361,49 @@ class AudioService : Service() {
                     return when (event.keyCode) {
                         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
                         KeyEvent.KEYCODE_HEADSETHOOK -> {
-                            Log.d("AudioService", "Handling PLAY_PAUSE/HEADSETHOOK button")
-                            sendLogMessage("🎧 Headset button pressed: ${KeyEvent.keyCodeToString(event.keyCode)}")
-                            handleMultiClick()
+                            // Toggle directo - sin delays de multi-click
+                            if (isRecording) {
+                                Log.d("AudioService", "PLAY_PAUSE/HEADSETHOOK while recording -> stop & send")
+                                sendLogMessage("🎧 Toque → detener y enviar")
+                                if (headsetFeedbackEnabled) playClickFeedback(2)
+                                stopRecordingAndSend()
+                            } else {
+                                Log.d("AudioService", "PLAY_PAUSE/HEADSETHOOK no recording -> starting recording")
+                                sendLogMessage("🎧 Toque → iniciar grabación")
+                                if (headsetFeedbackEnabled) playClickFeedback(1)
+                                startRecording()
+                            }
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_PLAY -> {
-                            Log.d("AudioService", "Handling MEDIA_PLAY button")
-                            sendLogMessage("🎧 Headset PLAY button pressed")
-                            handleMultiClick()
+                            // MEDIA_PLAY - actuar como toggle igual que MEDIA_NEXT
+                            if (isRecording) {
+                                Log.d("AudioService", "MEDIA_PLAY while recording -> stop & send")
+                                sendLogMessage("🎧 Toque (PLAY) → detener y enviar")
+                                if (headsetFeedbackEnabled) playClickFeedback(2)
+                                stopRecordingAndSend()
+                            } else {
+                                Log.d("AudioService", "MEDIA_PLAY no recording -> starting recording")
+                                sendLogMessage("🎧 Toque (PLAY) → iniciar grabación")
+                                if (headsetFeedbackEnabled) playClickFeedback(1)
+                                startRecording()
+                            }
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                            Log.d("AudioService", "Handling MEDIA_PAUSE button")
-                            sendLogMessage("🎧 Headset PAUSE button pressed")
-                            handleMultiClick()
+                            // MEDIA_PAUSE se envía cuando hay audio activo (grabando)
+                            // Actuar como toggle igual que MEDIA_NEXT
+                            if (isRecording) {
+                                Log.d("AudioService", "MEDIA_PAUSE while recording -> stop & send")
+                                sendLogMessage("🎧 Toque (PAUSE) → detener y enviar")
+                                if (headsetFeedbackEnabled) playClickFeedback(2)
+                                stopRecordingAndSend()
+                            } else {
+                                Log.d("AudioService", "MEDIA_PAUSE no recording -> starting recording")
+                                sendLogMessage("🎧 Toque (PAUSE) → iniciar grabación")
+                                if (headsetFeedbackEnabled) playClickFeedback(1)
+                                startRecording()
+                            }
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_NEXT -> {
