@@ -379,13 +379,19 @@ class AudioService : Service() {
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_NEXT -> {
-                            Log.d("AudioService", "Handling MEDIA_NEXT button")
-                            sendLogMessage("🎧 Headset NEXT button pressed")
+                            // Muchos auriculares envían NEXT como doble toque nativo
+                            Log.d("AudioService", "Handling MEDIA_NEXT as double-tap -> stop & send")
+                            sendLogMessage("🎧 Doble toque (NEXT) → detener y enviar")
+                            if (headsetFeedbackEnabled) playClickFeedback(2)
+                            stopRecordingAndSend()
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
-                            Log.d("AudioService", "Handling MEDIA_PREVIOUS button")
-                            sendLogMessage("🎧 Headset PREVIOUS button pressed")
+                            // Muchos auriculares envían PREVIOUS como triple toque nativo
+                            Log.d("AudioService", "Handling MEDIA_PREVIOUS as triple-tap -> cancel")
+                            sendLogMessage("🎧 Triple toque (PREV) → cancelar")
+                            if (headsetFeedbackEnabled) playClickFeedback(3)
+                            stopRecordingWithoutSending()
                             true
                         }
                         else -> {
