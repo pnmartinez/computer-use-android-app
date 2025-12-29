@@ -837,9 +837,8 @@ class AudioService : Service() {
             
             headsetControlEnabled = true
             
-            // Activar Bluetooth SCO para usar micrófono de auriculares
-            // SCO se mantendrá activo mientras el modo manos libres esté activo
-            startBluetoothScoIfAvailable()
+            // NOTE: No activamos SCO aquí - lo haremos solo cuando se inicie la grabación
+            // Activar SCO aquí interfiere con la detección de botones de media
             
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
                 .notify(1, createNotification())
