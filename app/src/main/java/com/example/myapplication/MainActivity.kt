@@ -9,6 +9,7 @@ import android.content.res.ColorStateList
 import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -415,7 +416,11 @@ class MainActivity : AppCompatActivity() {
             addAction(AudioService.ACTION_HEADSET_CONTROL_STATUS)
             addAction(AudioService.ACTION_HEADSET_EVENT)
         }
-        registerReceiver(serviceReceiver, filter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(serviceReceiver, filter)
+        }
     }
     
     private fun initViews() {
@@ -716,6 +721,14 @@ class MainActivity : AppCompatActivity() {
             headsetControlHandler.postDelayed({
                 startAudioService(this, AudioService.ACTION_QUERY_HEADSET_CONTROL_STATUS)
             }, 250)
+        }
+        
+        // Long-press to simulate media button for testing (useful on emulators without Bluetooth)
+        btnHeadsetControl.setOnLongClickListener {
+            addLogMessage("[${getCurrentTime()}] 🧪 Testing media button simulation...")
+            Toast.makeText(this, "Simulating headset button press", Toast.LENGTH_SHORT).show()
+            startAudioService(this, AudioService.ACTION_TEST_MEDIA_BUTTON)
+            true
         }
         
         // Setup log clear button

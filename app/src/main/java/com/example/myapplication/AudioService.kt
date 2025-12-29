@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -22,8 +23,8 @@ import androidx.media.app.NotificationCompat as MediaNotificationCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media.session.MediaButtonReceiver
-import com.google.android.exoplayer2.ExoPlayer
-import com.google.android.exoplayer2.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.MediaItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,6 +45,7 @@ class AudioService : Service() {
 
     private var recorder: MediaRecorder? = null
     private var player: ExoPlayer? = null
+    private var silentPlayer: ExoPlayer? = null  // For headset control - plays silent audio
     private var textToSpeechManager: TextToSpeechManager? = null
     private var ttsLanguage: String = DEFAULT_TTS_LANGUAGE
     private var ttsRate: Float = DEFAULT_TTS_RATE
@@ -100,6 +102,7 @@ class AudioService : Service() {
         const val ACTION_HEADSET_CONTROL_STATUS = "com.example.myapplication.HEADSET_CONTROL_STATUS"
         const val ACTION_HEADSET_EVENT = "com.example.myapplication.HEADSET_EVENT"
         const val ACTION_QUERY_HEADSET_CONTROL_STATUS = "com.example.myapplication.QUERY_HEADSET_CONTROL_STATUS"
+        const val ACTION_TEST_MEDIA_BUTTON = "com.example.myapplication.TEST_MEDIA_BUTTON"
         
         const val EXTRA_LOG_MESSAGE = "log_message"
         const val EXTRA_AUDIO_FILE_PATH = "audio_file_path"
@@ -296,22 +299,75 @@ class AudioService : Service() {
             setPlaybackState(state)
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onMediaButtonEvent(mediaButtonIntent: Intent?): Boolean {
+                    Log.d("AudioService", "=== MediaSession.onMediaButtonEvent CALLED ===")
+                    Log.d("AudioService", "Intent action: ${mediaButtonIntent?.action}")
+                    Log.d("AudioService", "headsetControlEnabled: $headsetControlEnabled")
+                    
                     val event = mediaButtonIntent
                         ?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
-                        ?: return false
-                    Log.d(
-                        "AudioService",
-                        "MediaButton keyCode=${event.keyCode} action=${event.action}"
-                    )
-                    if (event.action != KeyEvent.ACTION_DOWN) return false
+                    
+                    if (event == null) {
+                        Log.d("AudioService", "No KeyEvent in intent, returning false")
+                        return false
+                    }
+                    
+                    Log.d("AudioService", "KeyEvent: keyCode=${event.keyCode} (${KeyEvent.keyCodeToString(event.keyCode)}), action=${event.action}")
+                    
+                    if (event.action != KeyEvent.ACTION_DOWN) {
+                        Log.d("AudioService", "Ignoring non-ACTION_DOWN event")
+                        return false
+                    }
+                    
                     return when (event.keyCode) {
                         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
                         KeyEvent.KEYCODE_HEADSETHOOK -> {
+                            Log.d("AudioService", "Handling PLAY_PAUSE/HEADSETHOOK button")
+                            sendLogMessage("🎧 Headset button pressed: ${KeyEvent.keyCodeToString(event.keyCode)}")
                             handleMultiClick()
                             true
                         }
-                        else -> false
+                        KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                            Log.d("AudioService", "Handling MEDIA_PLAY button")
+                            sendLogMessage("🎧 Headset PLAY button pressed")
+                            handleMultiClick()
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                            Log.d("AudioService", "Handling MEDIA_PAUSE button")
+                            sendLogMessage("🎧 Headset PAUSE button pressed")
+                            handleMultiClick()
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                            Log.d("AudioService", "Handling MEDIA_NEXT button")
+                            sendLogMessage("🎧 Headset NEXT button pressed")
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                            Log.d("AudioService", "Handling MEDIA_PREVIOUS button")
+                            sendLogMessage("🎧 Headset PREVIOUS button pressed")
+                            true
+                        }
+                        else -> {
+                            Log.d("AudioService", "Unhandled keyCode: ${event.keyCode}")
+                            false
+                        }
                     }
+                }
+                
+                override fun onPlay() {
+                    Log.d("AudioService", "MediaSession.onPlay() called")
+                    sendLogMessage("🎧 MediaSession: onPlay")
+                }
+                
+                override fun onPause() {
+                    Log.d("AudioService", "MediaSession.onPause() called")
+                    sendLogMessage("🎧 MediaSession: onPause")
+                }
+                
+                override fun onStop() {
+                    Log.d("AudioService", "MediaSession.onStop() called")
+                    sendLogMessage("🎧 MediaSession: onStop")
                 }
             })
             isActive = false
@@ -332,13 +388,20 @@ class AudioService : Service() {
             onSpeakError = { sendTtsStatus(TTS_STATUS_ERROR) }
         )
         
-        // Use microphone and media playback for recording and audio responses.
-        startForeground(
-            1,
-            createNotification(),
+        // Start as foreground service with media playback type initially.
+        // We'll use microphone type only when actually recording (if permission is granted).
+        val serviceType = if (androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED) {
+            // Permission granted, can use microphone type
             android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
                 android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-        )
+        } else {
+            // Permission not granted yet, use only media playback
+            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        }
+        startForeground(1, createNotification(), serviceType)
         sendLogMessage(getString(R.string.simple_computer_use_service_started) + if (testMode) " (MODO PRUEBA)" else "")
     }
 
@@ -386,6 +449,7 @@ class AudioService : Service() {
             ACTION_ENABLE_HEADSET_CONTROL -> enableHeadsetControlMode()
             ACTION_DISABLE_HEADSET_CONTROL -> disableHeadsetControlMode()
             ACTION_QUERY_HEADSET_CONTROL_STATUS -> sendHeadsetControlStatus(headsetControlEnabled)
+            ACTION_TEST_MEDIA_BUTTON -> simulateMediaButtonPress()
             "PLAY_RESPONSE" -> playLastResponse()
                 "SPEAK_SUMMARY" -> {
                     val summaryText = intent.getStringExtra(EXTRA_SCREEN_SUMMARY).orEmpty()
@@ -448,6 +512,10 @@ class AudioService : Service() {
         // Liberar ExoPlayer
         player?.release()
         player = null
+        
+        // Liberar silent player for headset control
+        silentPlayer?.release()
+        silentPlayer = null
 
         textToSpeechManager?.shutdown()
         textToSpeechManager = null
@@ -526,7 +594,14 @@ class AudioService : Service() {
             1 -> {
                 mediaButtonHandler.postDelayed({
                     if (clickCount == 1) {
-                        startRecording()
+                        // Toggle behavior: if recording, stop and send; otherwise start recording
+                        if (isRecording) {
+                            Log.d("AudioService", "Single click while recording -> stopping and sending")
+                            sendLogMessage("🎧 Button pressed while recording → stopping and sending")
+                            stopRecordingAndSend()
+                        } else {
+                            startRecording()
+                        }
                         clickCount = 0
                     }
                 }, multiClickWindowMs)
@@ -544,11 +619,15 @@ class AudioService : Service() {
 
     private fun enableHeadsetControlMode() {
         try {
+            Log.d("AudioService", "enableHeadsetControlMode() called, current state: $headsetControlEnabled")
+            
             if (headsetControlEnabled) {
                 sendHeadsetControlStatus(true)
                 Log.d("AudioService", "Headset control ENABLED (no change)")
                 return
             }
+            
+            Log.d("AudioService", "Requesting audio focus...")
             if (!requestAudioFocus()) {
                 sendLogMessage("AudioFocus DENIED: no puedo tomar control de botones")
                 Log.d("AudioService", "Headset control ENABLED failed: audio focus denied")
@@ -556,26 +635,122 @@ class AudioService : Service() {
                 sendHeadsetControlStatus(false)
                 return
             }
+            Log.d("AudioService", "Audio focus granted!")
+            
+            // CRITICAL: On Android 11+, we need to actually play media to receive button events
+            // Start playing silent audio in a loop
+            startSilentPlayback()
+            
+            // Set playback state to PLAYING to indicate we're the active media app
             val state = PlaybackStateCompat.Builder()
                 .setActions(
                     PlaybackStateCompat.ACTION_PLAY_PAUSE or
                         PlaybackStateCompat.ACTION_PLAY or
-                        PlaybackStateCompat.ACTION_PAUSE
+                        PlaybackStateCompat.ACTION_PAUSE or
+                        PlaybackStateCompat.ACTION_STOP
                 )
                 .setState(PlaybackStateCompat.STATE_PLAYING, 0L, 1.0f)
                 .build()
             mediaSession.setPlaybackState(state)
+            Log.d("AudioService", "PlaybackState set to PLAYING")
+            
+            // CRITICAL: Activate the MediaSession to receive media button events
             mediaSession.isActive = true
+            Log.d("AudioService", "MediaSession isActive = true")
+            Log.d("AudioService", "MediaSession token: ${mediaSession.sessionToken}")
+            
             headsetControlEnabled = true
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
                 .notify(1, createNotification())
-            sendLogMessage("Headset control ENABLED")
-            Log.d("AudioService", "Headset control ENABLED")
+            sendLogMessage("🎧 Headset control ENABLED - Playing silent audio to capture buttons")
+            Log.d("AudioService", "Headset control ENABLED successfully")
             sendHeadsetControlStatus(true)
         } catch (t: Throwable) {
             Log.e("AudioService", "enableHeadsetControlMode crashed", t)
+            sendLogMessage("❌ Error enabling headset control: ${t.message}")
             headsetControlEnabled = false
             sendHeadsetControlStatus(false)
+        }
+    }
+    
+    private fun startSilentPlayback() {
+        try {
+            Log.d("AudioService", "Starting silent playback for headset control...")
+            
+            // Release existing silent player if any
+            silentPlayer?.release()
+            
+            // Create ExoPlayer for silent audio
+            silentPlayer = ExoPlayer.Builder(this).build().apply {
+                // Set very low volume (near silent but not zero)
+                volume = 0.01f
+                
+                // Set repeat mode to loop forever
+                repeatMode = androidx.media3.common.Player.REPEAT_MODE_ONE
+                
+                // Load silence audio file
+                val silenceUri = android.net.Uri.parse("android.resource://${packageName}/${R.raw.silence_1s}")
+                val mediaItem = androidx.media3.common.MediaItem.fromUri(silenceUri)
+                setMediaItem(mediaItem)
+                
+                // Prepare and start playback
+                prepare()
+                play()
+                
+                Log.d("AudioService", "Silent player started, isPlaying: $isPlaying")
+            }
+            
+            sendLogMessage("🔇 Silent audio playback started")
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error starting silent playback: ${e.message}", e)
+            sendLogMessage("⚠️ Could not start silent playback: ${e.message}")
+        }
+    }
+    
+    private fun stopSilentPlayback() {
+        try {
+            silentPlayer?.let { player ->
+                Log.d("AudioService", "Stopping silent playback...")
+                player.stop()
+                player.release()
+            }
+            silentPlayer = null
+            sendLogMessage("🔇 Silent audio playback stopped")
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error stopping silent playback: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Simulates a media button press for testing purposes.
+     * This bypasses the MediaButtonReceiver and directly triggers the MediaSession callback.
+     */
+    private fun simulateMediaButtonPress() {
+        Log.d("AudioService", "=== SIMULATING MEDIA BUTTON PRESS ===")
+        sendLogMessage("🧪 Simulating media button press (HEADSETHOOK)")
+        
+        if (!headsetControlEnabled) {
+            sendLogMessage("⚠️ Headset control not enabled - enabling it first")
+            enableHeadsetControlMode()
+        }
+        
+        // Create a simulated KeyEvent for HEADSETHOOK (the common headset button)
+        val keyEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_HEADSETHOOK)
+        
+        // Create an intent with the KeyEvent
+        val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+            putExtra(Intent.EXTRA_KEY_EVENT, keyEvent)
+        }
+        
+        // Dispatch directly to our MediaSession callback
+        Log.d("AudioService", "Dispatching simulated KeyEvent to MediaSession callback")
+        val handled = mediaSession.controller.dispatchMediaButtonEvent(keyEvent)
+        Log.d("AudioService", "MediaSession dispatchMediaButtonEvent returned: $handled")
+        
+        if (!handled) {
+            // Try calling handleMultiClick directly as fallback
+            sendLogMessage("🧪 Direct dispatch didn't work, calling handleMultiClick directly")
+            handleMultiClick()
         }
     }
 
@@ -586,6 +761,10 @@ class AudioService : Service() {
                 Log.d("AudioService", "Headset control DISABLED (no change)")
                 return
             }
+            
+            // Stop silent playback
+            stopSilentPlayback()
+            
             val state = PlaybackStateCompat.Builder()
                 .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE)
                 .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1.0f)
@@ -594,7 +773,7 @@ class AudioService : Service() {
             abandonAudioFocus()
             mediaSession.isActive = false
             headsetControlEnabled = false
-            sendLogMessage("Headset control DISABLED")
+            sendLogMessage("🎧 Headset control DISABLED")
             Log.d("AudioService", "Headset control DISABLED")
             sendHeadsetControlStatus(false)
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)

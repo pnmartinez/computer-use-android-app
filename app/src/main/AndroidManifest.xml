@@ -53,13 +53,25 @@
             </intent-filter>
         </service>
 
+        <!-- Custom MediaButtonReceiver with logging -->
         <receiver
-            android:name="androidx.media.session.MediaButtonReceiver"
+            android:name=".MyMediaButtonReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </receiver>
+
+        <!-- VoiceMediaSessionService for Media3 session handling -->
+        <service
+            android:name=".VoiceMediaSessionService"
+            android:enabled="true"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

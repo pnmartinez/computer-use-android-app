@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.provider.Settings
@@ -77,11 +78,12 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(
-            serviceReceiver,
-            IntentFilter(AudioService.ACTION_CONNECTION_TESTED),
-            Context.RECEIVER_NOT_EXPORTED
-        )
+        val filter = IntentFilter(AudioService.ACTION_CONNECTION_TESTED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(serviceReceiver, filter)
+        }
     }
 
     override fun onPause() {
