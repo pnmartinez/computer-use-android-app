@@ -1236,8 +1236,15 @@ class AudioService : Service() {
                     AudioManager.SCO_AUDIO_STATE_DISCONNECTED -> {
                         Log.d("AudioService", "Bluetooth SCO DISCONNECTED")
                         isBluetoothScoOn = false
-                        // No reconectamos automáticamente - lo haremos cuando se necesite grabar
-                        // La reconexión automática interfiere con la detección de botones de media
+                        bluetoothCommunicationDevice = null
+                        
+                        // CRÍTICO: Restaurar MODE_NORMAL para que los botones de media funcionen
+                        // Sin esto, el modo queda en IN_COMMUNICATION e interfiere con la detección
+                        if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
+                            audioManager.mode = AudioManager.MODE_NORMAL
+                            Log.d("AudioService", "Audio mode restored to MODE_NORMAL (SCO disconnected)")
+                        }
+                        
                         if (headsetControlEnabled) {
                             sendMicrophoneChanged(null) // Actualizar UI
                         }
@@ -1394,6 +1401,15 @@ class AudioService : Service() {
                     start()
                 }
                 isRecording = true
+                
+                // CRÍTICO: Restaurar MODE_NORMAL inmediatamente después de iniciar la grabación
+                // La grabación ya está en curso con el dispositivo Bluetooth configurado,
+                // pero MODE_IN_COMMUNICATION bloquea la detección de botones de media
+                if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
+                    audioManager.mode = AudioManager.MODE_NORMAL
+                    Log.d("AudioService", "Audio mode restored to MODE_NORMAL (recording started)")
+                    sendLogMessage("🔊 Modo audio: NORMAL (botones activos)")
+                }
                 
                 // Log el dispositivo actualmente activo
                 recorder?.activeRecordingConfiguration?.let { config ->
