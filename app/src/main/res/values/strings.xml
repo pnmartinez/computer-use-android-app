@@ -293,6 +293,9 @@
     <string name="headset_control_event_none">Último evento: ninguno</string>
     <string name="headset_control_event_count">Último evento: %1$d toque(s)</string>
     <string name="voice_control_info">Información sobre control de voz</string>
+    <string name="headset_feedback_enabled">Feedback auditivo en auriculares</string>
+    <string name="headset_feedback_enabled_on">Feedback auditivo activado</string>
+    <string name="headset_feedback_enabled_off">Feedback auditivo desactivado</string>
 
     <!-- Favorites functionality -->
     <string name="favorites_title">Favorites</string>

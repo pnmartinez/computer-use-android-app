@@ -4,6 +4,11 @@
 
     <!-- Permiso para grabar audio -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Permisos para Bluetooth y micrófono Bluetooth -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Permiso para modificar configuración de audio (necesario para setCommunicationDevice) -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- Permiso para acceder a la red -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Permiso para mostrar notificaciones en primer plano -->
