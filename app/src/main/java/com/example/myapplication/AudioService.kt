@@ -773,27 +773,41 @@ class AudioService : Service() {
         if (!headsetFeedbackEnabled || !headsetControlEnabled) return
         
         try {
-            val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
-            Log.d("AudioService", "Playing recording START feedback")
-            // Doble tono ascendente para indicar inicio - más notable
-            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 400)
+            // Usar STREAM_NOTIFICATION que suele tener más volumen en auriculares
+            // Volumen máximo (100)
+            val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+            Log.d("AudioService", "Playing recording START feedback (before MODE_IN_COMMUNICATION)")
             
-            // Segundo tono después del primero para hacer más evidente el inicio
+            // Triple tono ascendente para indicar inicio - muy notable
+            // Tono 1: bip alto (300ms)
+            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
+            
+            // Tono 2: bip medio (200ms)
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                    toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, 200)
                 } catch (e: Exception) {
-                    Log.e("AudioService", "Error playing second tone: ${e.message}")
+                    Log.e("AudioService", "Error playing second start tone: ${e.message}")
                 }
-            }, 450)
+            }, 350)
             
+            // Tono 3: bip de confirmación (200ms)
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 200)
+                } catch (e: Exception) {
+                    Log.e("AudioService", "Error playing third start tone: ${e.message}")
+                }
+            }, 600)
+            
+            // Liberar después de todos los tonos
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     toneGen.release()
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}")
                 }
-            }, 700)
+            }, 900)
         } catch (e: Exception) {
             Log.e("AudioService", "Error playing recording start feedback: ${e.message}", e)
         }
@@ -1378,16 +1392,25 @@ class AudioService : Service() {
         Log.d("AudioService", "startRecording() called, headsetControlEnabled=$headsetControlEnabled")
         
         if (headsetControlEnabled) {
-            // Activar SCO CON MODE_IN_COMMUNICATION para usar mic BT
-            // Los botones no funcionarán durante la grabación, pero usamos timeout automático
-            activateBluetoothMicForRecording()
+            // PRIMERO: Reproducir feedback ANTES de cambiar modo de audio
+            // El modo MODE_IN_COMMUNICATION reduce el volumen, así que lo hacemos antes
+            playRecordingStartFeedback()
             
-            // Configurar timeout automático para detener grabación
-            // Ya que los botones no funcionan en MODE_IN_COMMUNICATION
-            setupRecordingTimeout()
+            // Esperar a que el feedback termine antes de activar SCO
+            Handler(Looper.getMainLooper()).postDelayed({
+                // Activar SCO CON MODE_IN_COMMUNICATION para usar mic BT
+                activateBluetoothMicForRecording()
+                
+                // Configurar timeout automático
+                setupRecordingTimeout()
+                
+                // Iniciar grabación
+                startRecordingInternal()
+            }, 800) // Esperar 800ms para que el feedback termine
+        } else {
+            // Modo normal: grabar directamente
+            startRecordingInternal()
         }
-        
-        startRecordingInternal()
     }
     
     /**
@@ -1557,8 +1580,9 @@ class AudioService : Service() {
                 Log.d("AudioService", "Broadcasting ACTION_RECORDING_STARTED to package $packageName")
                 sendLogMessage(getString(R.string.recording_started))
                 
-                // Feedback auditivo para indicar inicio de grabación
-                playRecordingStartFeedback()
+                // NOTA: El feedback de inicio ya se reprodujo ANTES de activar SCO
+                // No llamar playRecordingStartFeedback() aquí porque el modo de audio
+                // ya cambió y el volumen sería muy bajo
             } catch (e: IllegalStateException) {
                 // Specific error for audio source issues
                 sendLogMessage(getString(R.string.microphone_access_error, e.message))
