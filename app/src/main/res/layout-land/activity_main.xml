@@ -227,6 +227,15 @@
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
 
                         <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnVoiceControlInfo"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/voice_control_info"
+                            app:icon="@android:drawable/ic_menu_info_details"
+                            app:iconSize="24dp" />
+
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnPlaySummary"
                             style="@style/Widget.Material3.Button.TextButton"
                             android:layout_width="wrap_content"
@@ -611,13 +620,17 @@
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
+    <!-- Custom drawer with scrollable menu and fixed footer for landscape -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/navigationView"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:fitsSystemWindows="true"
-        app:headerLayout="@layout/drawer_header"
-        app:menu="@menu/drawer_menu" />
+        android:fitsSystemWindows="true">
+
+        <include layout="@layout/drawer_content" />
+
+    </com.google.android.material.navigation.NavigationView>
+
 
 </androidx.drawerlayout.widget.DrawerLayout>

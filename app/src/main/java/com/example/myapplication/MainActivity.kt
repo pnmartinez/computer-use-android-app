@@ -9,6 +9,7 @@ import android.content.res.ColorStateList
 import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -72,6 +73,7 @@ import kotlin.math.sqrt
 import android.widget.ProgressBar
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.switchmaterial.SwitchMaterial
 
 class MainActivity : AppCompatActivity() {
     
@@ -80,6 +82,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnProcessingRecording: MaterialButton
     private lateinit var progressIndicator: LinearProgressIndicator
     private lateinit var drawerLayout: DrawerLayout
+    
+    // Drawer footer - Handsfree controls
+    private lateinit var drawerHandsfreeSwitch: SwitchMaterial
+    private lateinit var drawerMicrophoneStatus: TextView
+    private val headsetControlHandler = Handler(Looper.getMainLooper())
+    private var headsetControlTimeout: Runnable? = null
+    private var headsetControlPending = false
+    
+    // Countdown timer for handsfree recording
+    private var recordingCountdownTimer: android.os.CountDownTimer? = null
+    private val HANDSFREE_RECORDING_TIMEOUT_MS = 15000L
     
     // Logs - Find ScrollView directly by ID
     private lateinit var logsTextView: TextView
@@ -111,6 +124,7 @@ class MainActivity : AppCompatActivity() {
     private var isRecording = false
     private var currentAudioFile: File? = null
     private val logBuffer = SpannableStringBuilder()
+    private var headsetControlEnabled = false
     
     // Track active fullscreen dialog
     private var activeFullscreenDialog: FullscreenImageDialog? = null
@@ -137,9 +151,16 @@ class MainActivity : AppCompatActivity() {
                     isRecording = true
                     Log.d("MainActivity", "Recording started, isRecording = $isRecording")
                     updateButtonStates()
+                    
+                    // Start countdown timer if in handsfree mode
+                    if (headsetControlEnabled) {
+                        startRecordingCountdown()
+                    }
                 }
                 AudioService.ACTION_RECORDING_STOPPED -> {
                     Log.d("MainActivity", "Recording stopped, showing processing state")
+                    // Cancel countdown timer
+                    cancelRecordingCountdown()
                     // Show the processing state when recording is stopped and we're waiting for the server response
                     showProcessingState()
                     addLogMessage("[${getCurrentTime()}] ${getString(R.string.recording_finished_processing)}")
@@ -189,6 +210,18 @@ class MainActivity : AppCompatActivity() {
                             updateSummaryStatus(getString(R.string.summary_status_error))
                         }
                     }
+                }
+                AudioService.ACTION_HEADSET_CONTROL_STATUS -> {
+                    val enabled = intent.getBooleanExtra(
+                        AudioService.EXTRA_HEADSET_CONTROL_ENABLED,
+                        false
+                    )
+                    headsetControlEnabled = enabled
+                    updateHeadsetControlUi(enabled)
+                }
+                AudioService.ACTION_MICROPHONE_CHANGED -> {
+                    val micName = intent.getStringExtra(AudioService.EXTRA_MICROPHONE_NAME)
+                    updateMicrophoneStatus(micName)
                 }
                 AudioService.ACTION_LOG_MESSAGE -> {
                     val message = intent.getStringExtra(AudioService.EXTRA_LOG_MESSAGE) ?: return
@@ -366,6 +399,9 @@ class MainActivity : AppCompatActivity() {
             // Receiver might not be registered
         }
         
+        // Cancel countdown timer to avoid memory leaks
+        cancelRecordingCountdown()
+        
         // Save logs state
         saveLogsState()
         
@@ -393,8 +429,14 @@ class MainActivity : AppCompatActivity() {
             addAction(AudioService.ACTION_PROCESSING_COMPLETED)
             addAction(AudioService.ACTION_CONNECTION_TESTED)
             addAction(AudioService.ACTION_TTS_STATUS)
+            addAction(AudioService.ACTION_HEADSET_CONTROL_STATUS)
+            addAction(AudioService.ACTION_MICROPHONE_CHANGED)
         }
-        registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(serviceReceiver, filter)
+        }
     }
     
     private fun initViews() {
@@ -404,31 +446,17 @@ class MainActivity : AppCompatActivity() {
         topAppBar.setNavigationOnClickListener {
             drawerLayout.openDrawer(GravityCompat.START)
         }
-        navigationView.setNavigationItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_captures -> {
-                    startActivity(Intent(this, CapturesActivity::class.java))
-                    drawerLayout.closeDrawer(GravityCompat.START)
-                    true
-                }
-                R.id.nav_settings -> {
-                    startActivity(Intent(this, SettingsActivity::class.java))
-                    drawerLayout.closeDrawer(GravityCompat.START)
-                    true
-                }
-                R.id.nav_tutorial -> {
-                    showTutorialDialog(markAsSeen = false)
-                    drawerLayout.closeDrawer(GravityCompat.START)
-                    true
-                }
-                else -> false
-            }
-        }
+        // Setup drawer menu item clicks (custom drawer layout)
+        setupDrawerMenuClicks(navigationView)
 
         // Main controls
         btnStartRecording = findViewById(R.id.btnStartRecording)
         btnProcessingRecording = findViewById(R.id.btnProcessingRecording)
         progressIndicator = findViewById(R.id.progressIndicator)
+        
+        // Drawer footer - Handsfree controls
+        drawerHandsfreeSwitch = findViewById(R.id.drawerHandsfreeSwitch)
+        drawerMicrophoneStatus = findViewById(R.id.drawerMicrophoneStatus)
         
         // Logs - Find ScrollView directly by ID
         logsTextView = findViewById(R.id.logsTextView)
@@ -465,7 +493,17 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, getString(R.string.summary_unavailable), Toast.LENGTH_SHORT).show()
             }
         }
+        
+        // Voice control info button
+        val btnVoiceControlInfo = findViewById<MaterialButton>(R.id.btnVoiceControlInfo)
+        btnVoiceControlInfo.setOnClickListener {
+            showVoiceControlInfoDialog()
+        }
+        
         updateScreenSummary("")
+
+        updateHeadsetControlUi(headsetControlEnabled)
+        updateMicrophoneStatus(null) // Initial state
         
         // Setup log clear button
         btnClearLogs.setOnClickListener {
@@ -606,6 +644,144 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    private fun startRecordingCountdown() {
+        cancelRecordingCountdown() // Cancel any existing timer
+        
+        recordingCountdownTimer = object : android.os.CountDownTimer(HANDSFREE_RECORDING_TIMEOUT_MS, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val secondsRemaining = (millisUntilFinished / 1000).toInt()
+                runOnUiThread {
+                    // Update button text with countdown
+                    btnStartRecording.text = "${secondsRemaining}s"
+                    btnStartRecording.icon = null // Remove icon to make room for number
+                }
+            }
+            
+            override fun onFinish() {
+                // Timer finished - recording will be stopped by AudioService
+                runOnUiThread {
+                    btnStartRecording.text = "0s"
+                }
+            }
+        }.start()
+        
+        Log.d("MainActivity", "Recording countdown started: ${HANDSFREE_RECORDING_TIMEOUT_MS}ms")
+    }
+    
+    private fun cancelRecordingCountdown() {
+        recordingCountdownTimer?.cancel()
+        recordingCountdownTimer = null
+        Log.d("MainActivity", "Recording countdown cancelled")
+    }
+
+    private fun updateHeadsetControlUi(enabled: Boolean) {
+        headsetControlPending = false
+        drawerHandsfreeSwitch.isEnabled = true
+        headsetControlTimeout?.let { headsetControlHandler.removeCallbacks(it) }
+        
+        // Update switch state without triggering listener
+        drawerHandsfreeSwitch.setOnCheckedChangeListener(null)
+        drawerHandsfreeSwitch.isChecked = enabled
+        setupHandsfreeSwitchListener()
+        
+        // Update microphone status when disabled
+        if (!enabled) {
+            updateMicrophoneStatus(null)
+        }
+    }
+    
+    private fun updateMicrophoneStatus(micName: String?) {
+        drawerMicrophoneStatus.text = if (micName != null) {
+            getString(R.string.drawer_mic_device, micName)
+        } else {
+            getString(R.string.drawer_mic_inactive)
+        }
+    }
+    
+    private fun setupDrawerMenuClicks(navigationView: com.google.android.material.navigation.NavigationView) {
+        // Find custom menu items in drawer_content layout
+        navigationView.findViewById<View>(R.id.nav_captures)?.setOnClickListener {
+            startActivity(Intent(this, CapturesActivity::class.java))
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        navigationView.findViewById<View>(R.id.nav_settings)?.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        navigationView.findViewById<View>(R.id.nav_tutorial)?.setOnClickListener {
+            showTutorialDialog(markAsSeen = false)
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+    }
+    
+    private fun setupHandsfreeSwitchListener() {
+        drawerHandsfreeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                // Mostrar diálogo de advertencia al activar modo manos libres
+                showHandsfreeBetaDialog()
+            } else {
+                // Desactivar directamente
+                activateHandsfreeMode(false)
+            }
+        }
+    }
+    
+    private fun showHandsfreeBetaDialog() {
+        // Revertir el switch temporalmente hasta que el usuario confirme
+        drawerHandsfreeSwitch.setOnCheckedChangeListener(null)
+        drawerHandsfreeSwitch.isChecked = false
+        setupHandsfreeSwitchListener()
+        
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_handsfree_beta)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.setCancelable(true)
+
+        dialog.findViewById<MaterialButton>(R.id.btnHandsfreeBetaConfirm).setOnClickListener {
+            dialog.dismiss()
+            activateHandsfreeMode(true)
+        }
+        dialog.findViewById<MaterialButton>(R.id.btnHandsfreeBetaCancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+    
+    private fun activateHandsfreeMode(enable: Boolean) {
+        val action = if (enable) {
+            AudioService.ACTION_ENABLE_HEADSET_CONTROL
+        } else {
+            AudioService.ACTION_DISABLE_HEADSET_CONTROL
+        }
+        headsetControlPending = true
+        drawerHandsfreeSwitch.isEnabled = false
+        
+        // Actualizar el switch si estamos activando
+        if (enable) {
+            drawerHandsfreeSwitch.setOnCheckedChangeListener(null)
+            drawerHandsfreeSwitch.isChecked = true
+            setupHandsfreeSwitchListener()
+        }
+        
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.headset_control_status_pending)}")
+        headsetControlTimeout?.let { headsetControlHandler.removeCallbacks(it) }
+        headsetControlTimeout = Runnable {
+            if (headsetControlPending) {
+                headsetControlPending = false
+                drawerHandsfreeSwitch.isEnabled = true
+                addLogMessage("[${getCurrentTime()}] ${getString(R.string.headset_control_status_timeout)}")
+            }
+        }
+        headsetControlHandler.postDelayed(headsetControlTimeout!!, 3000)
+        startAudioService(this, action)
+        headsetControlHandler.postDelayed({
+            startAudioService(this, AudioService.ACTION_QUERY_HEADSET_CONTROL_STATUS)
+        }, 250)
+    }
+    
     private fun setupButtonListeners() {
         // Setup the main recording button
         btnStartRecording.setOnClickListener {
@@ -637,6 +813,9 @@ class MainActivity : AppCompatActivity() {
             
             true // Consume the long press
         }
+
+        // Setup handsfree switch listener
+        setupHandsfreeSwitchListener()
         
         // Setup log clear button
         btnClearLogs.setOnClickListener {
@@ -895,7 +1074,7 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(context, AudioService::class.java).apply {
             this.action = action
         }
-        context.startService(intent)
+        ContextCompat.startForegroundService(context, intent)
     }
 
     private fun speakSummary(summary: String) {
@@ -1554,6 +1733,27 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+    }
+    
+    private fun showVoiceControlInfoDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Control de Voz Manos Libres")
+            .setMessage("""
+                Este modo te permite controlar la aplicación usando los botones de tus auriculares Bluetooth.
+                
+                Cómo funciona:
+                
+                • 1 toque: Iniciar/Detener grabación
+                • 2 toques rápidos: Detener y enviar
+                • 3 toques rápidos: Cancelar grabación
+                
+                El sistema reproduce audio silencioso en segundo plano para mantener el control de los botones.
+                
+                Nota: Desactiva el modo cuando no lo uses para ahorrar batería.
+            """.trimIndent())
+            .setIcon(android.R.drawable.ic_menu_info_details)
+            .setPositiveButton("Entendido") { dialog, _ -> dialog.dismiss() }
+            .show()
     }
     
     private fun saveAppPreferences() {

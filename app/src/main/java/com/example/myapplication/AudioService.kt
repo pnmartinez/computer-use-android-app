@@ -4,17 +4,32 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.media.ToneGenerator
+import android.os.Build
 import android.media.MediaRecorder
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
+import android.view.KeyEvent
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
-import com.google.android.exoplayer2.ExoPlayer
-import com.google.android.exoplayer2.MediaItem
+import androidx.media.app.NotificationCompat as MediaNotificationCompat
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
+import androidx.media.session.MediaButtonReceiver
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.MediaItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,11 +50,30 @@ class AudioService : Service() {
 
     private var recorder: MediaRecorder? = null
     private var player: ExoPlayer? = null
+    private var silentPlayer: ExoPlayer? = null  // For headset control - plays silent audio
     private var textToSpeechManager: TextToSpeechManager? = null
     private var ttsLanguage: String = DEFAULT_TTS_LANGUAGE
     private var ttsRate: Float = DEFAULT_TTS_RATE
     private var ttsPitch: Float = DEFAULT_TTS_PITCH
     private var audioPlaybackEnabled: Boolean = DEFAULT_AUDIO_PLAYBACK_ENABLED
+    private var headsetFeedbackEnabled: Boolean = DEFAULT_HEADSET_FEEDBACK_ENABLED
+    private lateinit var mediaSession: MediaSessionCompat
+    private val mediaButtonHandler = Handler(Looper.getMainLooper())
+    // Timings optimizados para Bluetooth - compensa latencia BT (50-200ms según codec)
+    private val multiClickWindowMs = MULTI_CLICK_WINDOW_MS
+    private val debounceMs = DEBOUNCE_MS
+    private var lastEventTime = 0L         // Para debounce
+    private var lastClickAt = 0L
+    private var clickCount = 0
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    private var headsetControlEnabled = false
+    
+    // Bluetooth SCO para usar micrófono de auriculares Bluetooth
+    private var isBluetoothScoOn = false
+    private var bluetoothScoReceiver: BroadcastReceiver? = null
+    private var pendingRecordingAfterSco = false
+    private var bluetoothCommunicationDevice: AudioDeviceInfo? = null  // Para Android 12+
 
     // Para coroutines con un Job que cancelaremos en onDestroy()
     private val serviceJob = SupervisorJob()
@@ -69,6 +103,12 @@ class AudioService : Service() {
     private var isRecording = false
 
     companion object {
+        // Timing constants - adjust based on testing with different Bluetooth devices
+        const val MULTI_CLICK_WINDOW_MS = 450L      // Window for multi-click detection
+        const val DEBOUNCE_MS = 80L                  // Minimum time between events to avoid button bounce
+        const val LONG_PRESS_THRESHOLD_MS = 700L    // Hold time for long-press (future use)
+        const val SINGLE_CLICK_DELAY_MS = 500L      // Wait before executing single-click action
+        
         const val ACTION_RECORDING_STARTED = "com.example.myapplication.RECORDING_STARTED"
         const val ACTION_RECORDING_STOPPED = "com.example.myapplication.RECORDING_STOPPED"
         const val ACTION_RESPONSE_RECEIVED = "com.example.myapplication.RESPONSE_RECEIVED"
@@ -78,6 +118,12 @@ class AudioService : Service() {
         const val ACTION_PROCESSING_COMPLETED = "com.example.myapplication.PROCESSING_COMPLETED"
         const val ACTION_CONNECTION_TESTED = "com.example.myapplication.CONNECTION_TESTED"
         const val ACTION_TTS_STATUS = "com.example.myapplication.TTS_STATUS"
+        const val ACTION_ENABLE_HEADSET_CONTROL = "com.example.myapplication.ENABLE_HEADSET_CONTROL"
+        const val ACTION_DISABLE_HEADSET_CONTROL = "com.example.myapplication.DISABLE_HEADSET_CONTROL"
+        const val ACTION_HEADSET_CONTROL_STATUS = "com.example.myapplication.HEADSET_CONTROL_STATUS"
+        const val ACTION_QUERY_HEADSET_CONTROL_STATUS = "com.example.myapplication.QUERY_HEADSET_CONTROL_STATUS"
+        const val ACTION_TEST_MEDIA_BUTTON = "com.example.myapplication.TEST_MEDIA_BUTTON"
+        const val ACTION_MICROPHONE_CHANGED = "com.example.myapplication.MICROPHONE_CHANGED"
         
         const val EXTRA_LOG_MESSAGE = "log_message"
         const val EXTRA_AUDIO_FILE_PATH = "audio_file_path"
@@ -90,6 +136,8 @@ class AudioService : Service() {
         const val EXTRA_RESPONSE_SUCCESS = "response_success"
         const val EXTRA_SCREEN_SUMMARY = "screen_summary"
         const val EXTRA_TTS_STATUS = "tts_status"
+        const val EXTRA_HEADSET_CONTROL_ENABLED = "headset_control_enabled"
+        const val EXTRA_MICROPHONE_NAME = "microphone_name"
         
         // Default server settings
         const val DEFAULT_SERVER_IP = "your_server_ip_here"
@@ -100,6 +148,7 @@ class AudioService : Service() {
         const val DEFAULT_TTS_RATE = 1.0f
         const val DEFAULT_TTS_PITCH = 1.0f
         const val DEFAULT_AUDIO_PLAYBACK_ENABLED = true
+        const val DEFAULT_HEADSET_FEEDBACK_ENABLED = true  // Feedback auditivo activado por defecto
         
         // SharedPreferences keys
         const val PREFS_NAME = "AudioServicePrefs"
@@ -111,6 +160,7 @@ class AudioService : Service() {
         const val KEY_TTS_RATE = "tts_rate"
         const val KEY_TTS_PITCH = "tts_pitch"
         const val KEY_AUDIO_PLAYBACK_ENABLED = "audio_playback_enabled"
+        const val KEY_HEADSET_FEEDBACK_ENABLED = "headset_feedback_enabled"
 
         const val TTS_STATUS_PLAYING = "playing"
         const val TTS_STATUS_IDLE = "idle"
@@ -256,6 +306,154 @@ class AudioService : Service() {
         super.onCreate()
         // Load settings from SharedPreferences
         loadSettings()
+        mediaSession = MediaSessionCompat(this, "HeadsetControls").apply {
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+            )
+            val state = PlaybackStateCompat.Builder()
+                .setActions(
+                    PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                        PlaybackStateCompat.ACTION_PLAY or
+                        PlaybackStateCompat.ACTION_PAUSE
+                )
+                .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1.0f)
+                .build()
+            setPlaybackState(state)
+            setCallback(object : MediaSessionCompat.Callback() {
+                override fun onMediaButtonEvent(mediaButtonIntent: Intent?): Boolean {
+                    Log.d("AudioService", "=== MediaSession.onMediaButtonEvent CALLED ===")
+                    Log.d("AudioService", "Intent action: ${mediaButtonIntent?.action}")
+                    Log.d("AudioService", "headsetControlEnabled: $headsetControlEnabled")
+                    
+                    // MASTER SWITCH: If headset control is disabled, ignore all button events
+                    if (!headsetControlEnabled) {
+                        Log.d("AudioService", "Headset control disabled - ignoring button event")
+                        sendLogMessage("⚠️ Button pressed but headset control is OFF")
+                        return false
+                    }
+                    
+                    val event = mediaButtonIntent
+                        ?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                    
+                    if (event == null) {
+                        Log.d("AudioService", "No KeyEvent in intent, returning false")
+                        return false
+                    }
+                    
+                    Log.d("AudioService", "KeyEvent: keyCode=${event.keyCode} (${KeyEvent.keyCodeToString(event.keyCode)}), action=${event.action}")
+                    
+                    // Solo procesamos ACTION_DOWN - ignorar ACTION_UP y otros
+                    if (event.action != KeyEvent.ACTION_DOWN) {
+                        Log.d("AudioService", "Ignoring non-ACTION_DOWN event")
+                        return false
+                    }
+                    
+                    // Log para debug - sin debounce para mejor respuesta
+                    Log.d("AudioService", "Processing media button event, isRecording=$isRecording")
+                    
+                    return when (event.keyCode) {
+                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                        KeyEvent.KEYCODE_HEADSETHOOK -> {
+                            // Toggle directo - sin delays de multi-click
+                            if (isRecording) {
+                                Log.d("AudioService", "PLAY_PAUSE/HEADSETHOOK while recording -> stop & send")
+                                sendLogMessage("🎧 Toque → detener y enviar")
+                                if (headsetFeedbackEnabled) playClickFeedback(2)
+                                stopRecordingAndSend()
+                            } else {
+                                Log.d("AudioService", "PLAY_PAUSE/HEADSETHOOK no recording -> starting recording")
+                                sendLogMessage("🎧 Toque → iniciar grabación")
+                                if (headsetFeedbackEnabled) playClickFeedback(1)
+                                startRecording()
+                            }
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                            // MEDIA_PLAY - actuar como toggle igual que MEDIA_NEXT
+                            if (isRecording) {
+                                Log.d("AudioService", "MEDIA_PLAY while recording -> stop & send")
+                                sendLogMessage("🎧 Toque (PLAY) → detener y enviar")
+                                if (headsetFeedbackEnabled) playClickFeedback(2)
+                                stopRecordingAndSend()
+                            } else {
+                                Log.d("AudioService", "MEDIA_PLAY no recording -> starting recording")
+                                sendLogMessage("🎧 Toque (PLAY) → iniciar grabación")
+                                if (headsetFeedbackEnabled) playClickFeedback(1)
+                                startRecording()
+                            }
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                            // MEDIA_PAUSE se envía cuando hay audio activo (grabando)
+                            // Actuar como toggle igual que MEDIA_NEXT
+                            if (isRecording) {
+                                Log.d("AudioService", "MEDIA_PAUSE while recording -> stop & send")
+                                sendLogMessage("🎧 Toque (PAUSE) → detener y enviar")
+                                if (headsetFeedbackEnabled) playClickFeedback(2)
+                                stopRecordingAndSend()
+                            } else {
+                                Log.d("AudioService", "MEDIA_PAUSE no recording -> starting recording")
+                                sendLogMessage("🎧 Toque (PAUSE) → iniciar grabación")
+                                if (headsetFeedbackEnabled) playClickFeedback(1)
+                                startRecording()
+                            }
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                            // Algunos auriculares envían NEXT como toque único
+                            // Si hay grabación: detener y enviar. Si no: iniciar.
+                            if (isRecording) {
+                                Log.d("AudioService", "MEDIA_NEXT while recording -> stop & send")
+                                sendLogMessage("🎧 Toque (NEXT) → detener y enviar")
+                                if (headsetFeedbackEnabled) playClickFeedback(2)
+                                stopRecordingAndSend()
+                            } else {
+                                Log.d("AudioService", "MEDIA_NEXT no recording -> starting recording")
+                                sendLogMessage("🎧 Toque (NEXT) → iniciar grabación")
+                                if (headsetFeedbackEnabled) playClickFeedback(1)
+                                startRecording()
+                            }
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                            // Algunos auriculares envían PREVIOUS como toque
+                            if (isRecording) {
+                                Log.d("AudioService", "MEDIA_PREVIOUS while recording -> cancel")
+                                sendLogMessage("🎧 Toque (PREV) → cancelar grabación")
+                                if (headsetFeedbackEnabled) playClickFeedback(3)
+                                stopRecordingWithoutSending()
+                            } else {
+                                Log.d("AudioService", "MEDIA_PREVIOUS no recording -> ignored")
+                                sendLogMessage("🎧 Toque (PREV) → nada que cancelar")
+                            }
+                            true
+                        }
+                        else -> {
+                            Log.d("AudioService", "Unhandled keyCode: ${event.keyCode}")
+                            false
+                        }
+                    }
+                }
+                
+                override fun onPlay() {
+                    Log.d("AudioService", "MediaSession.onPlay() called")
+                    sendLogMessage("🎧 MediaSession: onPlay")
+                }
+                
+                override fun onPause() {
+                    Log.d("AudioService", "MediaSession.onPause() called")
+                    sendLogMessage("🎧 MediaSession: onPause")
+                }
+                
+                override fun onStop() {
+                    Log.d("AudioService", "MediaSession.onStop() called")
+                    sendLogMessage("🎧 MediaSession: onStop")
+                }
+            })
+            isActive = false
+        }
+        sendHeadsetControlStatus(false)
         textToSpeechManager = TextToSpeechManager(
             this,
             onReadyChanged = { isReady ->
@@ -271,12 +469,31 @@ class AudioService : Service() {
             onSpeakError = { sendTtsStatus(TTS_STATUS_ERROR) }
         )
         
-        // Use FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK for services that play or record media
-        startForeground(1, createNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        // Start as foreground service with media playback type initially.
+        // We'll use microphone type only when actually recording (if permission is granted).
+        val serviceType = if (androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED) {
+            // Permission granted, can use microphone type
+            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        } else {
+            // Permission not granted yet, use only media playback
+            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+        }
+        startForeground(1, createNotification(), serviceType)
         sendLogMessage(getString(R.string.simple_computer_use_service_started) + if (testMode) " (MODO PRUEBA)" else "")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(
+            "AudioService",
+            "onStartCommand action=${intent?.action} extras=${intent?.extras?.keySet()}"
+        )
+        if (intent != null) {
+            MediaButtonReceiver.handleIntent(mediaSession, intent)
+        }
         // Check if we need to update settings
         if (intent?.action == "UPDATE_SETTINGS") {
             val newIp = intent.getStringExtra(KEY_SERVER_IP)
@@ -290,6 +507,10 @@ class AudioService : Service() {
                 KEY_AUDIO_PLAYBACK_ENABLED,
                 audioPlaybackEnabled
             )
+            val newHeadsetFeedbackEnabled = intent.getBooleanExtra(
+                KEY_HEADSET_FEEDBACK_ENABLED,
+                headsetFeedbackEnabled
+            )
             
             if (newIp != null) {
                 updateServerSettings(
@@ -300,7 +521,8 @@ class AudioService : Service() {
                     newTtsLanguage,
                     newTtsRate,
                     newTtsPitch,
-                    newAudioPlaybackEnabled
+                    newAudioPlaybackEnabled,
+                    newHeadsetFeedbackEnabled
                 )
                 sendLogMessage(getString(R.string.server_configuration_updated, serverIp, serverPort, whisperModel))
             }
@@ -310,6 +532,10 @@ class AudioService : Service() {
             "START_RECORDING" -> startRecording()
             "STOP_RECORDING" -> stopRecordingAndSend()
                 "CANCEL_RECORDING" -> stopRecordingWithoutSending()
+            ACTION_ENABLE_HEADSET_CONTROL -> enableHeadsetControlMode()
+            ACTION_DISABLE_HEADSET_CONTROL -> disableHeadsetControlMode()
+            ACTION_QUERY_HEADSET_CONTROL_STATUS -> sendHeadsetControlStatus(headsetControlEnabled)
+            ACTION_TEST_MEDIA_BUTTON -> simulateMediaButtonPress()
             "PLAY_RESPONSE" -> playLastResponse()
                 "SPEAK_SUMMARY" -> {
                     val summaryText = intent.getStringExtra(EXTRA_SCREEN_SUMMARY).orEmpty()
@@ -364,9 +590,19 @@ class AudioService : Service() {
         // Cancelar coroutines en curso
         serviceJob.cancel()
 
+        mediaButtonHandler.removeCallbacksAndMessages(null)
+        disableHeadsetControlMode()
+        stopBluetoothSco()  // Limpiar SCO al destruir el servicio
+        mediaSession.release()
+        abandonAudioFocus()
+
         // Liberar ExoPlayer
         player?.release()
         player = null
+        
+        // Liberar silent player for headset control
+        silentPlayer?.release()
+        silentPlayer = null
 
         textToSpeechManager?.shutdown()
         textToSpeechManager = null
@@ -412,7 +648,7 @@ class AudioService : Service() {
             android.app.PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(this, channelId)
+        val builder = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Simple Computer Use")
             .setContentText(if (isRecording) "Grabando audio..." else "Servicio activo")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
@@ -425,27 +661,926 @@ class AudioService : Service() {
                 .bigText(if (isRecording) 
                     "Grabando audio para enviar al servidor" 
                     else "Servicio de audio activo y listo para grabar"))
-            .build()
+        if (headsetControlEnabled) {
+            builder.setStyle(
+                MediaNotificationCompat.MediaStyle()
+                    .setMediaSession(mediaSession.sessionToken)
+            )
+        }
+        return builder.build()
     }
 
+    private fun handleMultiClick() {
+        val now = SystemClock.uptimeMillis()
+        val timeSinceLastClick = if (lastClickAt > 0) now - lastClickAt else Long.MAX_VALUE
+        
+        Log.d("AudioService", "handleMultiClick: timeSinceLastClick=${timeSinceLastClick}ms, window=${multiClickWindowMs}ms, previousCount=$clickCount")
+        
+        clickCount = if (timeSinceLastClick <= multiClickWindowMs) clickCount + 1 else 1
+        lastClickAt = now
+        
+        Log.d("AudioService", "Click count updated to: $clickCount")
+
+        mediaButtonHandler.removeCallbacksAndMessages(null)
+        
+        // Feedback auditivo para confirmar detección (configurable en Settings)
+        if (headsetFeedbackEnabled) {
+            playClickFeedback(clickCount)
+        }
+        
+        when (clickCount) {
+            1 -> {
+                Log.d("AudioService", "Single click detected - waiting ${SINGLE_CLICK_DELAY_MS}ms before action")
+                mediaButtonHandler.postDelayed({
+                    if (clickCount == 1) {
+                        // Toggle behavior: if recording, stop and send; otherwise start recording
+                        if (isRecording) {
+                            Log.d("AudioService", "Single click while recording -> stopping and sending")
+                            sendLogMessage("🎧 Button pressed while recording → stopping and sending")
+                            stopRecordingAndSend()
+                        } else {
+                            Log.d("AudioService", "Single click -> starting recording")
+                            startRecording()
+                        }
+                        clickCount = 0
+                    }
+                }, SINGLE_CLICK_DELAY_MS)
+            }
+            2 -> {
+                Log.d("AudioService", "Double click detected -> stopping and sending")
+                stopRecordingAndSend()
+                clickCount = 0
+            }
+            3 -> {
+                Log.d("AudioService", "Triple click detected -> canceling recording")
+                stopRecordingWithoutSending()
+                clickCount = 0
+            }
+        }
+    }
+    
+    /**
+     * Proporciona feedback auditivo para confirmar la detección de clicks.
+     * Esto ayuda al usuario a saber que sus pulsaciones fueron detectadas.
+     * 
+     * IMPORTANTE: Usa STREAM_MUSIC para que el sonido se enrute a los auriculares Bluetooth.
+     * STREAM_NOTIFICATION no se enruta a BT en muchos dispositivos.
+     */
+    private fun playClickFeedback(clickCount: Int) {
+        if (!headsetFeedbackEnabled) return
+        
+        try {
+            // STREAM_MUSIC para que el tono se reproduzca en los auriculares BT
+            // Volumen al 100% para máxima audibilidad
+            val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+            
+            Log.d("AudioService", "Playing feedback tone for click count: $clickCount")
+            
+            when (clickCount) {
+                1 -> {
+                    // Tono corto para single click (150ms)
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                }
+                2 -> {
+                    // Tono doble para double click (200ms)
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 200)
+                }
+                3 -> {
+                    // Tono de confirmación para triple click (250ms)
+                    toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 250)
+                }
+            }
+            
+            // Liberar recursos después de que termine el tono
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneGen.release()
+                } catch (e: Exception) {
+                    Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}")
+                }
+            }, 300)
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error playing click feedback: ${e.message}", e)
+            sendLogMessage("⚠️ Error en feedback auditivo: ${e.message}")
+        }
+    }
+    
+    /**
+     * Feedback auditivo para inicio de grabación.
+     * Tono ascendente para indicar que la grabación ha comenzado.
+     */
+    private fun playRecordingStartFeedback() {
+        if (!headsetFeedbackEnabled || !headsetControlEnabled) return
+        
+        try {
+            // Usar STREAM_NOTIFICATION que suele tener más volumen en auriculares
+            // Volumen máximo (100)
+            val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+            Log.d("AudioService", "Playing recording START feedback (before MODE_IN_COMMUNICATION)")
+            
+            // Triple tono ascendente para indicar inicio - muy notable
+            // Tono 1: bip alto (300ms)
+            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
+            
+            // Tono 2: bip medio (200ms)
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, 200)
+                } catch (e: Exception) {
+                    Log.e("AudioService", "Error playing second start tone: ${e.message}")
+                }
+            }, 350)
+            
+            // Tono 3: bip de confirmación (200ms)
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 200)
+                } catch (e: Exception) {
+                    Log.e("AudioService", "Error playing third start tone: ${e.message}")
+                }
+            }, 600)
+            
+            // Liberar después de todos los tonos
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneGen.release()
+                } catch (e: Exception) {
+                    Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}")
+                }
+            }, 900)
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error playing recording start feedback: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Feedback auditivo para fin de grabación.
+     * Doble tono descendente para indicar que la grabación ha terminado.
+     */
+    private fun playRecordingStopFeedback() {
+        if (!headsetFeedbackEnabled || !headsetControlEnabled) return
+        
+        try {
+            val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+            Log.d("AudioService", "Playing recording STOP feedback")
+            
+            // Primer tono: confirmación larga (300ms)
+            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 300)
+            
+            // Segundo tono después del primero: tono descendente (300ms)
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneGen.startTone(ToneGenerator.TONE_CDMA_CALLDROP_LITE, 300)
+                } catch (e: Exception) {
+                    Log.e("AudioService", "Error playing second stop tone: ${e.message}")
+                }
+            }, 350)
+            
+            // Liberar después de ambos tonos
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneGen.release()
+                } catch (e: Exception) {
+                    Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}")
+                }
+            }, 750)
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error playing recording stop feedback: ${e.message}", e)
+        }
+    }
+
+    private fun enableHeadsetControlMode() {
+        try {
+            Log.d("AudioService", "enableHeadsetControlMode() called, current state: $headsetControlEnabled")
+            
+            if (headsetControlEnabled) {
+                sendHeadsetControlStatus(true)
+                Log.d("AudioService", "Headset control ENABLED (no change)")
+                return
+            }
+            
+            Log.d("AudioService", "Requesting audio focus...")
+            if (!requestAudioFocus()) {
+                sendLogMessage("AudioFocus DENIED: no puedo tomar control de botones")
+                Log.d("AudioService", "Headset control ENABLED failed: audio focus denied")
+                headsetControlEnabled = false
+                sendHeadsetControlStatus(false)
+                return
+            }
+            Log.d("AudioService", "Audio focus granted!")
+            
+            // CRITICAL: On Android 11+, we need to actually play media to receive button events
+            // Start playing silent audio in a loop
+            startSilentPlayback()
+            
+            // Set playback state to PLAYING to indicate we're the active media app
+            val state = PlaybackStateCompat.Builder()
+                .setActions(
+                    PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                        PlaybackStateCompat.ACTION_PLAY or
+                        PlaybackStateCompat.ACTION_PAUSE or
+                        PlaybackStateCompat.ACTION_STOP
+                )
+                .setState(PlaybackStateCompat.STATE_PLAYING, 0L, 1.0f)
+                .build()
+            mediaSession.setPlaybackState(state)
+            Log.d("AudioService", "PlaybackState set to PLAYING")
+            
+            // CRITICAL: Activate the MediaSession to receive media button events
+            mediaSession.isActive = true
+            Log.d("AudioService", "MediaSession isActive = true")
+            Log.d("AudioService", "MediaSession token: ${mediaSession.sessionToken}")
+            
+            headsetControlEnabled = true
+            
+            // NOTE: No activamos SCO aquí - lo haremos solo cuando se inicie la grabación
+            // Activar SCO aquí interfiere con la detección de botones de media
+            
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .notify(1, createNotification())
+            sendLogMessage("🎧 Headset control ENABLED - Playing silent audio to capture buttons")
+            Log.d("AudioService", "Headset control ENABLED successfully")
+            sendHeadsetControlStatus(true)
+        } catch (t: Throwable) {
+            Log.e("AudioService", "enableHeadsetControlMode crashed", t)
+            sendLogMessage("❌ Error enabling headset control: ${t.message}")
+            headsetControlEnabled = false
+            sendHeadsetControlStatus(false)
+        }
+    }
+    
+    private fun startSilentPlayback() {
+        try {
+            Log.d("AudioService", "Starting silent playback for headset control...")
+            
+            // Release existing silent player if any
+            silentPlayer?.release()
+            
+            // Create ExoPlayer for silent audio
+            silentPlayer = ExoPlayer.Builder(this).build().apply {
+                // Set very low volume (near silent but not zero)
+                volume = 0.01f
+                
+                // Set repeat mode to loop forever
+                repeatMode = androidx.media3.common.Player.REPEAT_MODE_ONE
+                
+                // Load silence audio file
+                val silenceUri = android.net.Uri.parse("android.resource://${packageName}/${R.raw.silence_1s}")
+                val mediaItem = androidx.media3.common.MediaItem.fromUri(silenceUri)
+                setMediaItem(mediaItem)
+                
+                // Prepare and start playback
+                prepare()
+                play()
+                
+                Log.d("AudioService", "Silent player started, isPlaying: $isPlaying")
+            }
+            
+            sendLogMessage("🔇 Silent audio playback started")
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error starting silent playback: ${e.message}", e)
+            sendLogMessage("⚠️ Could not start silent playback: ${e.message}")
+        }
+    }
+    
+    private fun stopSilentPlayback() {
+        try {
+            silentPlayer?.let { player ->
+                Log.d("AudioService", "Stopping silent playback...")
+                player.stop()
+                player.release()
+            }
+            silentPlayer = null
+            sendLogMessage("🔇 Silent audio playback stopped")
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error stopping silent playback: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Simulates a media button press for testing purposes.
+     * This bypasses the MediaButtonReceiver and directly triggers the MediaSession callback.
+     */
+    private fun simulateMediaButtonPress() {
+        Log.d("AudioService", "=== SIMULATING MEDIA BUTTON PRESS ===")
+        sendLogMessage("🧪 Simulating media button press (HEADSETHOOK)")
+        
+        if (!headsetControlEnabled) {
+            sendLogMessage("⚠️ Headset control not enabled - enabling it first")
+            enableHeadsetControlMode()
+        }
+        
+        // Create a simulated KeyEvent for HEADSETHOOK (the common headset button)
+        val keyEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_HEADSETHOOK)
+        
+        // Create an intent with the KeyEvent
+        val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+            putExtra(Intent.EXTRA_KEY_EVENT, keyEvent)
+        }
+        
+        // Dispatch directly to our MediaSession callback
+        Log.d("AudioService", "Dispatching simulated KeyEvent to MediaSession callback")
+        val handled = mediaSession.controller.dispatchMediaButtonEvent(keyEvent)
+        Log.d("AudioService", "MediaSession dispatchMediaButtonEvent returned: $handled")
+        
+        if (!handled) {
+            // Try calling handleMultiClick directly as fallback
+            sendLogMessage("🧪 Direct dispatch didn't work, calling handleMultiClick directly")
+            handleMultiClick()
+        }
+    }
+
+    private fun disableHeadsetControlMode() {
+        try {
+            Log.d("AudioService", "disableHeadsetControlMode() called, current state: $headsetControlEnabled")
+            
+            if (!headsetControlEnabled) {
+                sendHeadsetControlStatus(false)
+                Log.d("AudioService", "Headset control DISABLED (no change)")
+                return
+            }
+            
+            // Stop silent playback immediately
+            stopSilentPlayback()
+            
+            // Set MediaSession to inactive and stopped state
+            val state = PlaybackStateCompat.Builder()
+                .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE)
+                .setState(PlaybackStateCompat.STATE_STOPPED, 0L, 1.0f)
+                .build()
+            mediaSession.setPlaybackState(state)
+            
+            // Deactivate MediaSession completely
+            mediaSession.isActive = false
+            
+            // Release audio focus
+            abandonAudioFocus()
+            
+            // Clear state
+            headsetControlEnabled = false
+            clickCount = 0
+            lastClickAt = 0
+            lastEventTime = 0L  // Limpiar también el debounce
+            mediaButtonHandler.removeCallbacksAndMessages(null)
+            
+            // Detener Bluetooth SCO cuando se desactiva el modo manos libres
+            stopBluetoothSco()
+            
+            sendLogMessage("🎧 Headset control DISABLED - All resources released")
+            Log.d("AudioService", "Headset control DISABLED - MediaSession inactive, silent playback stopped")
+            sendHeadsetControlStatus(false)
+            sendMicrophoneChanged(null)
+            
+            // Stop foreground service and remove notification
+            // Only if not recording - if recording, keep foreground for microphone permission
+            if (!isRecording) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                Log.d("AudioService", "Foreground service stopped, notification removed")
+            } else {
+                // Update notification to reflect state
+                (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                    .notify(1, createNotification())
+            }
+        } catch (t: Throwable) {
+            Log.e("AudioService", "disableHeadsetControlMode crashed", t)
+            headsetControlEnabled = false
+            sendHeadsetControlStatus(false)
+            sendMicrophoneChanged(null)
+            // Try to stop foreground anyway
+            try {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } catch (e: Exception) {
+                Log.e("AudioService", "Failed to stop foreground", e)
+            }
+        }
+    }
+
+    private fun sendHeadsetControlStatus(enabled: Boolean) {
+        val intent = Intent(ACTION_HEADSET_CONTROL_STATUS).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_HEADSET_CONTROL_ENABLED, enabled)
+        }
+        sendBroadcast(intent)
+    }
+
+    private fun sendMicrophoneChanged(micName: String?) {
+        val intent = Intent(ACTION_MICROPHONE_CHANGED).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_MICROPHONE_NAME, micName)
+        }
+        sendBroadcast(intent)
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(attrs)
+            .setOnAudioFocusChangeListener { }
+            .build()
+        return audioManager.requestAudioFocus(audioFocusRequest!!) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    private fun abandonAudioFocus() {
+        audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        audioFocusRequest = null
+    }
+    
+    /**
+     * Verifica y activa Bluetooth SCO si está disponible.
+     * SCO permite usar el micrófono de los auriculares Bluetooth.
+     * 
+     * En Android 12+ (API 33+) usa setCommunicationDevice().
+     * En versiones anteriores usa startBluetoothSco().
+     */
+    private fun startBluetoothScoIfAvailable(): Boolean {
+        if (!headsetControlEnabled) {
+            Log.d("AudioService", "Headset control not enabled, skipping SCO")
+            return false
+        }
+        
+        // Android 12+ (API 33+): usar setCommunicationDevice()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return startBluetoothScoModern()
+        } else {
+            // Android 11 y anteriores: usar startBluetoothSco()
+            return startBluetoothScoLegacy()
+        }
+    }
+    
+    /**
+     * Método moderno para Android 12+ usando setCommunicationDevice()
+     * IMPORTANTE: Solo TYPE_BLUETOOTH_SCO soporta micrófono, A2DP es solo salida
+     */
+    @Suppress("DEPRECATION")
+    private fun startBluetoothScoModern(): Boolean {
+        try {
+            sendLogMessage("🔍 Buscando micrófono Bluetooth (API moderna)...")
+            Log.d("AudioService", "Using modern Bluetooth SCO method (setCommunicationDevice)")
+            
+            // Verificar permiso BLUETOOTH_CONNECT (requerido en Android 12+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                    sendLogMessage("⚠️ Falta permiso BLUETOOTH_CONNECT")
+                    Log.w("AudioService", "BLUETOOTH_CONNECT permission not granted, trying legacy method")
+                    // Intentar con método legacy como fallback
+                    return startBluetoothScoLegacy()
+                }
+            }
+            
+            // CRÍTICO: Establecer modo de comunicación ANTES de buscar dispositivos
+            val previousMode = audioManager.mode
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            sendLogMessage("📞 Modo audio: COMUNICACIÓN")
+            Log.d("AudioService", "Audio mode set to MODE_IN_COMMUNICATION (previous: $previousMode)")
+            
+            // Buscar dispositivo Bluetooth SCO (el único que soporta micrófono)
+            val inputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            var bluetoothDevice: AudioDeviceInfo? = null
+            
+            sendLogMessage("📋 Dispositivos de entrada: ${inputDevices.size}")
+            Log.d("AudioService", "Searching ${inputDevices.size} input devices for Bluetooth SCO...")
+            
+            // Listar todos los dispositivos en la UI
+            for (device in inputDevices) {
+                val type = device.type
+                val name = device.productName?.toString() ?: "Unknown"
+                val hasMic = device.isSource
+                val typeName = when (type) {
+                    AudioDeviceInfo.TYPE_BUILTIN_MIC -> "MIC_INTERNO"
+                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "BT_SCO ✓"
+                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "BT_A2DP"
+                    AudioDeviceInfo.TYPE_WIRED_HEADSET -> "CABLE"
+                    AudioDeviceInfo.TYPE_USB_HEADSET -> "USB"
+                    else -> "TIPO_$type"
+                }
+                
+                sendLogMessage("  • $name ($typeName)")
+                Log.d("AudioService", "Input device: type=$type (SCO=${AudioDeviceInfo.TYPE_BLUETOOTH_SCO}), name=$name, isSource=$hasMic")
+                
+                // SOLO TYPE_BLUETOOTH_SCO soporta micrófono bidireccional
+                if (type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                    bluetoothDevice = device
+                    sendLogMessage("✅ Encontrado SCO: $name")
+                    Log.d("AudioService", "✓ Found Bluetooth SCO device: $name")
+                    break
+                }
+            }
+            
+            // Si no encontramos SCO en inputs, buscar en outputs
+            if (bluetoothDevice == null) {
+                val outputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                sendLogMessage("🔍 Buscando en salidas: ${outputDevices.size}")
+                Log.d("AudioService", "Searching ${outputDevices.size} output devices for Bluetooth SCO...")
+                for (device in outputDevices) {
+                    val type = device.type
+                    val name = device.productName?.toString() ?: "Unknown"
+                    Log.d("AudioService", "Output device: type=$type, name=$name")
+                    
+                    if (type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                        sendLogMessage("  • $name (BT_SCO salida)")
+                        for (inputDevice in inputDevices) {
+                            if (inputDevice.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                                bluetoothDevice = inputDevice
+                                sendLogMessage("✅ SCO entrada encontrado")
+                                Log.d("AudioService", "✓ Found matching SCO input device: ${inputDevice.productName}")
+                                break
+                            }
+                        }
+                        if (bluetoothDevice != null) break
+                    }
+                }
+            }
+            
+            if (bluetoothDevice != null) {
+                val deviceName = bluetoothDevice.productName?.toString() ?: "Bluetooth"
+                sendLogMessage("⚙️ Configurando dispositivo: $deviceName")
+                
+                val result = audioManager.setCommunicationDevice(bluetoothDevice)
+                if (result) {
+                    bluetoothCommunicationDevice = bluetoothDevice
+                    isBluetoothScoOn = true
+                    sendLogMessage("🎧 ¡Micrófono Bluetooth ACTIVADO! ($deviceName)")
+                    Log.d("AudioService", "✓ Bluetooth communication device set successfully: $deviceName")
+                    sendMicrophoneChanged(deviceName)
+                    return true
+                } else {
+                    sendLogMessage("⚠️ setCommunicationDevice falló, probando método legacy...")
+                    Log.w("AudioService", "setCommunicationDevice failed, trying legacy startBluetoothSco")
+                    audioManager.mode = previousMode
+                    
+                    // Fallback: intentar con método legacy
+                    return startBluetoothScoLegacy()
+                }
+            } else {
+                sendLogMessage("❌ No hay dispositivo Bluetooth SCO disponible")
+                sendLogMessage("💡 Asegúrate que los auriculares están conectados como 'Audio para llamadas'")
+                Log.w("AudioService", "✗ No Bluetooth SCO device found")
+                audioManager.mode = previousMode
+                return false
+            }
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error in modern Bluetooth SCO: ${e.message}", e)
+            sendLogMessage("❌ Error: ${e.message}")
+            return false
+        }
+    }
+    
+    /**
+     * Método legacy para Android 11 y anteriores usando startBluetoothSco()
+     */
+    @Suppress("DEPRECATION")
+    private fun startBluetoothScoLegacy(): Boolean {
+        sendLogMessage("🔍 Buscando micrófono Bluetooth (API legacy)...")
+        
+        // Verificar si hay dispositivo BT conectado con micrófono
+        val scoAvailable = audioManager.isBluetoothScoAvailableOffCall
+        sendLogMessage("📋 SCO disponible: ${if (scoAvailable) "SÍ" else "NO"}")
+        
+        if (scoAvailable) {
+            Log.d("AudioService", "Bluetooth SCO available (legacy), starting...")
+            
+            // Registrar receiver para saber cuando SCO está listo
+            registerBluetoothScoReceiver()
+            
+            try {
+                // CRÍTICO: Establecer modo de comunicación ANTES de iniciar SCO
+                audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+                sendLogMessage("📞 Modo audio: COMUNICACIÓN")
+                Log.d("AudioService", "Audio mode set to MODE_IN_COMMUNICATION (legacy)")
+                
+                // Iniciar SCO
+                audioManager.startBluetoothSco()
+                audioManager.isBluetoothScoOn = true
+                isBluetoothScoOn = true
+                
+                sendLogMessage("🎧 Activando micrófono Bluetooth (esperando conexión)...")
+                return true
+            } catch (e: Exception) {
+                Log.e("AudioService", "Error starting Bluetooth SCO: ${e.message}", e)
+                sendLogMessage("❌ Error SCO: ${e.message}")
+                audioManager.mode = AudioManager.MODE_NORMAL
+                isBluetoothScoOn = false
+                return false
+            }
+        }
+        
+        sendLogMessage("❌ Bluetooth SCO no disponible")
+        sendLogMessage("💡 Verifica conexión de auriculares Bluetooth")
+        Log.d("AudioService", "Bluetooth SCO not available (legacy)")
+        return false
+    }
+    
+    /**
+     * Registra un BroadcastReceiver para escuchar cambios en el estado de SCO.
+     */
+    private fun registerBluetoothScoReceiver() {
+        if (bluetoothScoReceiver != null) {
+            Log.d("AudioService", "Bluetooth SCO receiver already registered")
+            return
+        }
+        
+        bluetoothScoReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val state = intent.getIntExtra(
+                    AudioManager.EXTRA_SCO_AUDIO_STATE,
+                    AudioManager.SCO_AUDIO_STATE_ERROR
+                )
+                
+                when (state) {
+                    AudioManager.SCO_AUDIO_STATE_CONNECTED -> {
+                        Log.d("AudioService", "Bluetooth SCO CONNECTED")
+                        sendLogMessage("🎧 Micrófono Bluetooth conectado")
+                        isBluetoothScoOn = true
+                        sendMicrophoneChanged("Auriculares Bluetooth")
+                        
+                        if (pendingRecordingAfterSco) {
+                            pendingRecordingAfterSco = false
+                            Log.d("AudioService", "Starting recording with Bluetooth mic")
+                            startRecordingInternal()
+                        }
+                    }
+                    AudioManager.SCO_AUDIO_STATE_DISCONNECTED -> {
+                        Log.d("AudioService", "Bluetooth SCO DISCONNECTED")
+                        isBluetoothScoOn = false
+                        bluetoothCommunicationDevice = null
+                        
+                        // CRÍTICO: Restaurar MODE_NORMAL para que los botones de media funcionen
+                        // Sin esto, el modo queda en IN_COMMUNICATION e interfiere con la detección
+                        if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
+                            audioManager.mode = AudioManager.MODE_NORMAL
+                            Log.d("AudioService", "Audio mode restored to MODE_NORMAL (SCO disconnected)")
+                        }
+                        
+                        if (headsetControlEnabled) {
+                            sendMicrophoneChanged(null) // Actualizar UI
+                        }
+                    }
+                    AudioManager.SCO_AUDIO_STATE_ERROR -> {
+                        Log.e("AudioService", "Bluetooth SCO ERROR")
+                        isBluetoothScoOn = false
+                        sendLogMessage("⚠️ Error con micrófono Bluetooth")
+                        
+                        // Si estaba esperando para grabar, usar mic del dispositivo
+                        if (pendingRecordingAfterSco) {
+                            pendingRecordingAfterSco = false
+                            sendLogMessage("⚠️ Usando micrófono del dispositivo")
+                            startRecordingInternal()
+                        }
+                    }
+                }
+            }
+        }
+        
+        val filter = IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(bluetoothScoReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(bluetoothScoReceiver, filter)
+            }
+            Log.d("AudioService", "Bluetooth SCO receiver registered")
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error registering SCO receiver: ${e.message}", e)
+            bluetoothScoReceiver = null
+        }
+    }
+    
+    /**
+     * Detiene Bluetooth SCO y limpia el receiver.
+     * Usa clearCommunicationDevice() en Android 12+ y stopBluetoothSco() en versiones anteriores.
+     */
+    @Suppress("DEPRECATION")
+    private fun stopBluetoothSco() {
+        if (isBluetoothScoOn) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    // Android 12+: limpiar dispositivo de comunicación
+                    audioManager.clearCommunicationDevice()
+                    Log.d("AudioService", "Bluetooth communication device cleared")
+                } else {
+                    // Android 11 y anteriores: detener SCO
+                    audioManager.stopBluetoothSco()
+                    audioManager.isBluetoothScoOn = false
+                    Log.d("AudioService", "Bluetooth SCO stopped (legacy)")
+                }
+                
+                // CRÍTICO: Restaurar modo de audio normal
+                audioManager.mode = AudioManager.MODE_NORMAL
+                Log.d("AudioService", "Audio mode restored to MODE_NORMAL")
+                
+                isBluetoothScoOn = false
+                bluetoothCommunicationDevice = null
+            } catch (e: Exception) {
+                Log.e("AudioService", "Error stopping SCO: ${e.message}", e)
+            }
+        }
+        
+        bluetoothScoReceiver?.let {
+            try {
+                unregisterReceiver(it)
+                Log.d("AudioService", "Bluetooth SCO receiver unregistered")
+            } catch (e: Exception) {
+                Log.e("AudioService", "Error unregistering SCO receiver: ${e.message}", e)
+            }
+            bluetoothScoReceiver = null
+        }
+        
+        pendingRecordingAfterSco = false
+    }
+
+    // Timer para auto-detener grabación en modo manos libres
+    private var recordingTimeoutHandler: Handler? = null
+    private val RECORDING_TIMEOUT_MS = 15000L  // 15 segundos máximo de grabación
+    
     private fun startRecording() {
         if (isRecording) {
             sendLogMessage(getString(R.string.already_recording))
             Log.w("AudioService", getString(R.string.already_recording))
             return
         }
+        
+        Log.d("AudioService", "startRecording() called, headsetControlEnabled=$headsetControlEnabled")
+        
+        if (headsetControlEnabled) {
+            // PRIMERO: Reproducir feedback ANTES de cambiar modo de audio
+            // El modo MODE_IN_COMMUNICATION reduce el volumen, así que lo hacemos antes
+            playRecordingStartFeedback()
+            
+            // Esperar a que el feedback termine antes de activar SCO
+            Handler(Looper.getMainLooper()).postDelayed({
+                // Activar SCO CON MODE_IN_COMMUNICATION para usar mic BT
+                activateBluetoothMicForRecording()
+                
+                // Configurar timeout automático
+                setupRecordingTimeout()
+                
+                // Iniciar grabación
+                startRecordingInternal()
+            }, 800) // Esperar 800ms para que el feedback termine
+        } else {
+            // Modo normal: grabar directamente
+            startRecordingInternal()
+        }
+    }
+    
+    /**
+     * Activa el micrófono Bluetooth con MODE_IN_COMMUNICATION.
+     * NOTA: Esto bloquea los botones de media, por eso usamos timeout automático.
+     */
+    @Suppress("DEPRECATION")
+    private fun activateBluetoothMicForRecording() {
+        try {
+            Log.d("AudioService", "=== ACTIVATING BLUETOOTH MIC ===")
+            sendLogMessage("🔵 Activando micrófono Bluetooth...")
+            
+            // 1. Primero cambiar a modo comunicación (CRÍTICO para mic BT)
+            val previousMode = audioManager.mode
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            Log.d("AudioService", "Audio mode: $previousMode -> MODE_IN_COMMUNICATION (3)")
+            sendLogMessage("📞 Modo: COMUNICACIÓN")
+            
+            // 2. Activar SCO
+            Log.d("AudioService", "Current SCO state: ${audioManager.isBluetoothScoOn}")
+            audioManager.startBluetoothSco()
+            Log.d("AudioService", "startBluetoothSco() called")
+            
+            // 3. Esperar a que SCO se active (puede tomar hasta 2 segundos)
+            var scoActivated = false
+            for (i in 1..10) {
+                Thread.sleep(200)
+                if (audioManager.isBluetoothScoOn) {
+                    scoActivated = true
+                    Log.d("AudioService", "SCO activated after ${i * 200}ms")
+                    break
+                }
+                Log.d("AudioService", "Waiting for SCO... attempt $i")
+            }
+            
+            if (scoActivated) {
+                sendLogMessage("✅ SCO activado")
+                sendLogMessage("⏱️ Grabación máx: ${RECORDING_TIMEOUT_MS/1000}s")
+                Log.d("AudioService", "SCO activated successfully")
+                isBluetoothScoOn = true
+            } else {
+                sendLogMessage("⚠️ SCO no se activó, intentando grabar igual...")
+                Log.w("AudioService", "SCO did not activate, will try recording anyway")
+                // Mantener MODE_IN_COMMUNICATION de todos modos, puede funcionar
+            }
+            
+            // 4. Listar dispositivos de entrada disponibles
+            val inputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            Log.d("AudioService", "Available input devices: ${inputDevices.size}")
+            for (device in inputDevices) {
+                Log.d("AudioService", "  - ${device.productName} (type=${device.type})")
+            }
+            
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error activating Bluetooth mic: ${e.message}", e)
+            sendLogMessage("❌ Error: ${e.message}")
+        }
+    }
+    
+    /**
+     * Configura un timeout para detener automáticamente la grabación.
+     * Necesario porque los botones no funcionan en MODE_IN_COMMUNICATION.
+     */
+    private fun setupRecordingTimeout() {
+        recordingTimeoutHandler?.removeCallbacksAndMessages(null)
+        recordingTimeoutHandler = Handler(Looper.getMainLooper())
+        
+        recordingTimeoutHandler?.postDelayed({
+            if (isRecording) {
+                Log.d("AudioService", "Recording timeout reached, stopping automatically")
+                sendLogMessage("⏱️ Tiempo máximo alcanzado")
+                stopRecordingAndSend()
+            }
+        }, RECORDING_TIMEOUT_MS)
+        
+        Log.d("AudioService", "Recording timeout set for ${RECORDING_TIMEOUT_MS}ms")
+    }
+    
+    private fun cancelRecordingTimeout() {
+        recordingTimeoutHandler?.removeCallbacksAndMessages(null)
+        recordingTimeoutHandler = null
+    }
+    
+    /**
+     * Busca un micrófono Bluetooth SCO disponible.
+     * Retorna null si no hay ninguno conectado.
+     */
+    private fun findBluetoothMicrophone(): AudioDeviceInfo? {
+        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+        Log.d("AudioService", "=== Searching for Bluetooth microphone ===")
+        for (device in devices) {
+            Log.d("AudioService", "Input device: ${device.productName}, type=${device.type}")
+            if (device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                Log.d("AudioService", "Found Bluetooth SCO microphone: ${device.productName}")
+                return device
+            }
+        }
+        Log.d("AudioService", "No Bluetooth SCO microphone found")
+        return null
+    }
+    
+    /**
+     * Inicia la grabación de audio.
+     * En modo manos libres: usa VOICE_COMMUNICATION + setPreferredDevice para mic BT.
+     * En modo normal: usa MIC estándar.
+     */
+    @Suppress("DEPRECATION")
+    private fun startRecordingInternal() {
         try {
             sendLogMessage(getString(R.string.starting_recording))
+            Log.d("AudioService", "startRecordingInternal() - headsetControlEnabled=$headsetControlEnabled")
             try {
+                // En modo manos libres, usar VOICE_COMMUNICATION para capturar del mic BT
+                // En modo normal, usar MIC estándar
+                val audioSource = if (headsetControlEnabled) {
+                    Log.d("AudioService", "Handsfree mode: using VOICE_COMMUNICATION")
+                    MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                } else {
+                    Log.d("AudioService", "Normal mode: using MIC")
+                    MediaRecorder.AudioSource.MIC
+                }
+                
+                // Buscar micrófono Bluetooth para setPreferredDevice
+                val bluetoothMic = if (headsetControlEnabled) findBluetoothMicrophone() else null
+                
                 recorder = MediaRecorder().apply {
-                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    setAudioSource(audioSource)
                     setOutputFormat(MediaRecorder.OutputFormat.OGG)
                     setAudioEncoder(MediaRecorder.AudioEncoder.OPUS)
                     setOutputFile(getAudioFile().absolutePath)
+                    
+                    // En modo manos libres, forzar uso del micrófono Bluetooth si está disponible
+                    if (bluetoothMic != null) {
+                        Log.d("AudioService", "Setting preferred device to BT: ${bluetoothMic.productName}")
+                        sendLogMessage("🎤 Mic BT: ${bluetoothMic.productName}")
+                        setPreferredDevice(bluetoothMic)
+                    } else if (headsetControlEnabled) {
+                        sendLogMessage("⚠️ No se encontró mic BT, usando dispositivo")
+                        Log.w("AudioService", "No Bluetooth mic found, using default")
+                    }
+                    
                     prepare()
                     start()
                 }
                 isRecording = true
+                Log.d("AudioService", "Recording started successfully")
+                
+                // Verificar qué dispositivo se está usando realmente
+                Handler(Looper.getMainLooper()).postDelayed({
+                    recorder?.activeRecordingConfiguration?.let { config ->
+                        val device = config.audioDevice
+                        val deviceName = device?.productName?.toString() ?: "Desconocido"
+                        val deviceType = device?.type ?: -1
+                        sendLogMessage("📍 Grabando con: $deviceName (tipo: $deviceType)")
+                        Log.d("AudioService", "Active recording device: $deviceName, type=$deviceType")
+                    }
+                }, 200)
                 
                 // Update notification to reflect recording state
                 (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -457,6 +1592,10 @@ class AudioService : Service() {
                 sendBroadcast(intent)
                 Log.d("AudioService", "Broadcasting ACTION_RECORDING_STARTED to package $packageName")
                 sendLogMessage(getString(R.string.recording_started))
+                
+                // NOTA: El feedback de inicio ya se reprodujo ANTES de activar SCO
+                // No llamar playRecordingStartFeedback() aquí porque el modo de audio
+                // ya cambió y el volumen sería muy bajo
             } catch (e: IllegalStateException) {
                 // Specific error for audio source issues
                 sendLogMessage(getString(R.string.microphone_access_error, e.message))
@@ -465,6 +1604,8 @@ class AudioService : Service() {
                 recorder?.release()
                 recorder = null
                 isRecording = false
+                abandonAudioFocus()
+                stopBluetoothSco()  // Limpiar SCO si hay error
                 signalProcessingComplete()
             } catch (e: Exception) {
                 // Generic error
@@ -474,6 +1615,8 @@ class AudioService : Service() {
                 recorder?.release()
                 recorder = null
                 isRecording = false
+                abandonAudioFocus()
+                stopBluetoothSco()  // Limpiar SCO si hay error
                 signalProcessingComplete()
             }
         } catch (e: Exception) {
@@ -483,6 +1626,8 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            abandonAudioFocus()
+            stopBluetoothSco()  // Limpiar SCO si hay error
             signalProcessingComplete()
         }
     }
@@ -493,6 +1638,14 @@ class AudioService : Service() {
             Log.w("AudioService", getString(R.string.no_recording_in_progress))
             return
         }
+        
+        // Cancelar timeout si existe
+        cancelRecordingTimeout()
+        
+        // PRIMERO: Reproducir feedback ANTES de cambiar modo de audio
+        // El cambio de modo corta el audio, así que hay que hacerlo antes
+        playRecordingStopFeedback()
+        
         try {
             sendLogMessage(getString(R.string.stopping_recording))
             recorder?.stop()
@@ -515,6 +1668,17 @@ class AudioService : Service() {
             sendBroadcast(intent)
             Log.d("AudioService", "Broadcasting ACTION_RECORDING_STOPPED to package $packageName")
             sendLogMessage(getString(R.string.recording_stopped_broadcast))
+            
+            // DESPUÉS del feedback: esperar un poco y luego limpiar modo de audio
+            // Esto permite que el tono de feedback se reproduzca completamente
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
+                    audioManager.mode = AudioManager.MODE_NORMAL
+                    Log.d("AudioService", "Audio mode restored to MODE_NORMAL (delayed)")
+                }
+                stopBluetoothSco()
+                abandonAudioFocus()
+            }, 800) // Esperar 800ms para que el feedback termine
         }
 
         // Enviar archivo al servidor
@@ -530,6 +1694,10 @@ class AudioService : Service() {
             sendLogMessage(getString(R.string.no_recording_in_progress_for_cancel))
             return
         }
+        
+        // Cancelar timeout si existe
+        cancelRecordingTimeout()
+        
         try {
             sendLogMessage(getString(R.string.canceling_recording))
             recorder?.stop()
@@ -542,6 +1710,15 @@ class AudioService : Service() {
             recorder = null
             isRecording = false
             
+            // Restaurar modo de audio normal y detener SCO
+            if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
+                audioManager.mode = AudioManager.MODE_NORMAL
+                Log.d("AudioService", "Audio mode restored to MODE_NORMAL")
+            }
+            stopBluetoothSco()
+            
+            abandonAudioFocus()
+            
             // Update notification
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
                 .notify(1, createNotification())
@@ -552,6 +1729,9 @@ class AudioService : Service() {
             sendBroadcast(intent)
             Log.d("AudioService", "Broadcasting ACTION_RECORDING_STOPPED (canceled) to package $packageName")
             sendLogMessage(getString(R.string.recording_canceled_broadcast))
+            
+            // NO detener SCO aquí - se mantiene activo mientras el modo manos libres esté activo
+            // SCO solo se detiene cuando se desactiva el modo manos libres
             
             // Signal that processing is complete (in this case, canceled)
             signalProcessingComplete()
@@ -1348,6 +2528,10 @@ class AudioService : Service() {
             KEY_AUDIO_PLAYBACK_ENABLED,
             DEFAULT_AUDIO_PLAYBACK_ENABLED
         )
+        headsetFeedbackEnabled = prefs.getBoolean(
+            KEY_HEADSET_FEEDBACK_ENABLED,
+            DEFAULT_HEADSET_FEEDBACK_ENABLED
+        )
         sendLogMessage(getString(R.string.configuration_loaded, serverIp, serverPort, whisperModel))
     }
     
@@ -1362,7 +2546,8 @@ class AudioService : Service() {
         language: String? = null,
         rate: Float? = null,
         pitch: Float? = null,
-        audioPlaybackEnabled: Boolean? = null
+        audioPlaybackEnabled: Boolean? = null,
+        headsetFeedbackEnabled: Boolean? = null
     ) {
         serverIp = ip
         serverPort = port
@@ -1384,6 +2569,9 @@ class AudioService : Service() {
         if (audioPlaybackEnabled != null) {
             this.audioPlaybackEnabled = audioPlaybackEnabled
         }
+        if (headsetFeedbackEnabled != null) {
+            this.headsetFeedbackEnabled = headsetFeedbackEnabled
+        }
         
         // Save to SharedPreferences
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -1396,6 +2584,7 @@ class AudioService : Service() {
             putFloat(KEY_TTS_RATE, ttsRate)
             putFloat(KEY_TTS_PITCH, ttsPitch)
             putBoolean(KEY_AUDIO_PLAYBACK_ENABLED, this@AudioService.audioPlaybackEnabled)
+            putBoolean(KEY_HEADSET_FEEDBACK_ENABLED, this@AudioService.headsetFeedbackEnabled)
             apply()
         }
 

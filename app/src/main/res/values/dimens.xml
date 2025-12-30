@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Drawer footer padding - larger in portrait to avoid system buttons -->
+    <dimen name="drawer_footer_padding_bottom">48dp</dimen>
+</resources>
+

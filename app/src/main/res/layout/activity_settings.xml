@@ -203,6 +203,14 @@
                         android:checked="true"
                         android:text="@string/audio_playback_enabled" />
 
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/headsetFeedbackSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:checked="true"
+                        android:text="@string/headset_feedback_enabled" />
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

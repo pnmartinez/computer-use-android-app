@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.provider.Settings
@@ -38,6 +39,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var ttsPitchInput: TextInputEditText
     private lateinit var btnTtsSystemSettings: MaterialButton
     private lateinit var audioPlaybackSwitch: SwitchMaterial
+    private lateinit var headsetFeedbackSwitch: SwitchMaterial
     private lateinit var btnTestConnection: MaterialButton
     private lateinit var btnSaveSettings: MaterialButton
     private lateinit var connectionStatusText: TextView
@@ -77,11 +79,12 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(
-            serviceReceiver,
-            IntentFilter(AudioService.ACTION_CONNECTION_TESTED),
-            Context.RECEIVER_NOT_EXPORTED
-        )
+        val filter = IntentFilter(AudioService.ACTION_CONNECTION_TESTED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(serviceReceiver, filter)
+        }
     }
 
     override fun onPause() {
@@ -105,6 +108,7 @@ class SettingsActivity : AppCompatActivity() {
         ttsPitchInput = findViewById(R.id.ttsPitchInput)
         btnTtsSystemSettings = findViewById(R.id.btnTtsSystemSettings)
         audioPlaybackSwitch = findViewById(R.id.audioPlaybackSwitch)
+        headsetFeedbackSwitch = findViewById(R.id.headsetFeedbackSwitch)
         btnTestConnection = findViewById(R.id.btnTestConnection)
         btnSaveSettings = findViewById(R.id.btnSaveSettings)
         connectionStatusText = findViewById(R.id.connectionStatusText)
@@ -142,6 +146,10 @@ class SettingsActivity : AppCompatActivity() {
 
         audioPlaybackSwitch.setOnCheckedChangeListener { _, isChecked ->
             updateAudioPlaybackSwitchText(isChecked)
+        }
+
+        headsetFeedbackSwitch.setOnCheckedChangeListener { _, isChecked ->
+            updateHeadsetFeedbackSwitchText(isChecked)
         }
     }
 
@@ -205,6 +213,10 @@ class SettingsActivity : AppCompatActivity() {
             AudioService.KEY_AUDIO_PLAYBACK_ENABLED,
             AudioService.DEFAULT_AUDIO_PLAYBACK_ENABLED
         )
+        val headsetFeedbackEnabled = prefs.getBoolean(
+            AudioService.KEY_HEADSET_FEEDBACK_ENABLED,
+            AudioService.DEFAULT_HEADSET_FEEDBACK_ENABLED
+        )
 
         serverIpInput.setText(serverIp)
         serverPortInput.setText(serverPort.toString())
@@ -216,6 +228,8 @@ class SettingsActivity : AppCompatActivity() {
         ttsPitchInput.setText(ttsPitch.toString())
         audioPlaybackSwitch.isChecked = audioPlaybackEnabled
         updateAudioPlaybackSwitchText(audioPlaybackEnabled)
+        headsetFeedbackSwitch.isChecked = headsetFeedbackEnabled
+        updateHeadsetFeedbackSwitchText(headsetFeedbackEnabled)
     }
 
     private fun saveServerSettings() {
@@ -228,6 +242,7 @@ class SettingsActivity : AppCompatActivity() {
         val ttsRateText = ttsRateInput.text.toString().trim()
         val ttsPitchText = ttsPitchInput.text.toString().trim()
         val audioPlaybackEnabled = audioPlaybackSwitch.isChecked
+        val headsetFeedbackEnabled = headsetFeedbackSwitch.isChecked
 
         if (ip.isEmpty()) {
             Toast.makeText(this, getString(R.string.empty_server_ip_error), Toast.LENGTH_SHORT).show()
@@ -303,6 +318,7 @@ class SettingsActivity : AppCompatActivity() {
             putFloat(KEY_TTS_RATE, rate)
             putFloat(KEY_TTS_PITCH, pitch)
             putBoolean(AudioService.KEY_AUDIO_PLAYBACK_ENABLED, audioPlaybackEnabled)
+            putBoolean(AudioService.KEY_HEADSET_FEEDBACK_ENABLED, headsetFeedbackEnabled)
             commit()
         }
 
@@ -316,6 +332,7 @@ class SettingsActivity : AppCompatActivity() {
             putExtra(KEY_TTS_RATE, rate)
             putExtra(KEY_TTS_PITCH, pitch)
             putExtra(AudioService.KEY_AUDIO_PLAYBACK_ENABLED, audioPlaybackEnabled)
+            putExtra(AudioService.KEY_HEADSET_FEEDBACK_ENABLED, headsetFeedbackEnabled)
         }
         startService(intent)
 
@@ -367,6 +384,12 @@ class SettingsActivity : AppCompatActivity() {
     private fun updateAudioPlaybackSwitchText(enabled: Boolean) {
         audioPlaybackSwitch.text = getString(
             if (enabled) R.string.audio_playback_enabled else R.string.audio_playback_disabled
+        )
+    }
+
+    private fun updateHeadsetFeedbackSwitchText(enabled: Boolean) {
+        headsetFeedbackSwitch.text = getString(
+            if (enabled) R.string.headset_feedback_enabled_on else R.string.headset_feedback_enabled_off
         )
     }
 

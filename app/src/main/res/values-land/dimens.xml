@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Drawer footer padding - smaller in landscape -->
+    <dimen name="drawer_footer_padding_bottom">16dp</dimen>
+</resources>
+

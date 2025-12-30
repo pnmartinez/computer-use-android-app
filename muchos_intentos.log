@@ -1,0 +1,507 @@
+2025-12-29 22:26:12.167 19992-19992 AudioService            com.example.myapplication            D  === MediaSession.onMediaButtonEvent CALLED ===
+2025-12-29 22:26:12.167 19992-19992 AudioService            com.example.myapplication            D  Intent action: android.intent.action.MEDIA_BUTTON
+2025-12-29 22:26:12.167 19992-19992 AudioService            com.example.myapplication            D  headsetControlEnabled: false
+2025-12-29 22:26:12.167 19992-19992 AudioService            com.example.myapplication            D  Headset control disabled - ignoring button event
+2025-12-29 22:26:12.167 19992-19992 AudioService            com.example.myapplication            D  ⚠️ Button pressed but headset control is OFF
+2025-12-29 22:26:12.202 19992-19992 AudioService            com.example.myapplication            D  === MediaSession.onMediaButtonEvent CALLED ===
+2025-12-29 22:26:12.202 19992-19992 AudioService            com.example.myapplication            D  Intent action: android.intent.action.MEDIA_BUTTON
+2025-12-29 22:26:12.202 19992-19992 AudioService            com.example.myapplication            D  headsetControlEnabled: false
+2025-12-29 22:26:12.202 19992-19992 AudioService            com.example.myapplication            D  Headset control disabled - ignoring button event
+2025-12-29 22:26:12.202 19992-19992 AudioService            com.example.myapplication            D  ⚠️ Button pressed but headset control is OFF
+2025-12-29 22:26:16.269 19992-19992 AudioService            com.example.myapplication            D  === MediaSession.onMediaButtonEvent CALLED ===
+2025-12-29 22:26:16.269 19992-19992 AudioService            com.example.myapplication            D  Intent action: android.intent.action.MEDIA_BUTTON
+2025-12-29 22:26:16.269 19992-19992 AudioService            com.example.myapplication            D  headsetControlEnabled: false
+2025-12-29 22:26:16.269 19992-19992 AudioService            com.example.myapplication            D  Headset control disabled - ignoring button event
+2025-12-29 22:26:16.269 19992-19992 AudioService            com.example.myapplication            D  ⚠️ Button pressed but headset control is OFF
+2025-12-29 22:26:16.271 19992-19992 AudioService            com.example.myapplication            D  MediaSession.onPause() called
+2025-12-29 22:26:16.271 19992-19992 AudioService            com.example.myapplication            D  🎧 MediaSession: onPause
+2025-12-29 22:26:16.315 19992-19992 AudioService            com.example.myapplication            D  === MediaSession.onMediaButtonEvent CALLED ===
+2025-12-29 22:26:16.315 19992-19992 AudioService            com.example.myapplication            D  Intent action: android.intent.action.MEDIA_BUTTON
+2025-12-29 22:26:16.315 19992-19992 AudioService            com.example.myapplication            D  headsetControlEnabled: false
+2025-12-29 22:26:16.315 19992-19992 AudioService            com.example.myapplication            D  Headset control disabled - ignoring button event
+2025-12-29 22:26:16.315 19992-19992 AudioService            com.example.myapplication            D  ⚠️ Button pressed but headset control is OFF
+2025-12-29 22:26:19.221 19992-19992 Screenshot              com.example.myapplication            D  Enviando petición de captura a: https://100.121.141.117:5000/screenshot/capture?format=json
+2025-12-29 22:26:20.041 19992-19992 AudioService            com.example.myapplication            D  onStartCommand action=com.example.myapplication.ENABLE_HEADSET_CONTROL extras=null
+2025-12-29 22:26:20.041 19992-19992 AudioService            com.example.myapplication            D  enableHeadsetControlMode() called, current state: false
+2025-12-29 22:26:20.041 19992-19992 AudioService            com.example.myapplication            D  Requesting audio focus...
+2025-12-29 22:26:20.044 19992-19992 AudioService            com.example.myapplication            D  Audio focus granted!
+2025-12-29 22:26:20.044 19992-19992 AudioService            com.example.myapplication            D  Starting silent playback for headset control...
+2025-12-29 22:26:20.061 19992-19992 ExoPlayerImpl           com.example.myapplication            I  Init 3cfbf19 [AndroidXMedia3/1.2.1] [aito, motorola razr 50, motorola, 35]
+2025-12-29 22:26:20.096 19992-19992 e.myapplication         com.example.myapplication            I  hiddenapi: Accessing hidden method Landroid/media/AudioTrack;->getLatency()I (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/media3/exoplayer/audio/AudioTrackPositionTracker; (domain=app) using reflection: allowed
+2025-12-29 22:26:20.158 19992-19992 AudioService            com.example.myapplication            D  Silent player started, isPlaying: false
+2025-12-29 22:26:20.158 19992-19992 AudioService            com.example.myapplication            D  🔇 Silent audio playback started
+2025-12-29 22:26:20.160 19992-19992 AudioService            com.example.myapplication            D  PlaybackState set to PLAYING
+2025-12-29 22:26:20.161 19992-19992 AudioService            com.example.myapplication            D  MediaSession isActive = true
+2025-12-29 22:26:20.161 19992-19992 AudioService            com.example.myapplication            D  MediaSession token: android.support.v4.media.session.MediaSessionCompat$Token@b7e78fa
+2025-12-29 22:26:20.161 19992-19992 AudioService            com.example.myapplication            D  🔍 Buscando micrófono Bluetooth (API moderna)...
+2025-12-29 22:26:20.162 19992-19992 AudioService            com.example.myapplication            D  Using modern Bluetooth SCO method (setCommunicationDevice)
+2025-12-29 22:26:20.164 19992-19992 AudioService            com.example.myapplication            D  📞 Modo audio: COMUNICACIÓN
+2025-12-29 22:26:20.166 19992-19992 AudioService            com.example.myapplication            D  Audio mode set to MODE_IN_COMMUNICATION (previous: 0)
+2025-12-29 22:26:20.166 19992-19992 AudioService            com.example.myapplication            D  📋 Dispositivos de entrada: 7
+2025-12-29 22:26:20.168 19992-19992 AudioService            com.example.myapplication            D  Searching 7 input devices for Bluetooth SCO...
+2025-12-29 22:26:20.168 19992-19992 AudioService            com.example.myapplication            D    • motorola razr 50 (MIC_INTERNO)
+2025-12-29 22:26:20.170 19992-19992 AudioService            com.example.myapplication            D  Input device: type=15 (SCO=7), name=motorola razr 50, isSource=true
+2025-12-29 22:26:20.170 19992-19992 AudioService            com.example.myapplication            D    • Redmi Buds 6 Active (BT_SCO ✓)
+2025-12-29 22:26:20.172 19992-19992 AudioService            com.example.myapplication            D  Input device: type=7 (SCO=7), name=Redmi Buds 6 Active, isSource=true
+2025-12-29 22:26:20.172 19992-19992 AudioService            com.example.myapplication            D  ✅ Encontrado SCO: Redmi Buds 6 Active
+2025-12-29 22:26:20.173 19992-19992 AudioService            com.example.myapplication            D  ✓ Found Bluetooth SCO device: Redmi Buds 6 Active
+2025-12-29 22:26:20.173 19992-19992 AudioService            com.example.myapplication            D  ⚙️ Configurando dispositivo: Redmi Buds 6 Active
+2025-12-29 22:26:20.175 19992-19992 AudioService            com.example.myapplication            D  ⚠️ setCommunicationDevice falló, probando método legacy...
+2025-12-29 22:26:20.177 19992-19992 AudioService            com.example.myapplication            W  setCommunicationDevice failed, trying legacy startBluetoothSco
+2025-12-29 22:26:20.247 19992-19992 AudioService            com.example.myapplication            D  🔍 Buscando micrófono Bluetooth (API legacy)...
+2025-12-29 22:26:20.248 19992-19992 AudioService            com.example.myapplication            D  📋 SCO disponible: SÍ
+2025-12-29 22:26:20.253 19992-19992 AudioService            com.example.myapplication            D  Bluetooth SCO available (legacy), starting...
+2025-12-29 22:26:20.254 19992-19992 AudioService            com.example.myapplication            D  Bluetooth SCO receiver registered
+2025-12-29 22:26:20.270 19992-19992 AudioService            com.example.myapplication            D  📞 Modo audio: COMUNICACIÓN
+2025-12-29 22:26:20.271 19992-19992 AudioService            com.example.myapplication            D  Audio mode set to MODE_IN_COMMUNICATION (legacy)
+2025-12-29 22:26:20.272 19992-19992 AudioService            com.example.myapplication            D  🎧 Activando micrófono Bluetooth (esperando conexión)...
+2025-12-29 22:26:20.283 19992-19992 AudioService            com.example.myapplication            D  🎧 Headset control ENABLED - Playing silent audio to capture buttons
+2025-12-29 22:26:20.285 19992-19992 AudioService            com.example.myapplication            D  Headset control ENABLED successfully
+2025-12-29 22:26:20.303 19992-19992 AudioService            com.example.myapplication            D  Bluetooth SCO DISCONNECTED
+2025-12-29 22:26:20.313 19992-19992 AudioService            com.example.myapplication            D  onStartCommand action=com.example.myapplication.QUERY_HEADSET_CONTROL_STATUS extras=null
+2025-12-29 22:26:21.051 19992-19992 AudioService            com.example.myapplication            D  Bluetooth SCO CONNECTED
+2025-12-29 22:26:21.051 19992-19992 AudioService            com.example.myapplication            D  🎧 Micrófono Bluetooth conectado
+2025-12-29 22:26:21.077 19992-20128 VideoCapabilities       com.example.myapplication            W  Unsupported mime image/vnd.android.heic
+2025-12-29 22:26:21.077 19992-20128 VideoCapabilities       com.example.myapplication            W  Unsupported mime image/vnd.android.heic
+2025-12-29 22:26:21.078 19992-20128 VideoCapabilities       com.example.myapplication            W  Unsupported mime image/vnd.android.heic
+2025-12-29 22:26:21.078 19992-20128 VideoCapabilities       com.example.myapplication            W  Unsupported mime image/vnd.android.heic
+2025-12-29 22:26:21.083 19992-20128 Utils                   com.example.myapplication            W  could not parse long range '636-536'
+2025-12-29 22:26:21.128 19992-20128 DMCodecAdapterFactory   com.example.myapplication            I  Creating an asynchronous MediaCodec adapter for track type audio
+2025-12-29 22:26:21.128 19992-20128 MediaCodec              com.example.myapplication            D  CreateByComponentName: name c2.android.mp3.decoder
+2025-12-29 22:26:21.130 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) init name(c2.android.mp3.decoder)
+2025-12-29 22:26:21.130 19992-20128 CCodecBufferChannel     com.example.myapplication            D  mBufferCountDebug=0 mIsUserLoad=1
+2025-12-29 22:26:21.130 19992-20128 MBrainDateManager       com.example.myapplication            D  MBrainDataManager Constructor caller
+2025-12-29 22:26:21.130 19992-20128 MBrainManager           com.example.myapplication            D  mMBrainSupport 0, return NULL
+2025-12-29 22:26:21.130 19992-20128 MBrainDateManager       com.example.myapplication            D  mMBrainManager = nullptr
+2025-12-29 22:26:21.130 19992-20128 CCodecBufferChannel     com.example.myapplication            D  new MBrainDataManager() fail
+2025-12-29 22:26:21.130 19992-20128 MBrainDateManager       com.example.myapplication            D  MBrainDataManager Constructor clear
+2025-12-29 22:26:21.130 19992-20128 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] init: CCodec 0xb4000075e16ff2e0, CCodecBufferChannel 0xb400007601a9c580
+2025-12-29 22:26:21.130 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 1
+2025-12-29 22:26:21.130 19992-20140 CCodec                  com.example.myapplication            D  allocate(c2.android.mp3.decoder)
+2025-12-29 22:26:21.139 19992-20140 Codec2Client            com.example.myapplication            I  Available Codec2 services: "default" "default9" "software"
+2025-12-29 22:26:21.141 19992-20140 CCodec                  com.example.myapplication            I  setting up 'default' as default (vendor) store
+2025-12-29 22:26:21.151 19992-20140 CCodec                  com.example.myapplication            I  Created component [c2.android.mp3.decoder]
+2025-12-29 22:26:21.151 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [0xb400007601a9c580] setComponent: mName c2.android.mp3.decoder#348, mPipelineWatcher 0xb400007601a9ca68
+2025-12-29 22:26:21.151 19992-20140 CCodecBufferChannel     com.example.myapplication            D  PipelineWatcher debug info [c2.android.mp3.decoder#348] enable=0
+2025-12-29 22:26:21.152 19992-20140 CCodecConfig            com.example.myapplication            D  read media type: audio/mpeg
+2025-12-29 22:26:21.155 19992-20140 ReflectedParamUpdater   com.example.myapplication            D  extent() != 1 for single value type: algo.buffers.max-count.values
+2025-12-29 22:26:21.155 19992-20140 ReflectedParamUpdater   com.example.myapplication            D  extent() != 1 for single value type: output.subscribed-indices.values
+2025-12-29 22:26:21.155 19992-20140 ReflectedParamUpdater   com.example.myapplication            D  extent() != 1 for single value type: input.buffers.allocator-ids.values
+2025-12-29 22:26:21.155 19992-20140 ReflectedParamUpdater   com.example.myapplication            D  extent() != 1 for single value type: output.buffers.allocator-ids.values
+2025-12-29 22:26:21.155 19992-20140 ReflectedParamUpdater   com.example.myapplication            D  extent() != 1 for single value type: algo.buffers.allocator-ids.values
+2025-12-29 22:26:21.155 19992-20140 ReflectedParamUpdater   com.example.myapplication            D  extent() != 1 for single value type: output.buffers.pool-ids.values
+2025-12-29 22:26:21.155 19992-20140 ReflectedParamUpdater   com.example.myapplication            D  extent() != 1 for single value type: algo.buffers.pool-ids.values
+2025-12-29 22:26:21.156 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:21.156 19992-20140 CCodecConfig            com.example.myapplication            D  c2 config diff is Dict {
+                                                                                                      c2::u32 coded.bitrate.value = 64000
+                                                                                                      c2::u32 input.buffers.max-size.value = 8192
+                                                                                                      c2::u32 input.delay.value = 0
+                                                                                                      string input.media-type.value = "audio/mpeg"
+                                                                                                      c2::u32 output.large-frame.max-size = 0
+                                                                                                      c2::u32 output.large-frame.threshold-size = 0
+                                                                                                      string output.media-type.value = "audio/raw"
+                                                                                                      c2::u32 raw.channel-count.value = 2
+                                                                                                      c2::u32 raw.sample-rate.value = 44100
+                                                                                                    }
+2025-12-29 22:26:21.157 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 2
+2025-12-29 22:26:21.157 19992-20140 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) Component Allocated (c2.android.mp3.decoder)
+2025-12-29 22:26:21.160 19992-20140 MediaCodec              com.example.myapplication            I  MediaCodec will operate in async mode
+2025-12-29 22:26:21.162 19992-20128 MediaCodec              com.example.myapplication            I  [0xb400007771bed9c0] configure surface(0x0) crypto(0x0) flags(0)
+2025-12-29 22:26:21.162 19992-20128 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] configure format: AMessage(what = 0x00000000) = {
+                                                                                                          string log-session-id = "8L4fUusu515AUgDZ"
+                                                                                                          int32_t sample-rate = 44100
+                                                                                                          string mime = "audio/mpeg"
+                                                                                                          int32_t channel-count = 1
+                                                                                                          int32_t priority = 0
+                                                                                                          int32_t max-output-channel-count = 99
+                                                                                                          int32_t max-input-size = 4096
+                                                                                                        }
+2025-12-29 22:26:21.163 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 3
+2025-12-29 22:26:21.163 19992-20140 CCodec                  com.example.myapplication            D  [c2.android.mp3.decoder] buffers are bound to CCodec for this session
+2025-12-29 22:26:21.163 19992-20140 CCodecConfig            com.example.myapplication            D  no c2 equivalents for log-session-id
+2025-12-29 22:26:21.163 19992-20140 CCodecConfig            com.example.myapplication            D  no c2 equivalents for flags
+2025-12-29 22:26:21.163 19992-20140 CCodecConfig            com.example.myapplication            D  config failed => CORRUPTED
+2025-12-29 22:26:21.163 19992-20140 CCodecConfig            com.example.myapplication            D  c2 config diff is   c2::u32 raw.channel-count.value = 1
+2025-12-29 22:26:21.164 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1107298332.
+2025-12-29 22:26:21.164 19992-20140 CCodec                  com.example.myapplication            D  client requested max input size 4096, which is smaller than what component recommended (8192); overriding with component recommendation.
+2025-12-29 22:26:21.164 19992-20140 CCodec                  com.example.myapplication            W  This behavior is subject to change. It is recommended that app developers double check whether the requested max input size is in reasonable range.
+2025-12-29 22:26:21.164 19992-20140 CCodec                  com.example.myapplication            D  encoding statistics level = 0
+2025-12-29 22:26:21.164 19992-20140 CCodec                  com.example.myapplication            D  setup formats input: AMessage(what = 0x00000000) = {
+                                                                                                      int32_t bitrate = 64000
+                                                                                                      int32_t channel-count = 1
+                                                                                                      int32_t max-input-size = 8192
+                                                                                                      string mime = "audio/mpeg"
+                                                                                                      int32_t sample-rate = 44100
+                                                                                                    }
+2025-12-29 22:26:21.164 19992-20140 CCodec                  com.example.myapplication            D  setup formats output: AMessage(what = 0x00000000) = {
+                                                                                                      int32_t buffer-batch-max-output-size = 0
+                                                                                                      int32_t buffer-batch-threshold-output-size = 0
+                                                                                                      int32_t channel-count = 1
+                                                                                                      string mime = "audio/raw"
+                                                                                                      int32_t sample-rate = 44100
+                                                                                                      int32_t android._config-pcm-encoding = 2
+                                                                                                    }
+2025-12-29 22:26:21.164 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:21.164 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 4
+2025-12-29 22:26:21.165 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:21.165 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:21.165 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 5
+2025-12-29 22:26:21.165 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:21.165 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:21.166 19992-20140 C2Store                 com.example.myapplication            D  Using DMABUF Heaps
+2025-12-29 22:26:21.170 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] Created input block pool with allocatorID 16 => poolID 17 - OK (0)
+2025-12-29 22:26:21.171 19992-20140 CCodecBufferChannel     com.example.myapplication            I  [c2.android.mp3.decoder#348] Created output block pool with allocatorID 16 => poolID 6206 - OK
+2025-12-29 22:26:21.171 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] Configured output block pool ids 6206 => OK
+2025-12-29 22:26:21.171 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [0xb400007601a9c580] [c2.android.mp3.decoder#348] start: output->outputDelay 0, output->numSlots 4
+2025-12-29 22:26:21.171 19992-20140 CCodecBuffers           com.example.myapplication            D  [c2.android.mp3.decoder#348:1D-Output.Impl[N]] converted 0 buffers to array mode of 4
+2025-12-29 22:26:21.172 19992-20140 DMABUFHEAPS             com.example.myapplication            I  Using DMA-BUF heap named: mtk_mm
+2025-12-29 22:26:21.173 19992-20140 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) kWhatStartCompleted
+2025-12-29 22:26:21.173 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:21.184 19992-20140 PipelineWatcher         com.example.myapplication            D  [0xb400007601a9ca68] pipelineFull: too many frames in pipeline (4)
+2025-12-29 22:26:21.189 19992-20128 AudioTrack              com.example.myapplication            D  INSP: type=audio,case=1,set=0xb400007601a9e5b0,stream_type=-1,sample_rate=44100,format=0x1,channel_mask=0x1,frame_count=22620,flags=0x0,notification_frames=0,session_id=40809,transfer_type=3,uid=10602,pid=19992
+2025-12-29 22:26:21.189 19992-20128 AudioTrack              com.example.myapplication            D  INSP: type=audio,case=1,attributes=1,content_type=0,usage=1,source=-1,flags=0xa00
+2025-12-29 22:26:21.189 19992-20128 AudioTrack              com.example.myapplication            D  set(): streamType -1, sampleRate 44100, format 0x1, channelMask 0x1, frameCount 22620, flags 0, notificationFrames 0, sessionId 40809, transferType 3, uid 10602, pid 19992
+2025-12-29 22:26:21.202 19992-20128 AudioTrack              com.example.myapplication            D  createTrack_l(8579): 0xb400007601a9e5b0, mCblk = 0x783a604000, mLatency = 640, mAfLatency = 128, frameCount = 22620, mSampleRate = 44100, mFlags = 0x8, mReqFrameCount = 22620, mNotificationFramesAct = 1881
+2025-12-29 22:26:21.207 19992-20128 AudioTrack              com.example.myapplication            D  setVolume(8579): 0xb400007601a9e5b0, left = 0.010000, right = 0.010000
+2025-12-29 22:26:21.207 19992-20128 AudioTrack              com.example.myapplication            D  setVolume: mRelativePercentage:1.000000, left:0.010000, right:0.010000
+2025-12-29 22:26:21.209 19992-20128 AudioSystem             com.example.myapplication            D  +setParameters(): MAGT-Process=19992;MAGT-AudioThread=20128 
+2025-12-29 22:26:21.224 19992-20140 PipelineWatcher         com.example.myapplication            D  [0xb400007601a9ca68] pipelineFull: too many frames in pipeline (4)
+2025-12-29 22:26:21.357 19992-20128 AudioTrack              com.example.myapplication            D  start(8579): 0xb400007601a9e5b0, prior state:STATE_STOPPED
+2025-12-29 22:26:21.455 19992-20128 AudioTrack              com.example.myapplication            D  getTimestamp_l(8579): device stall time corrected using current time 333972036554213
+2025-12-29 22:26:21.579 19992-20140 PipelineWatcher         com.example.myapplication            D  [0xb400007601a9ca68] pipelineFull: too many frames in pipeline (4)
+2025-12-29 22:26:21.678 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:21.881 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:21.881 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:21.882 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:21.882 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:21.882 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:21.882 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:21.883 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:21.884 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:21.884 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:21.906 19992-20140 PipelineWatcher         com.example.myapplication            D  [0xb400007601a9ca68] pipelineFull: too many frames in pipeline (4)
+2025-12-29 22:26:22.007 19992-20140 PipelineWatcher         com.example.myapplication            D  [0xb400007601a9ca68] pipelineFull: too many frames in pipeline (4)
+2025-12-29 22:26:22.136 19992-20140 PipelineWatcher         com.example.myapplication            D  [0xb400007601a9ca68] pipelineFull: too many frames in pipeline (4)
+2025-12-29 22:26:22.226 19992-20140 PipelineWatcher         com.example.myapplication            D  [0xb400007601a9ca68] pipelineFull: too many frames in pipeline (4)
+2025-12-29 22:26:22.346 19992-20140 PipelineWatcher         com.example.myapplication            D  [0xb400007601a9ca68] pipelineFull: too many frames in pipeline (4)
+2025-12-29 22:26:22.477 19992-20140 PipelineWatcher         com.example.myapplication            D  [0xb400007601a9ca68] pipelineFull: too many frames in pipeline (4)
+2025-12-29 22:26:22.699 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:22.870 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:22.870 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:22.871 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:22.871 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:22.871 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:22.871 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:22.872 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:22.874 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:22.874 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:23.724 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:23.883 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:23.884 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:23.886 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:23.887 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:23.887 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:23.887 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:23.891 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:23.893 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:23.894 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:24.693 19992-19992 AudioService            com.example.myapplication            D  Bluetooth SCO DISCONNECTED
+2025-12-29 22:26:24.702 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:24.818 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:24.818 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:24.819 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:24.820 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:24.820 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:24.820 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:24.820 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:24.821 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:24.821 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:25.726 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:25.808 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:25.808 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:25.811 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:25.812 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:25.812 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:25.812 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:25.815 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:25.817 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:25.817 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:26.479 19992-20140 BufferPoolAccessor2.0   com.example.myapplication            D  bufferpool2 0xb4000075e16b8a88 : 5(40960 size) total buffers - 1(8192 size) used buffers - 247/252 (recycle/alloc) - 5/462 (fetch/transfer)
+2025-12-29 22:26:26.712 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:26.827 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:26.828 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:26.830 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:26.832 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:26.832 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:26.833 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:26.834 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:26.836 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:26.836 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:27.732 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:27.804 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:27.805 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:27.807 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:27.808 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:27.809 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:27.809 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:27.810 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:27.813 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:27.813 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:28.644 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:28.829 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:28.831 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:28.833 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:28.834 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:28.834 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:28.834 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:28.835 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:28.837 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:28.838 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:29.653 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:29.818 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:29.819 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:29.820 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:29.822 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:29.822 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:29.823 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:29.824 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:29.827 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:29.827 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:30.687 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:30.833 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:30.833 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:30.836 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:30.837 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:30.837 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:30.837 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:30.841 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:30.842 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:30.842 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:31.700 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:31.810 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:31.810 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:31.812 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:31.812 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:31.812 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:31.813 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:31.814 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:31.815 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:31.815 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:31.989 19992-20140 BufferPoolAccessor2.0   com.example.myapplication            D  bufferpool2 0xb4000075e16b8a88 : 5(40960 size) total buffers - 1(8192 size) used buffers - 490/495 (recycle/alloc) - 5/904 (fetch/transfer)
+2025-12-29 22:26:32.697 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:32.802 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:32.803 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:32.804 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:32.805 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:32.806 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:32.806 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:32.807 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:32.809 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:32.809 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:33.703 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:33.823 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:33.823 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:33.825 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:33.825 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:33.826 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:33.826 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:33.827 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:33.828 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:33.829 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:33.952 19992-19992 AudioService            com.example.myapplication            D  === MediaSession.onMediaButtonEvent CALLED ===
+2025-12-29 22:26:33.952 19992-19992 AudioService            com.example.myapplication            D  Intent action: android.intent.action.MEDIA_BUTTON
+2025-12-29 22:26:33.953 19992-19992 AudioService            com.example.myapplication            D  headsetControlEnabled: true
+2025-12-29 22:26:33.957 19992-19992 AudioService            com.example.myapplication            D  KeyEvent: keyCode=87 (KEYCODE_MEDIA_NEXT), action=0
+2025-12-29 22:26:33.957 19992-19992 AudioService            com.example.myapplication            D  MEDIA_NEXT no recording -> starting recording
+2025-12-29 22:26:33.957 19992-19992 AudioService            com.example.myapplication            D  🎧 Toque (NEXT) → iniciar grabación
+2025-12-29 22:26:33.961 19992-19992 ToneGenerator           com.example.myapplication            D  ToneGenerator constructor: streamType=3, volume=1.000000
+2025-12-29 22:26:33.963 19992-19992 ToneGenerator           com.example.myapplication            D  AudioTrack(0xb4000076016c7d50) created
+2025-12-29 22:26:33.964 19992-19992 AudioTrack              com.example.myapplication            D  INSP: type=audio,case=1,set=0xb4000076016c7d50,stream_type=-1,sample_rate=0,format=0x1,channel_mask=0x1,frame_count=960,flags=0x0,notification_frames=0,session_id=0,transfer_type=1,uid=-1,pid=-1
+2025-12-29 22:26:33.964 19992-19992 AudioTrack              com.example.myapplication            D  INSP: type=audio,case=1,attributes=1,content_type=0,usage=1,source=-1,flags=0x100
+2025-12-29 22:26:33.964 19992-19992 AudioTrack              com.example.myapplication            D  set(): streamType -1, sampleRate 0, format 0x1, channelMask 0x1, frameCount 960, flags 0, notificationFrames 0, sessionId 0, transferType 1, uid -1, pid -1
+2025-12-29 22:26:33.981 19992-19992 AudioTrack              com.example.myapplication            I  createTrack_l(0): AUDIO_OUTPUT_FLAG_FAST successful; frameCount 960 -> 960
+2025-12-29 22:26:33.982 19992-19992 AudioTrack              com.example.myapplication            D  createTrack_l(8580): 0xb4000076016c7d50, mCblk = 0x7848731000, mLatency = 78, mAfLatency = 58, frameCount = 960, mSampleRate = 48000, mFlags = 0x4, mReqFrameCount = 960, mNotificationFramesAct = 256
+2025-12-29 22:26:33.983 19992-19992 AudioTrack              com.example.myapplication            D  setVolume(8580): 0xb4000076016c7d50, left = 1.000000, right = 1.000000
+2025-12-29 22:26:33.983 19992-19992 AudioTrack              com.example.myapplication            D  setVolume: mRelativePercentage:1.000000, left:1.000000, right:1.000000
+2025-12-29 22:26:33.984 19992-19992 AudioService            com.example.myapplication            D  Playing feedback tone for click count: 1
+2025-12-29 22:26:33.984 19992-19992 AudioTrack              com.example.myapplication            D  start(8580): 0xb4000076016c7d50, prior state:STATE_STOPPED
+2025-12-29 22:26:34.011 19992-19992 AudioService            com.example.myapplication            D  🔍 Buscando micrófono Bluetooth (API moderna)...
+2025-12-29 22:26:34.015 19992-19992 AudioService            com.example.myapplication            D  Using modern Bluetooth SCO method (setCommunicationDevice)
+2025-12-29 22:26:34.018 19992-19992 AudioService            com.example.myapplication            D  📞 Modo audio: COMUNICACIÓN
+2025-12-29 22:26:34.021 19992-19992 AudioService            com.example.myapplication            D  Audio mode set to MODE_IN_COMMUNICATION (previous: 3)
+2025-12-29 22:26:34.021 19992-19992 AudioService            com.example.myapplication            D  📋 Dispositivos de entrada: 7
+2025-12-29 22:26:34.024 19992-19992 AudioService            com.example.myapplication            D  Searching 7 input devices for Bluetooth SCO...
+2025-12-29 22:26:34.024 19992-19992 AudioService            com.example.myapplication            D    • motorola razr 50 (MIC_INTERNO)
+2025-12-29 22:26:34.027 19992-19992 AudioService            com.example.myapplication            D  Input device: type=15 (SCO=7), name=motorola razr 50, isSource=true
+2025-12-29 22:26:34.027 19992-19992 AudioService            com.example.myapplication            D    • Redmi Buds 6 Active (BT_SCO ✓)
+2025-12-29 22:26:34.030 19992-19992 AudioService            com.example.myapplication            D  Input device: type=7 (SCO=7), name=Redmi Buds 6 Active, isSource=true
+2025-12-29 22:26:34.031 19992-19992 AudioService            com.example.myapplication            D  ✅ Encontrado SCO: Redmi Buds 6 Active
+2025-12-29 22:26:34.034 19992-19992 AudioService            com.example.myapplication            D  ✓ Found Bluetooth SCO device: Redmi Buds 6 Active
+2025-12-29 22:26:34.034 19992-19992 AudioService            com.example.myapplication            D  ⚙️ Configurando dispositivo: Redmi Buds 6 Active
+2025-12-29 22:26:34.038 19992-19992 AudioService            com.example.myapplication            D  ⚠️ setCommunicationDevice falló, probando método legacy...
+2025-12-29 22:26:34.040 19992-19992 AudioService            com.example.myapplication            W  setCommunicationDevice failed, trying legacy startBluetoothSco
+2025-12-29 22:26:34.041 19992-19992 AudioService            com.example.myapplication            D  🔍 Buscando micrófono Bluetooth (API legacy)...
+2025-12-29 22:26:34.044 19992-19992 AudioService            com.example.myapplication            D  📋 SCO disponible: SÍ
+2025-12-29 22:26:34.046 19992-19992 AudioService            com.example.myapplication            D  Bluetooth SCO available (legacy), starting...
+2025-12-29 22:26:34.047 19992-19992 AudioService            com.example.myapplication            D  Bluetooth SCO receiver already registered
+2025-12-29 22:26:34.047 19992-19992 AudioService            com.example.myapplication            D  📞 Modo audio: COMUNICACIÓN
+2025-12-29 22:26:34.049 19992-19992 AudioService            com.example.myapplication            D  Audio mode set to MODE_IN_COMMUNICATION (legacy)
+2025-12-29 22:26:34.050 19992-19992 AudioService            com.example.myapplication            D  🎧 Activando micrófono Bluetooth (esperando conexión)...
+2025-12-29 22:26:34.052 19992-19992 AudioService            com.example.myapplication            D  ⏳ Esperando conexión micrófono Bluetooth...
+2025-12-29 22:26:34.053 19992-19992 AudioService            com.example.myapplication            D  === MediaSession.onMediaButtonEvent CALLED ===
+2025-12-29 22:26:34.053 19992-19992 AudioService            com.example.myapplication            D  Intent action: android.intent.action.MEDIA_BUTTON
+2025-12-29 22:26:34.053 19992-19992 AudioService            com.example.myapplication            D  headsetControlEnabled: true
+2025-12-29 22:26:34.053 19992-19992 AudioService            com.example.myapplication            D  KeyEvent: keyCode=87 (KEYCODE_MEDIA_NEXT), action=1
+2025-12-29 22:26:34.053 19992-19992 AudioService            com.example.myapplication            D  Ignoring non-ACTION_DOWN event
+2025-12-29 22:26:34.069 19992-20247 AudioTrack              com.example.myapplication            D  stop(8580): 0xb4000076016c7d50, prior state:STATE_ACTIVE
+2025-12-29 22:26:34.069 19992-20247 AudioTrackShared        com.example.myapplication            D  this(0xb400007711700430), mCblk(0x7848731000), front(1280), mIsOut 1, interrupt() FUTEX_WAKE
+2025-12-29 22:26:34.070 19992-20247 AudioTrack              com.example.myapplication            D  stop(8580): 0xb4000076016c7d50 stop done
+2025-12-29 22:26:34.312 19992-19992 AudioTrack              com.example.myapplication            D  ~AudioTrack(8580): 0xb4000076016c7d50
+2025-12-29 22:26:34.312 19992-19992 AudioTrack              com.example.myapplication            D  stop(8580): 0xb4000076016c7d50, prior state:STATE_STOPPED
+2025-12-29 22:26:35.027 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:35.070 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:35.070 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:35.071 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:35.072 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:35.072 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:35.072 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:35.074 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:35.075 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:35.075 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:35.368 19992-19992 AudioService            com.example.myapplication            D  Bluetooth SCO CONNECTED
+2025-12-29 22:26:35.368 19992-19992 AudioService            com.example.myapplication            D  🎧 Micrófono Bluetooth conectado
+2025-12-29 22:26:35.376 19992-19992 AudioService            com.example.myapplication            D  Starting recording with Bluetooth mic
+2025-12-29 22:26:35.377 19992-19992 AudioService            com.example.myapplication            D  Starting recording...
+2025-12-29 22:26:35.384 19992-19992 AudioService            com.example.myapplication            D  Using Bluetooth microphone (VOICE_COMMUNICATION)
+2025-12-29 22:26:35.384 19992-19992 AudioService            com.example.myapplication            D  🎤 Grabando con micrófono Bluetooth
+2025-12-29 22:26:35.394 19992-19992 MediaRecorder           com.example.myapplication            D  constructor+ 0xb4000076716b7390
+2025-12-29 22:26:35.402 19992-19992 MediaRecorder           com.example.myapplication            D  constructor- 0xb4000076716b7390
+2025-12-29 22:26:35.403 19992-19992 MediaRecorder           com.example.myapplication            D  init+ 0xb4000076716b7390
+2025-12-29 22:26:35.413 19992-19992 MediaRecorder           com.example.myapplication            D  init- 0xb4000076716b7390
+2025-12-29 22:26:35.419 19992-19992 MediaRecorder           com.example.myapplication            D  prepare+ 0xb4000076716b7390
+2025-12-29 22:26:35.419 19992-19992 MediaRecorder           com.example.myapplication            D  prepare- 0xb4000076716b7390
+2025-12-29 22:26:35.419 19992-19992 MediaRecorder           com.example.myapplication            D  start+ 0xb4000076716b7390
+2025-12-29 22:26:35.707 19992-19992 MediaRecorder           com.example.myapplication            D  start- 0xb4000076716b7390
+2025-12-29 22:26:35.711 19992-19992 CompatChangeReporter    com.example.myapplication            D  Compat change id reported: 263076149; UID 10602; state: ENABLED
+2025-12-29 22:26:35.715 19992-19992 AudioService            com.example.myapplication            D  === ACTIVE RECORDING DEVICE ===
+2025-12-29 22:26:35.715 19992-19992 AudioService            com.example.myapplication            D  Device: Redmi Buds 6 Active
+2025-12-29 22:26:35.715 19992-19992 AudioService            com.example.myapplication            D  Type: 7
+2025-12-29 22:26:35.715 19992-19992 AudioService            com.example.myapplication            D  📍 Dispositivo activo: Redmi Buds 6 Active
+2025-12-29 22:26:35.722 19992-19992 AudioService            com.example.myapplication            D  Broadcasting ACTION_RECORDING_STARTED to package com.example.myapplication
+2025-12-29 22:26:35.722 19992-19992 AudioService            com.example.myapplication            D  Recording started - Broadcast sent
+2025-12-29 22:26:35.723 19992-19992 ToneGenerator           com.example.myapplication            D  ToneGenerator constructor: streamType=3, volume=1.000000
+2025-12-29 22:26:35.724 19992-19992 ToneGenerator           com.example.myapplication            D  AudioTrack(0xb4000076016c7d50) created
+2025-12-29 22:26:35.724 19992-19992 AudioTrack              com.example.myapplication            D  INSP: type=audio,case=1,set=0xb4000076016c7d50,stream_type=-1,sample_rate=0,format=0x1,channel_mask=0x1,frame_count=960,flags=0x0,notification_frames=0,session_id=0,transfer_type=1,uid=-1,pid=-1
+2025-12-29 22:26:35.724 19992-19992 AudioTrack              com.example.myapplication            D  INSP: type=audio,case=1,attributes=1,content_type=0,usage=1,source=-1,flags=0x100
+2025-12-29 22:26:35.724 19992-19992 AudioTrack              com.example.myapplication            D  set(): streamType -1, sampleRate 0, format 0x1, channelMask 0x1, frameCount 960, flags 0, notificationFrames 0, sessionId 0, transferType 1, uid -1, pid -1
+2025-12-29 22:26:35.727 19992-19992 AudioTrack              com.example.myapplication            I  createTrack_l(0): AUDIO_OUTPUT_FLAG_FAST successful; frameCount 960 -> 960
+2025-12-29 22:26:35.727 19992-19992 AudioTrack              com.example.myapplication            D  createTrack_l(8584): 0xb4000076016c7d50, mCblk = 0x7848731000, mLatency = 203, mAfLatency = 183, frameCount = 960, mSampleRate = 48000, mFlags = 0x4, mReqFrameCount = 960, mNotificationFramesAct = 256
+2025-12-29 22:26:35.728 19992-19992 AudioTrack              com.example.myapplication            D  setVolume(8584): 0xb4000076016c7d50, left = 1.000000, right = 1.000000
+2025-12-29 22:26:35.728 19992-19992 AudioTrack              com.example.myapplication            D  setVolume: mRelativePercentage:1.000000, left:1.000000, right:1.000000
+2025-12-29 22:26:35.728 19992-19992 AudioService            com.example.myapplication            D  Playing recording START feedback
+2025-12-29 22:26:35.728 19992-19992 AudioTrack              com.example.myapplication            D  start(8584): 0xb4000076016c7d50, prior state:STATE_STOPPED
+2025-12-29 22:26:35.737 19992-19992 AudioManager            com.example.myapplication            D  dispatching onAudioFocusChange(-1) to android.media.AudioManager@c102263com.example.myapplication.AudioService$$ExternalSyntheticLambda2@8eafe60
+2025-12-29 22:26:35.740 19992-19992 MainActivity            com.example.myapplication            D  Recording started, isRecording = true
+2025-12-29 22:26:35.740 19992-19992 MainActivity            com.example.myapplication            D  updateButtonStates() called - isRecording: true
+2025-12-29 22:26:35.740 19992-19992 MainActivity            com.example.myapplication            E  UPDATE_BUTTON: updateButtonStates() called - isRecording: true
+2025-12-29 22:26:35.740 19992-19992 MainActivity            com.example.myapplication            D  Setting button to recording state (red)
+2025-12-29 22:26:35.740 19992-19992 MainActivity            com.example.myapplication            E  UPDATE_BUTTON: Setting button to recording state (red)
+2025-12-29 22:26:35.908 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:35.922 19992-20261 AudioTrack              com.example.myapplication            D  stop(8584): 0xb4000076016c7d50, prior state:STATE_ACTIVE
+2025-12-29 22:26:35.922 19992-20261 AudioTrackShared        com.example.myapplication            D  this(0xb4000077116a1e70), mCblk(0x7848731000), front(8960), mIsOut 1, interrupt() FUTEX_WAKE
+2025-12-29 22:26:35.922 19992-20261 AudioTrack              com.example.myapplication            D  stop(8584): 0xb4000076016c7d50 stop done
+2025-12-29 22:26:36.036 19992-19992 AudioTrack              com.example.myapplication            D  ~AudioTrack(8584): 0xb4000076016c7d50
+2025-12-29 22:26:36.039 19992-19992 AudioTrack              com.example.myapplication            D  stop(8584): 0xb4000076016c7d50, prior state:STATE_STOPPED
+2025-12-29 22:26:36.104 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:36.104 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:36.105 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:36.106 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:36.106 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:36.106 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:36.107 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:36.108 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:36.108 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:36.922 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:37.091 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:37.091 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:37.093 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:37.093 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:37.094 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:37.094 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:37.096 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:37.098 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:37.098 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:37.216 19992-20140 BufferPoolAccessor2.0   com.example.myapplication            D  bufferpool2 0xb4000075e16b8a88 : 5(40960 size) total buffers - 1(8192 size) used buffers - 707/712 (recycle/alloc) - 15/1302 (fetch/transfer)
+2025-12-29 22:26:37.923 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:38.112 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:38.112 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:38.113 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:38.114 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:38.114 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:38.114 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:38.115 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:38.116 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:38.116 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:38.930 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:39.097 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:39.098 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:39.100 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:39.102 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:39.102 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:39.102 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:39.104 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:39.107 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:39.107 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:39.531 19992-19992 AudioService            com.example.myapplication            D  Bluetooth SCO DISCONNECTED
+2025-12-29 22:26:39.917 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:40.081 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:40.081 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:40.085 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:40.086 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:40.087 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:40.087 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:40.089 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:40.090 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:40.090 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:40.937 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:41.059 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:41.060 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:41.062 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:41.065 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:41.065 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:41.065 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:41.067 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:41.069 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:41.069 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:41.966 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:42.046 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:42.046 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:42.049 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:42.050 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:42.050 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:42.051 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:42.053 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:42.055 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:42.056 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:42.724 19992-20140 BufferPoolAccessor2.0   com.example.myapplication            D  bufferpool2 0xb4000075e16b8a88 : 5(40960 size) total buffers - 1(8192 size) used buffers - 946/951 (recycle/alloc) - 15/1742 (fetch/transfer)
+2025-12-29 22:26:42.736 19992-20140 PipelineWatcher         com.example.myapplication            D  [0xb400007601a9ca68] pipelineFull: too many frames in pipeline (4)
+2025-12-29 22:26:42.956 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:43.059 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:43.060 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:43.063 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:43.064 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:43.064 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:43.064 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:43.065 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:43.067 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:43.067 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.
+2025-12-29 22:26:43.978 19992-20140 CCodecBufferChannel     com.example.myapplication            D  [c2.android.mp3.decoder#348] input EOS
+2025-12-29 22:26:44.043 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) flush
+2025-12-29 22:26:44.044 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 7
+2025-12-29 22:26:44.046 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 8
+2025-12-29 22:26:44.046 19992-20128 MediaCodec              com.example.myapplication            I  (0xb400007771bed9c0) start
+2025-12-29 22:26:44.046 19992-20128 MediaCodec              com.example.myapplication            D  keep callback message for reclaim
+2025-12-29 22:26:44.046 19992-20140 MediaCodec              com.example.myapplication            D  [0xb400007771bed9c0] setState: 6
+2025-12-29 22:26:44.048 19992-20140 CCodecConfig            com.example.myapplication            I  query failed after returning 8 values (BAD_INDEX)
+2025-12-29 22:26:44.049 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 1342179345.
+2025-12-29 22:26:44.049 19992-20140 Codec2Client            com.example.myapplication            W  query -- param skipped: index = 2415921170.

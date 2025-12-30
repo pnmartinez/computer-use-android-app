@@ -43,9 +43,13 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
 
-    // ExoPlayer
-    implementation("com.google.android.exoplayer:exoplayer-core:2.18.7")
-    implementation("com.google.android.exoplayer:exoplayer:2.18.7")
+    // Media3 (ExoPlayer)
+    val media3Version = "1.2.1"
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-ui:$media3Version")
+    implementation("androidx.media3:media3-common:$media3Version")
+    implementation("androidx.media3:media3-session:$media3Version")
+    implementation("androidx.media:media:1.6.0")
 
     // Original dependencies
     implementation(libs.androidx.core.ktx)
