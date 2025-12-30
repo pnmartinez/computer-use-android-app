@@ -1344,6 +1344,10 @@ class AudioService : Service() {
         pendingRecordingAfterSco = false
     }
 
+    // Timer para auto-detener grabación en modo manos libres
+    private var recordingTimeoutHandler: Handler? = null
+    private val RECORDING_TIMEOUT_MS = 15000L  // 15 segundos máximo de grabación
+    
     private fun startRecording() {
         if (isRecording) {
             sendLogMessage(getString(R.string.already_recording))
@@ -1354,48 +1358,81 @@ class AudioService : Service() {
         Log.d("AudioService", "startRecording() called, headsetControlEnabled=$headsetControlEnabled")
         
         if (headsetControlEnabled) {
-            // Intentar activar SCO SIN cambiar modo de audio
-            // Esto podría permitir usar mic BT sin bloquear botones
-            activateScoWithoutModeChange()
+            // Activar SCO CON MODE_IN_COMMUNICATION para usar mic BT
+            // Los botones no funcionarán durante la grabación, pero usamos timeout automático
+            activateBluetoothMicForRecording()
+            
+            // Configurar timeout automático para detener grabación
+            // Ya que los botones no funcionan en MODE_IN_COMMUNICATION
+            setupRecordingTimeout()
         }
         
         startRecordingInternal()
     }
     
     /**
-     * Activa Bluetooth SCO sin cambiar el modo de audio a MODE_IN_COMMUNICATION.
-     * Esto es un intento de usar el micrófono BT sin bloquear los eventos de botones.
+     * Activa el micrófono Bluetooth con MODE_IN_COMMUNICATION.
+     * NOTA: Esto bloquea los botones de media, por eso usamos timeout automático.
      */
     @Suppress("DEPRECATION")
-    private fun activateScoWithoutModeChange() {
+    private fun activateBluetoothMicForRecording() {
         try {
-            Log.d("AudioService", "Activating SCO WITHOUT mode change")
+            Log.d("AudioService", "Activating Bluetooth mic WITH MODE_IN_COMMUNICATION")
             sendLogMessage("🔵 Activando micrófono Bluetooth...")
             
-            // Solo llamar startBluetoothSco, NO cambiar audioManager.mode
+            // Guardar modo anterior
+            val previousMode = audioManager.mode
+            
+            // Cambiar a modo comunicación (necesario para mic BT)
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            Log.d("AudioService", "Mode changed from $previousMode to MODE_IN_COMMUNICATION")
+            
+            // Activar SCO
             if (!audioManager.isBluetoothScoOn) {
                 audioManager.startBluetoothSco()
                 Log.d("AudioService", "startBluetoothSco() called")
                 
-                // Esperar un poco para que SCO se active
-                Thread.sleep(300)
-                
-                if (audioManager.isBluetoothScoOn) {
-                    sendLogMessage("✅ SCO activado (modo: ${audioManager.mode})")
-                    Log.d("AudioService", "SCO activated, mode=${audioManager.mode}")
-                    isBluetoothScoOn = true
-                } else {
-                    sendLogMessage("⚠️ SCO no se activó")
-                    Log.d("AudioService", "SCO did not activate")
-                }
-            } else {
-                sendLogMessage("✅ SCO ya estaba activo")
+                // Esperar a que SCO se active
+                Thread.sleep(500)
+            }
+            
+            if (audioManager.isBluetoothScoOn) {
+                sendLogMessage("✅ Micrófono Bluetooth activado")
+                sendLogMessage("⏱️ Grabación máx: ${RECORDING_TIMEOUT_MS/1000}s")
+                Log.d("AudioService", "SCO activated successfully")
                 isBluetoothScoOn = true
+            } else {
+                sendLogMessage("⚠️ Usando micrófono del dispositivo")
+                Log.d("AudioService", "SCO not available, using device mic")
             }
         } catch (e: Exception) {
-            Log.e("AudioService", "Error activating SCO: ${e.message}", e)
-            sendLogMessage("❌ Error SCO: ${e.message}")
+            Log.e("AudioService", "Error activating Bluetooth mic: ${e.message}", e)
+            sendLogMessage("❌ Error: ${e.message}")
         }
+    }
+    
+    /**
+     * Configura un timeout para detener automáticamente la grabación.
+     * Necesario porque los botones no funcionan en MODE_IN_COMMUNICATION.
+     */
+    private fun setupRecordingTimeout() {
+        recordingTimeoutHandler?.removeCallbacksAndMessages(null)
+        recordingTimeoutHandler = Handler(Looper.getMainLooper())
+        
+        recordingTimeoutHandler?.postDelayed({
+            if (isRecording) {
+                Log.d("AudioService", "Recording timeout reached, stopping automatically")
+                sendLogMessage("⏱️ Tiempo máximo alcanzado")
+                stopRecordingAndSend()
+            }
+        }, RECORDING_TIMEOUT_MS)
+        
+        Log.d("AudioService", "Recording timeout set for ${RECORDING_TIMEOUT_MS}ms")
+    }
+    
+    private fun cancelRecordingTimeout() {
+        recordingTimeoutHandler?.removeCallbacksAndMessages(null)
+        recordingTimeoutHandler = null
     }
     
     /**
@@ -1523,6 +1560,10 @@ class AudioService : Service() {
             Log.w("AudioService", getString(R.string.no_recording_in_progress))
             return
         }
+        
+        // Cancelar timeout si existe
+        cancelRecordingTimeout()
+        
         try {
             sendLogMessage(getString(R.string.stopping_recording))
             recorder?.stop()
@@ -1534,6 +1575,14 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            
+            // Restaurar modo de audio normal y detener SCO
+            if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
+                audioManager.mode = AudioManager.MODE_NORMAL
+                Log.d("AudioService", "Audio mode restored to MODE_NORMAL")
+            }
+            stopBluetoothSco()
+            
             abandonAudioFocus()
             
             // Update notification
@@ -1567,6 +1616,10 @@ class AudioService : Service() {
             sendLogMessage(getString(R.string.no_recording_in_progress_for_cancel))
             return
         }
+        
+        // Cancelar timeout si existe
+        cancelRecordingTimeout()
+        
         try {
             sendLogMessage(getString(R.string.canceling_recording))
             recorder?.stop()
@@ -1578,6 +1631,14 @@ class AudioService : Service() {
             recorder?.release()
             recorder = null
             isRecording = false
+            
+            // Restaurar modo de audio normal y detener SCO
+            if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
+                audioManager.mode = AudioManager.MODE_NORMAL
+                Log.d("AudioService", "Audio mode restored to MODE_NORMAL")
+            }
+            stopBluetoothSco()
+            
             abandonAudioFocus()
             
             // Update notification
