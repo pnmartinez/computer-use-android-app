@@ -629,17 +629,19 @@
         app:headerLayout="@layout/drawer_header"
         app:menu="@menu/drawer_menu">
 
-        <!-- Footer for handsfree mode -->
+        <!-- Footer for handsfree mode - positioned at bottom -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingBottom="16dp">
 
             <include layout="@layout/drawer_footer" />
 
         </LinearLayout>
 
     </com.google.android.material.navigation.NavigationView>
+
 
 </androidx.drawerlayout.widget.DrawerLayout>
