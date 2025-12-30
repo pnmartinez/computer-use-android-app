@@ -1377,34 +1377,50 @@ class AudioService : Service() {
     @Suppress("DEPRECATION")
     private fun activateBluetoothMicForRecording() {
         try {
-            Log.d("AudioService", "Activating Bluetooth mic WITH MODE_IN_COMMUNICATION")
+            Log.d("AudioService", "=== ACTIVATING BLUETOOTH MIC ===")
             sendLogMessage("🔵 Activando micrófono Bluetooth...")
             
-            // Guardar modo anterior
+            // 1. Primero cambiar a modo comunicación (CRÍTICO para mic BT)
             val previousMode = audioManager.mode
-            
-            // Cambiar a modo comunicación (necesario para mic BT)
             audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-            Log.d("AudioService", "Mode changed from $previousMode to MODE_IN_COMMUNICATION")
+            Log.d("AudioService", "Audio mode: $previousMode -> MODE_IN_COMMUNICATION (3)")
+            sendLogMessage("📞 Modo: COMUNICACIÓN")
             
-            // Activar SCO
-            if (!audioManager.isBluetoothScoOn) {
-                audioManager.startBluetoothSco()
-                Log.d("AudioService", "startBluetoothSco() called")
-                
-                // Esperar a que SCO se active
-                Thread.sleep(500)
+            // 2. Activar SCO
+            Log.d("AudioService", "Current SCO state: ${audioManager.isBluetoothScoOn}")
+            audioManager.startBluetoothSco()
+            Log.d("AudioService", "startBluetoothSco() called")
+            
+            // 3. Esperar a que SCO se active (puede tomar hasta 2 segundos)
+            var scoActivated = false
+            for (i in 1..10) {
+                Thread.sleep(200)
+                if (audioManager.isBluetoothScoOn) {
+                    scoActivated = true
+                    Log.d("AudioService", "SCO activated after ${i * 200}ms")
+                    break
+                }
+                Log.d("AudioService", "Waiting for SCO... attempt $i")
             }
             
-            if (audioManager.isBluetoothScoOn) {
-                sendLogMessage("✅ Micrófono Bluetooth activado")
+            if (scoActivated) {
+                sendLogMessage("✅ SCO activado")
                 sendLogMessage("⏱️ Grabación máx: ${RECORDING_TIMEOUT_MS/1000}s")
                 Log.d("AudioService", "SCO activated successfully")
                 isBluetoothScoOn = true
             } else {
-                sendLogMessage("⚠️ Usando micrófono del dispositivo")
-                Log.d("AudioService", "SCO not available, using device mic")
+                sendLogMessage("⚠️ SCO no se activó, intentando grabar igual...")
+                Log.w("AudioService", "SCO did not activate, will try recording anyway")
+                // Mantener MODE_IN_COMMUNICATION de todos modos, puede funcionar
             }
+            
+            // 4. Listar dispositivos de entrada disponibles
+            val inputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            Log.d("AudioService", "Available input devices: ${inputDevices.size}")
+            for (device in inputDevices) {
+                Log.d("AudioService", "  - ${device.productName} (type=${device.type})")
+            }
+            
         } catch (e: Exception) {
             Log.e("AudioService", "Error activating Bluetooth mic: ${e.message}", e)
             sendLogMessage("❌ Error: ${e.message}")
@@ -1455,28 +1471,27 @@ class AudioService : Service() {
     
     /**
      * Inicia la grabación de audio.
-     * Si hay micrófono Bluetooth disponible, intenta usarlo con setPreferredDevice.
-     * NO cambia el modo de audio a MODE_IN_COMMUNICATION para mantener los botones activos.
+     * En modo manos libres: usa VOICE_COMMUNICATION + setPreferredDevice para mic BT.
+     * En modo normal: usa MIC estándar.
      */
     @Suppress("DEPRECATION")
     private fun startRecordingInternal() {
         try {
             sendLogMessage(getString(R.string.starting_recording))
-            Log.d("AudioService", "startRecordingInternal() - starting")
+            Log.d("AudioService", "startRecordingInternal() - headsetControlEnabled=$headsetControlEnabled")
             try {
-                // NO llamar requestAudioFocus aquí - el enableHeadsetControlMode ya lo hizo
-                // y no queremos interferir con el silent playback
-                
-                // Seleccionar fuente de audio según estado de SCO
-                val audioSource = if (isBluetoothScoOn) {
-                    sendLogMessage("🎤 Usando VOICE_COMMUNICATION (BT)")
-                    Log.d("AudioService", "Using VOICE_COMMUNICATION source for Bluetooth")
+                // En modo manos libres, usar VOICE_COMMUNICATION para capturar del mic BT
+                // En modo normal, usar MIC estándar
+                val audioSource = if (headsetControlEnabled) {
+                    Log.d("AudioService", "Handsfree mode: using VOICE_COMMUNICATION")
                     MediaRecorder.AudioSource.VOICE_COMMUNICATION
                 } else {
-                    sendLogMessage("🎤 Usando micrófono del dispositivo")
-                    Log.d("AudioService", "Using MIC source for device microphone")
+                    Log.d("AudioService", "Normal mode: using MIC")
                     MediaRecorder.AudioSource.MIC
                 }
+                
+                // Buscar micrófono Bluetooth para setPreferredDevice
+                val bluetoothMic = if (headsetControlEnabled) findBluetoothMicrophone() else null
                 
                 recorder = MediaRecorder().apply {
                     setAudioSource(audioSource)
@@ -1484,26 +1499,32 @@ class AudioService : Service() {
                     setAudioEncoder(MediaRecorder.AudioEncoder.OPUS)
                     setOutputFile(getAudioFile().absolutePath)
                     
-                    // Si SCO está activo, intentar setPreferredDevice al mic BT
-                    if (isBluetoothScoOn) {
-                        findBluetoothMicrophone()?.let { btMic ->
-                            Log.d("AudioService", "Setting preferred device: ${btMic.productName}")
-                            setPreferredDevice(btMic)
-                        }
+                    // En modo manos libres, forzar uso del micrófono Bluetooth si está disponible
+                    if (bluetoothMic != null) {
+                        Log.d("AudioService", "Setting preferred device to BT: ${bluetoothMic.productName}")
+                        sendLogMessage("🎤 Mic BT: ${bluetoothMic.productName}")
+                        setPreferredDevice(bluetoothMic)
+                    } else if (headsetControlEnabled) {
+                        sendLogMessage("⚠️ No se encontró mic BT, usando dispositivo")
+                        Log.w("AudioService", "No Bluetooth mic found, using default")
                     }
                     
                     prepare()
                     start()
                 }
                 isRecording = true
-                Log.d("AudioService", "Recording started, isRecording=$isRecording, scoOn=$isBluetoothScoOn")
+                Log.d("AudioService", "Recording started successfully")
                 
-                // Verificar dispositivo activo
-                recorder?.activeRecordingConfiguration?.let { config ->
-                    val device = config.audioDevice
-                    sendLogMessage("📍 Grabando: ${device?.productName ?: "Desconocido"}")
-                    Log.d("AudioService", "Active device: ${device?.productName}, type=${device?.type}")
-                }
+                // Verificar qué dispositivo se está usando realmente
+                Handler(Looper.getMainLooper()).postDelayed({
+                    recorder?.activeRecordingConfiguration?.let { config ->
+                        val device = config.audioDevice
+                        val deviceName = device?.productName?.toString() ?: "Desconocido"
+                        val deviceType = device?.type ?: -1
+                        sendLogMessage("📍 Grabando con: $deviceName (tipo: $deviceType)")
+                        Log.d("AudioService", "Active recording device: $deviceName, type=$deviceType")
+                    }
+                }, 200)
                 
                 // Update notification to reflect recording state
                 (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
