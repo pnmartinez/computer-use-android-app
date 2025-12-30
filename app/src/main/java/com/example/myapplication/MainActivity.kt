@@ -674,28 +674,74 @@ class MainActivity : AppCompatActivity() {
     
     private fun setupHandsfreeSwitchListener() {
         drawerHandsfreeSwitch.setOnCheckedChangeListener { _, isChecked ->
-            val action = if (isChecked) {
-                AudioService.ACTION_ENABLE_HEADSET_CONTROL
+            if (isChecked) {
+                // Mostrar diálogo de advertencia al activar modo manos libres
+                showHandsfreeBetaDialog()
             } else {
-                AudioService.ACTION_DISABLE_HEADSET_CONTROL
+                // Desactivar directamente
+                activateHandsfreeMode(false)
             }
-            headsetControlPending = true
-            drawerHandsfreeSwitch.isEnabled = false
-            addLogMessage("[${getCurrentTime()}] ${getString(R.string.headset_control_status_pending)}")
-            headsetControlTimeout?.let { headsetControlHandler.removeCallbacks(it) }
-            headsetControlTimeout = Runnable {
-                if (headsetControlPending) {
-                    headsetControlPending = false
-                    drawerHandsfreeSwitch.isEnabled = true
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.headset_control_status_timeout)}")
-                }
-            }
-            headsetControlHandler.postDelayed(headsetControlTimeout!!, 3000)
-            startAudioService(this, action)
-            headsetControlHandler.postDelayed({
-                startAudioService(this, AudioService.ACTION_QUERY_HEADSET_CONTROL_STATUS)
-            }, 250)
         }
+    }
+    
+    private fun showHandsfreeBetaDialog() {
+        // Revertir el switch temporalmente hasta que el usuario confirme
+        drawerHandsfreeSwitch.setOnCheckedChangeListener(null)
+        drawerHandsfreeSwitch.isChecked = false
+        setupHandsfreeSwitchListener()
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("🎧 Modo Manos Libres (Beta)")
+            .setMessage(
+                "⚠️ FUNCIONALIDAD EN BETA\n\n" +
+                "Este modo permite controlar la app con los auriculares Bluetooth.\n\n" +
+                "📱 Cómo funciona:\n" +
+                "• Toca el botón del auricular para grabar\n" +
+                "• La grabación se detiene automáticamente tras 15 segundos\n" +
+                "• El audio se envía al servidor automáticamente\n\n" +
+                "⚡ Limitación técnica:\n" +
+                "Durante la grabación, los botones del auricular no responden " +
+                "(es una limitación de Android con el micrófono Bluetooth).\n\n" +
+                "🎤 Usa el micrófono de tus auriculares Bluetooth."
+            )
+            .setPositiveButton("Entendido") { _, _ ->
+                activateHandsfreeMode(true)
+            }
+            .setNegativeButton("Cancelar", null)
+            .setCancelable(true)
+            .show()
+    }
+    
+    private fun activateHandsfreeMode(enable: Boolean) {
+        val action = if (enable) {
+            AudioService.ACTION_ENABLE_HEADSET_CONTROL
+        } else {
+            AudioService.ACTION_DISABLE_HEADSET_CONTROL
+        }
+        headsetControlPending = true
+        drawerHandsfreeSwitch.isEnabled = false
+        
+        // Actualizar el switch si estamos activando
+        if (enable) {
+            drawerHandsfreeSwitch.setOnCheckedChangeListener(null)
+            drawerHandsfreeSwitch.isChecked = true
+            setupHandsfreeSwitchListener()
+        }
+        
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.headset_control_status_pending)}")
+        headsetControlTimeout?.let { headsetControlHandler.removeCallbacks(it) }
+        headsetControlTimeout = Runnable {
+            if (headsetControlPending) {
+                headsetControlPending = false
+                drawerHandsfreeSwitch.isEnabled = true
+                addLogMessage("[${getCurrentTime()}] ${getString(R.string.headset_control_status_timeout)}")
+            }
+        }
+        headsetControlHandler.postDelayed(headsetControlTimeout!!, 3000)
+        startAudioService(this, action)
+        headsetControlHandler.postDelayed({
+            startAudioService(this, AudioService.ACTION_QUERY_HEADSET_CONTROL_STATUS)
+        }, 250)
     }
     
     private fun setupButtonListeners() {
