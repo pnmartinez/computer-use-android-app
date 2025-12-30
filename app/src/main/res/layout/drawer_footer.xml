@@ -7,7 +7,7 @@
     android:background="?attr/colorSurface"
     android:paddingHorizontal="16dp"
     android:paddingTop="8dp"
-    android:paddingBottom="16dp">
+    android:paddingBottom="@dimen/drawer_footer_padding_bottom">
 
     <!-- Divider -->
     <View
