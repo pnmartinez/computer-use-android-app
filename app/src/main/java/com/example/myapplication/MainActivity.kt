@@ -690,26 +690,22 @@ class MainActivity : AppCompatActivity() {
         drawerHandsfreeSwitch.isChecked = false
         setupHandsfreeSwitchListener()
         
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("🎧 Modo Manos Libres (Beta)")
-            .setMessage(
-                "⚠️ FUNCIONALIDAD EN BETA\n\n" +
-                "Este modo permite controlar la app con los auriculares Bluetooth.\n\n" +
-                "📱 Cómo funciona:\n" +
-                "• Toca el botón del auricular para grabar\n" +
-                "• La grabación se detiene automáticamente tras 15 segundos\n" +
-                "• El audio se envía al servidor automáticamente\n\n" +
-                "⚡ Limitación técnica:\n" +
-                "Durante la grabación, los botones del auricular no responden " +
-                "(es una limitación de Android con el micrófono Bluetooth).\n\n" +
-                "🎤 Usa el micrófono de tus auriculares Bluetooth."
-            )
-            .setPositiveButton("Entendido") { _, _ ->
-                activateHandsfreeMode(true)
-            }
-            .setNegativeButton("Cancelar", null)
-            .setCancelable(true)
-            .show()
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_handsfree_beta)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.setCancelable(true)
+
+        dialog.findViewById<MaterialButton>(R.id.btnHandsfreeBetaConfirm).setOnClickListener {
+            dialog.dismiss()
+            activateHandsfreeMode(true)
+        }
+        dialog.findViewById<MaterialButton>(R.id.btnHandsfreeBetaCancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
     
     private fun activateHandsfreeMode(enable: Boolean) {

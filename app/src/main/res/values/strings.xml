@@ -296,6 +296,14 @@
     <string name="headset_feedback_enabled">Feedback auditivo en auriculares</string>
     <string name="headset_feedback_enabled_on">Feedback auditivo activado</string>
     <string name="headset_feedback_enabled_off">Feedback auditivo desactivado</string>
+    
+    <!-- Handsfree Beta Dialog -->
+    <string name="handsfree_dialog_title">Manos Libres</string>
+    <string name="handsfree_dialog_beta_tag">⚡ Funcionalidad Beta</string>
+    <string name="handsfree_dialog_info">👆 Toca el auricular → graba 15s\n🎤 Usa micrófono Bluetooth\n📤 Envío automático al terminar</string>
+    <string name="handsfree_dialog_warning">⚠️ Durante la grabación los botones no responden (limitación Android)</string>
+    <string name="handsfree_dialog_confirm">Activar</string>
+    <string name="handsfree_dialog_cancel">Cancelar</string>
 
     <!-- Favorites functionality -->
     <string name="favorites_title">Favorites</string>
