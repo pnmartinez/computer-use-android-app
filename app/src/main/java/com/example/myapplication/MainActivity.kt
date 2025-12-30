@@ -90,6 +90,10 @@ class MainActivity : AppCompatActivity() {
     private var headsetControlTimeout: Runnable? = null
     private var headsetControlPending = false
     
+    // Countdown timer for handsfree recording
+    private var recordingCountdownTimer: android.os.CountDownTimer? = null
+    private val HANDSFREE_RECORDING_TIMEOUT_MS = 15000L
+    
     // Logs - Find ScrollView directly by ID
     private lateinit var logsTextView: TextView
     private lateinit var btnClearLogs: MaterialButton
@@ -147,9 +151,16 @@ class MainActivity : AppCompatActivity() {
                     isRecording = true
                     Log.d("MainActivity", "Recording started, isRecording = $isRecording")
                     updateButtonStates()
+                    
+                    // Start countdown timer if in handsfree mode
+                    if (headsetControlEnabled) {
+                        startRecordingCountdown()
+                    }
                 }
                 AudioService.ACTION_RECORDING_STOPPED -> {
                     Log.d("MainActivity", "Recording stopped, showing processing state")
+                    // Cancel countdown timer
+                    cancelRecordingCountdown()
                     // Show the processing state when recording is stopped and we're waiting for the server response
                     showProcessingState()
                     addLogMessage("[${getCurrentTime()}] ${getString(R.string.recording_finished_processing)}")
@@ -387,6 +398,9 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             // Receiver might not be registered
         }
+        
+        // Cancel countdown timer to avoid memory leaks
+        cancelRecordingCountdown()
         
         // Save logs state
         saveLogsState()
@@ -628,6 +642,36 @@ class MainActivity : AppCompatActivity() {
             // Set the default background color to Android's default dark green
             btnStartRecording.setBackgroundColor(Color.parseColor("#006400"));
         }
+    }
+    
+    private fun startRecordingCountdown() {
+        cancelRecordingCountdown() // Cancel any existing timer
+        
+        recordingCountdownTimer = object : android.os.CountDownTimer(HANDSFREE_RECORDING_TIMEOUT_MS, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val secondsRemaining = (millisUntilFinished / 1000).toInt()
+                runOnUiThread {
+                    // Update button text with countdown
+                    btnStartRecording.text = "${secondsRemaining}s"
+                    btnStartRecording.icon = null // Remove icon to make room for number
+                }
+            }
+            
+            override fun onFinish() {
+                // Timer finished - recording will be stopped by AudioService
+                runOnUiThread {
+                    btnStartRecording.text = "0s"
+                }
+            }
+        }.start()
+        
+        Log.d("MainActivity", "Recording countdown started: ${HANDSFREE_RECORDING_TIMEOUT_MS}ms")
+    }
+    
+    private fun cancelRecordingCountdown() {
+        recordingCountdownTimer?.cancel()
+        recordingCountdownTimer = null
+        Log.d("MainActivity", "Recording countdown cancelled")
     }
 
     private fun updateHeadsetControlUi(enabled: Boolean) {
