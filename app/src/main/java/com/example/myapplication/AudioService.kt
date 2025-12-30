@@ -1031,14 +1031,27 @@ class AudioService : Service() {
             sendHeadsetControlStatus(false)
             sendMicrophoneChanged(null)
             
-            // Update notification
-            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-                .notify(1, createNotification())
+            // Stop foreground service and remove notification
+            // Only if not recording - if recording, keep foreground for microphone permission
+            if (!isRecording) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                Log.d("AudioService", "Foreground service stopped, notification removed")
+            } else {
+                // Update notification to reflect state
+                (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                    .notify(1, createNotification())
+            }
         } catch (t: Throwable) {
             Log.e("AudioService", "disableHeadsetControlMode crashed", t)
             headsetControlEnabled = false
             sendHeadsetControlStatus(false)
             sendMicrophoneChanged(null)
+            // Try to stop foreground anyway
+            try {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } catch (e: Exception) {
+                Log.e("AudioService", "Failed to stop foreground", e)
+            }
         }
     }
 
