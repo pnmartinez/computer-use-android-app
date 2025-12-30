@@ -801,7 +801,7 @@ class AudioService : Service() {
     
     /**
      * Feedback auditivo para fin de grabación.
-     * Doble tono para indicar que la grabación ha terminado.
+     * Doble tono descendente para indicar que la grabación ha terminado.
      */
     private fun playRecordingStopFeedback() {
         if (!headsetFeedbackEnabled || !headsetControlEnabled) return
@@ -809,16 +809,27 @@ class AudioService : Service() {
         try {
             val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
             Log.d("AudioService", "Playing recording STOP feedback")
-            // Tono descendente para indicar fin
-            toneGen.startTone(ToneGenerator.TONE_CDMA_NETWORK_BUSY_ONE_SHOT, 200)
             
+            // Primer tono: confirmación larga (300ms)
+            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 300)
+            
+            // Segundo tono después del primero: tono descendente (300ms)
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneGen.startTone(ToneGenerator.TONE_CDMA_CALLDROP_LITE, 300)
+                } catch (e: Exception) {
+                    Log.e("AudioService", "Error playing second stop tone: ${e.message}")
+                }
+            }, 350)
+            
+            // Liberar después de ambos tonos
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     toneGen.release()
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}")
                 }
-            }, 300)
+            }, 750)
         } catch (e: Exception) {
             Log.e("AudioService", "Error playing recording stop feedback: ${e.message}", e)
         }
@@ -1594,6 +1605,10 @@ class AudioService : Service() {
         // Cancelar timeout si existe
         cancelRecordingTimeout()
         
+        // PRIMERO: Reproducir feedback ANTES de cambiar modo de audio
+        // El cambio de modo corta el audio, así que hay que hacerlo antes
+        playRecordingStopFeedback()
+        
         try {
             sendLogMessage(getString(R.string.stopping_recording))
             recorder?.stop()
@@ -1606,15 +1621,6 @@ class AudioService : Service() {
             recorder = null
             isRecording = false
             
-            // Restaurar modo de audio normal y detener SCO
-            if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
-                audioManager.mode = AudioManager.MODE_NORMAL
-                Log.d("AudioService", "Audio mode restored to MODE_NORMAL")
-            }
-            stopBluetoothSco()
-            
-            abandonAudioFocus()
-            
             // Update notification
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
                 .notify(1, createNotification())
@@ -1626,11 +1632,16 @@ class AudioService : Service() {
             Log.d("AudioService", "Broadcasting ACTION_RECORDING_STOPPED to package $packageName")
             sendLogMessage(getString(R.string.recording_stopped_broadcast))
             
-            // Feedback auditivo para indicar fin de grabación
-            playRecordingStopFeedback()
-            
-            // NO detener SCO aquí - se mantiene activo mientras el modo manos libres esté activo
-            // SCO solo se detiene cuando se desactiva el modo manos libres
+            // DESPUÉS del feedback: esperar un poco y luego limpiar modo de audio
+            // Esto permite que el tono de feedback se reproduzca completamente
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
+                    audioManager.mode = AudioManager.MODE_NORMAL
+                    Log.d("AudioService", "Audio mode restored to MODE_NORMAL (delayed)")
+                }
+                stopBluetoothSco()
+                abandonAudioFocus()
+            }, 800) // Esperar 800ms para que el feedback termine
         }
 
         // Enviar archivo al servidor
