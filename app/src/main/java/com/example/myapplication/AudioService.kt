@@ -1357,37 +1357,10 @@ class AudioService : Service() {
             return
         }
         
-        // Si modo manos libres está activo, verificar estado de SCO
-        if (headsetControlEnabled) {
-            if (isBluetoothScoOn) {
-                // SCO ya está activo, grabar directamente
-                Log.d("AudioService", "SCO already active, starting recording")
-                startRecordingInternal()
-            } else {
-                // SCO no está activo, intentar activarlo
-                if (startBluetoothScoIfAvailable()) {
-                    // Esperar a que SCO se conecte antes de grabar
-                    pendingRecordingAfterSco = true
-                    sendLogMessage("⏳ Esperando conexión micrófono Bluetooth...")
-                    
-                    // Timeout: si SCO no conecta en 2s, grabar con micrófono normal
-                    mediaButtonHandler.postDelayed({
-                        if (pendingRecordingAfterSco) {
-                            pendingRecordingAfterSco = false
-                            sendLogMessage("⚠️ Timeout SCO - usando micrófono del dispositivo")
-                            Log.w("AudioService", "SCO timeout, falling back to device mic")
-                            startRecordingInternal()
-                        }
-                    }, 2000)
-                } else {
-                    // SCO no disponible, usar micrófono del dispositivo
-                    startRecordingInternal()
-                }
-            }
-        } else {
-            // Modo manos libres desactivado, usar micrófono del dispositivo
-            startRecordingInternal()
-        }
+        // SIMPLIFICADO: Grabar directamente sin esperar SCO
+        // El silent playback mantiene la MediaSession activa para recibir botones
+        Log.d("AudioService", "startRecording() called, isRecording=$isRecording")
+        startRecordingInternal()
     }
     
     /**
@@ -1398,55 +1371,21 @@ class AudioService : Service() {
     private fun startRecordingInternal() {
         try {
             sendLogMessage(getString(R.string.starting_recording))
+            Log.d("AudioService", "startRecordingInternal() - starting")
             try {
-                requestAudioFocus()
-                
-                // Usar VOICE_COMMUNICATION cuando SCO está activo (micrófono Bluetooth)
-                // Usar MIC cuando SCO no está activo (micrófono del dispositivo)
-                val audioSource = if (isBluetoothScoOn) {
-                    Log.d("AudioService", "Using Bluetooth microphone (VOICE_COMMUNICATION)")
-                    sendLogMessage("🎤 Grabando con micrófono Bluetooth")
-                    MediaRecorder.AudioSource.VOICE_COMMUNICATION
-                } else {
-                    Log.d("AudioService", "Using device microphone (MIC)")
-                    sendLogMessage("🎤 Grabando con micrófono del dispositivo")
-                    MediaRecorder.AudioSource.MIC
-                }
+                // NO llamar requestAudioFocus aquí - el enableHeadsetControlMode ya lo hizo
+                // y no queremos interferir con el silent playback
                 
                 recorder = MediaRecorder().apply {
-                    setAudioSource(audioSource)
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
                     setOutputFormat(MediaRecorder.OutputFormat.OGG)
                     setAudioEncoder(MediaRecorder.AudioEncoder.OPUS)
                     setOutputFile(getAudioFile().absolutePath)
-                    
-                    // CRÍTICO: Si tenemos dispositivo Bluetooth, forzarlo en el MediaRecorder
-                    if (isBluetoothScoOn && bluetoothCommunicationDevice != null) {
-                        Log.d("AudioService", "Setting preferred device to Bluetooth SCO: ${bluetoothCommunicationDevice?.productName}")
-                        setPreferredDevice(bluetoothCommunicationDevice)
-                    }
-                    
                     prepare()
                     start()
                 }
                 isRecording = true
-                
-                // CRÍTICO: Restaurar MODE_NORMAL inmediatamente después de iniciar la grabación
-                // La grabación ya está en curso con el dispositivo Bluetooth configurado,
-                // pero MODE_IN_COMMUNICATION bloquea la detección de botones de media
-                if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
-                    audioManager.mode = AudioManager.MODE_NORMAL
-                    Log.d("AudioService", "Audio mode restored to MODE_NORMAL (recording started)")
-                    sendLogMessage("🔊 Modo audio: NORMAL (botones activos)")
-                }
-                
-                // Log el dispositivo actualmente activo
-                recorder?.activeRecordingConfiguration?.let { config ->
-                    val deviceInfo = config.audioDevice
-                    Log.d("AudioService", "=== ACTIVE RECORDING DEVICE ===")
-                    Log.d("AudioService", "Device: ${deviceInfo?.productName ?: "Unknown"}")
-                    Log.d("AudioService", "Type: ${deviceInfo?.type}")
-                    sendLogMessage("📍 Dispositivo activo: ${deviceInfo?.productName ?: "Desconocido"}")
-                }
+                Log.d("AudioService", "Recording started, isRecording=$isRecording")
                 
                 // Update notification to reflect recording state
                 (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
