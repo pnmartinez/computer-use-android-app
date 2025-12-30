@@ -432,26 +432,8 @@ class MainActivity : AppCompatActivity() {
         topAppBar.setNavigationOnClickListener {
             drawerLayout.openDrawer(GravityCompat.START)
         }
-        navigationView.setNavigationItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_captures -> {
-                    startActivity(Intent(this, CapturesActivity::class.java))
-                    drawerLayout.closeDrawer(GravityCompat.START)
-                    true
-                }
-                R.id.nav_settings -> {
-                    startActivity(Intent(this, SettingsActivity::class.java))
-                    drawerLayout.closeDrawer(GravityCompat.START)
-                    true
-                }
-                R.id.nav_tutorial -> {
-                    showTutorialDialog(markAsSeen = false)
-                    drawerLayout.closeDrawer(GravityCompat.START)
-                    true
-                }
-                else -> false
-            }
-        }
+        // Setup drawer menu item clicks (custom drawer layout)
+        setupDrawerMenuClicks(navigationView)
 
         // Main controls
         btnStartRecording = findViewById(R.id.btnStartRecording)
@@ -669,6 +651,22 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.drawer_mic_device, micName)
         } else {
             getString(R.string.drawer_mic_inactive)
+        }
+    }
+    
+    private fun setupDrawerMenuClicks(navigationView: com.google.android.material.navigation.NavigationView) {
+        // Find custom menu items in drawer_content layout
+        navigationView.findViewById<View>(R.id.nav_captures)?.setOnClickListener {
+            startActivity(Intent(this, CapturesActivity::class.java))
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        navigationView.findViewById<View>(R.id.nav_settings)?.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        navigationView.findViewById<View>(R.id.nav_tutorial)?.setOnClickListener {
+            showTutorialDialog(markAsSeen = false)
+            drawerLayout.closeDrawer(GravityCompat.START)
         }
     }
     
