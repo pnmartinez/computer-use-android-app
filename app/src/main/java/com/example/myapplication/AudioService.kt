@@ -775,8 +775,17 @@ class AudioService : Service() {
         try {
             val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
             Log.d("AudioService", "Playing recording START feedback")
-            // Tono ascendente para indicar inicio
-            toneGen.startTone(ToneGenerator.TONE_CDMA_CONFIRM, 200)
+            // Doble tono ascendente para indicar inicio - más notable
+            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 400)
+            
+            // Segundo tono después del primero para hacer más evidente el inicio
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                } catch (e: Exception) {
+                    Log.e("AudioService", "Error playing second tone: ${e.message}")
+                }
+            }, 450)
             
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
@@ -784,7 +793,7 @@ class AudioService : Service() {
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}")
                 }
-            }, 300)
+            }, 700)
         } catch (e: Exception) {
             Log.e("AudioService", "Error playing recording start feedback: ${e.message}", e)
         }
