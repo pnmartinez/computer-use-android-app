@@ -767,12 +767,12 @@ class AudioService : Service() {
     
     /**
      * Feedback auditivo unificado para inicio de grabación en modo manos libres.
-     * Reproduce un sonido largo y distintivo (~2.5s) que cubre el tiempo de activación de SCO.
-     * - "Preparando..." (tono largo de 2s)
+     * Reproduce un sonido largo y distintivo (~3s) que cubre el tiempo de activación de SCO.
+     * - "Preparando..." (tono largo de 2.5s)
      * - "¡Listo!" (triple bip rápido de 500ms)
      * 
      * El usuario debe esperar a que termine TODO el sonido antes de hablar.
-     * Cuando el teléfono está bloqueado, usa STREAM_NOTIFICATION y tonos más largos.
+     * Usa STREAM_ALARM para máxima prioridad (funciona con pantalla bloqueada).
      */
     private fun playPreparingAndReadyFeedback() {
         if (!headsetFeedbackEnabled || !headsetControlEnabled) {
@@ -781,55 +781,54 @@ class AudioService : Service() {
         }
         
         try {
-            // Usar STREAM_NOTIFICATION para mejor volumen (especialmente cuando está bloqueado)
-            // y tonos más largos (3s tono + 750ms triple bip) para mejor percepción
-            val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
-            Log.d("AudioService", "Playing PREPARING AND READY feedback (3.75s total, stream=STREAM_NOTIFICATION)")
+            // STREAM_ALARM tiene máxima prioridad y funciona con pantalla bloqueada
+            val toneGen = ToneGenerator(AudioManager.STREAM_ALARM, 100)
+            Log.d("AudioService", "Playing PREPARING AND READY feedback (3s total, STREAM_ALARM)")
             
-            // FASE 1: Tono largo de "preparando" (3000ms) - más largo para mejor percepción
-            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 3000)
-            Log.d("AudioService", "Phase 1: Long tone started (3000ms)")
+            // FASE 1: Tono largo de "preparando" (2500ms) - más largo para mejor percepción
+            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 2500)
+            Log.d("AudioService", "Phase 1: Long tone started (2500ms)")
             
-            // FASE 2: Triple bip rápido de "¡listo!" (750ms total) - más largos para mejor percepción
-            // Bip 1 (250ms) - al final del tono largo
+            // FASE 2: Triple bip rápido de "¡listo!" (500ms total)
+            // Bip 1 (150ms) - al final del tono largo
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, 250)
-                    Log.d("AudioService", "Phase 2: Bip 1 started (250ms)")
+                    toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, 150)
+                    Log.d("AudioService", "Phase 2: Bip 1 started")
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error playing bip 1: ${e.message}", e)
                 }
-            }, 3100) // 3000ms tono + 100ms margen
+            }, 2600) // 2500ms tono + 100ms margen
             
-            // Bip 2 (250ms)
+            // Bip 2 (150ms)
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 250)
-                    Log.d("AudioService", "Phase 2: Bip 2 started (250ms)")
+                    toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 150)
+                    Log.d("AudioService", "Phase 2: Bip 2 started")
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error playing bip 2: ${e.message}", e)
                 }
-            }, 3400) // 3100 + 300ms
+            }, 2800) // 2600 + 200ms
             
-            // Bip 3 (250ms) - final
+            // Bip 3 (150ms) - final
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 250)
-                    Log.d("AudioService", "Phase 2: Bip 3 started (final, 250ms)")
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 150)
+                    Log.d("AudioService", "Phase 2: Bip 3 started (final)")
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error playing bip 3: ${e.message}", e)
                 }
-            }, 3700) // 3400 + 300ms
+            }, 3000) // 2800 + 200ms
             
             // Liberar ToneGenerator después de toda la secuencia
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     toneGen.release()
-                    Log.d("AudioService", "Feedback sequence completed, ToneGenerator released (total: 4000ms)")
+                    Log.d("AudioService", "Feedback sequence completed, ToneGenerator released")
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}", e)
                 }
-            }, 4000) // 3750ms total + 250ms margen
+            }, 3200) // 3000ms total + 200ms margen
         } catch (e: Exception) {
             Log.e("AudioService", "Error playing preparing and ready feedback: ${e.message}", e)
         }
