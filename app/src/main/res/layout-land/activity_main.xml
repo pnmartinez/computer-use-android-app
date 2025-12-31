@@ -241,6 +241,15 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/play_summary" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnPlayLastAudio"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/play_last_audio"
+                            app:icon="@android:drawable/ic_media_play"
+                            app:iconSize="24dp" />
                     </LinearLayout>
 
                     <TextView
