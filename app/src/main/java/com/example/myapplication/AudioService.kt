@@ -766,39 +766,67 @@ class AudioService : Service() {
     }
     
     /**
-     * Feedback auditivo para inicio de grabación.
-     * Tono ascendente para indicar que la grabación ha comenzado.
+     * Tono de "preparando" - indica que se está configurando el micrófono Bluetooth.
+     * Es un tono corto que indica "espera un momento".
      */
     private fun playRecordingStartFeedback() {
         if (!headsetFeedbackEnabled || !headsetControlEnabled) return
         
         try {
             // Usar STREAM_NOTIFICATION que suele tener más volumen en auriculares
-            // Volumen máximo (100)
             val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
-            Log.d("AudioService", "Playing recording START feedback (before MODE_IN_COMMUNICATION)")
+            Log.d("AudioService", "Playing PREPARING feedback (before SCO activation)")
             
-            // Triple tono ascendente para indicar inicio - muy notable
-            // Tono 1: bip alto (300ms)
-            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
+            // Un solo tono corto de "preparando" - el usuario debe esperar al segundo sonido
+            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 200)
             
-            // Tono 2: bip medio (200ms)
+            // Liberar después del tono
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, 200)
+                    toneGen.release()
                 } catch (e: Exception) {
-                    Log.e("AudioService", "Error playing second start tone: ${e.message}")
+                    Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}")
                 }
-            }, 350)
+            }, 300)
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error playing preparing feedback: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Tono de "¡LISTO!" - indica que el micrófono está activo y puede empezar a hablar.
+     * Este es el sonido distintivo que indica "habla ahora".
+     * Se reproduce DESPUÉS de que SCO se active, justo antes de iniciar la grabación real.
+     */
+    private fun playReadyToRecordFeedback() {
+        if (!headsetFeedbackEnabled || !headsetControlEnabled) return
+        
+        try {
+            // Usar STREAM_NOTIFICATION para mejor volumen
+            val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+            Log.d("AudioService", "Playing READY TO RECORD feedback - user can start speaking NOW")
             
-            // Tono 3: bip de confirmación (200ms)
+            // Triple bip ascendente distintivo - "¡AHORA puedes hablar!"
+            // Tono 1: bip bajo (150ms)
+            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 150)
+            
+            // Tono 2: bip medio (150ms)
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, 150)
+                } catch (e: Exception) {
+                    Log.e("AudioService", "Error playing second ready tone: ${e.message}")
+                }
+            }, 200)
+            
+            // Tono 3: bip alto de confirmación (200ms)
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 200)
                 } catch (e: Exception) {
-                    Log.e("AudioService", "Error playing third start tone: ${e.message}")
+                    Log.e("AudioService", "Error playing third ready tone: ${e.message}")
                 }
-            }, 600)
+            }, 400)
             
             // Liberar después de todos los tonos
             Handler(Looper.getMainLooper()).postDelayed({
@@ -807,9 +835,9 @@ class AudioService : Service() {
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}")
                 }
-            }, 900)
+            }, 700)
         } catch (e: Exception) {
-            Log.e("AudioService", "Error playing recording start feedback: ${e.message}", e)
+            Log.e("AudioService", "Error playing ready to record feedback: ${e.message}", e)
         }
     }
     
@@ -1405,21 +1433,27 @@ class AudioService : Service() {
         Log.d("AudioService", "startRecording() called, headsetControlEnabled=$headsetControlEnabled")
         
         if (headsetControlEnabled) {
-            // PRIMERO: Reproducir feedback ANTES de cambiar modo de audio
-            // El modo MODE_IN_COMMUNICATION reduce el volumen, así que lo hacemos antes
+            // PASO 1: Reproducir feedback de "preparando" ANTES de cambiar modo de audio
             playRecordingStartFeedback()
             
-            // Esperar a que el feedback termine antes de activar SCO
+            // PASO 2: Esperar brevemente, luego activar SCO
             Handler(Looper.getMainLooper()).postDelayed({
                 // Activar SCO CON MODE_IN_COMMUNICATION para usar mic BT
                 activateBluetoothMicForRecording()
                 
-                // Configurar timeout automático
-                setupRecordingTimeout()
+                // PASO 3: Reproducir feedback de "¡LISTO!" - ahora el usuario puede hablar
+                // Esto se reproduce DESPUÉS de que SCO esté activo
+                playReadyToRecordFeedback()
                 
-                // Iniciar grabación
-                startRecordingInternal()
-            }, 800) // Esperar 800ms para que el feedback termine
+                // PASO 4: Esperar a que termine el feedback de "listo" antes de grabar
+                Handler(Looper.getMainLooper()).postDelayed({
+                    // Configurar timeout automático
+                    setupRecordingTimeout()
+                    
+                    // Iniciar grabación - AHORA el usuario ya escuchó el sonido de "listo"
+                    startRecordingInternal()
+                }, 700) // Esperar 700ms para que el feedback de "listo" termine
+            }, 400) // Esperar 400ms para que el feedback de "preparando" termine
         } else {
             // Modo normal: grabar directamente
             startRecordingInternal()
