@@ -387,9 +387,45 @@ class MainActivity : AppCompatActivity() {
         // Restore logs state
         loadLogsState()
         
+        // Restore last audio file from cache (in case broadcasts were missed while in background)
+        restoreLastAudioFile()
+        
         // If auto-refresh was enabled, restart it
         if (autoRefreshEnabled) {
             startAutoRefresh()
+        }
+    }
+    
+    /**
+     * Restaura la referencia al último archivo de audio desde la caché.
+     * Esto es necesario porque si la Activity estaba en background (pantalla bloqueada),
+     * los broadcasts se pierden y currentAudioFile no se actualiza.
+     */
+    private fun restoreLastAudioFile() {
+        // Primero intentar con el archivo de caché
+        val cacheFile = File(cacheDir, "last_sent_recording.ogg")
+        if (cacheFile.exists() && cacheFile.length() > 0) {
+            currentAudioFile = cacheFile
+            Log.d("MainActivity", "Restored last audio file from cache: ${cacheFile.absolutePath} (${cacheFile.length()} bytes)")
+            return
+        }
+        
+        // Si no existe el de caché, intentar con el archivo original de grabación
+        // (puede que el broadcast se haya perdido mientras estábamos en background)
+        val originalFile = File(filesDir, "recorded_audio.ogg")
+        if (originalFile.exists() && originalFile.length() > 0) {
+            try {
+                // Copiar a caché para uso futuro
+                originalFile.copyTo(cacheFile, overwrite = true)
+                currentAudioFile = cacheFile
+                Log.d("MainActivity", "Restored audio file from original recording: ${cacheFile.absolutePath} (${cacheFile.length()} bytes)")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error copying original audio file to cache: ${e.message}", e)
+                // Usar el archivo original directamente
+                currentAudioFile = originalFile
+            }
+        } else {
+            Log.d("MainActivity", "No audio file found to restore (cache or original)")
         }
     }
     
