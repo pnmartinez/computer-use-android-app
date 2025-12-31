@@ -671,7 +671,11 @@ class MainActivity : AppCompatActivity() {
     private fun cancelRecordingCountdown() {
         recordingCountdownTimer?.cancel()
         recordingCountdownTimer = null
-        Log.d("MainActivity", "Recording countdown cancelled")
+        // Restore button state immediately to avoid frozen countdown text
+        runOnUiThread {
+            updateButtonStates()
+        }
+        Log.d("MainActivity", "Recording countdown cancelled and button state restored")
     }
 
     private fun updateHeadsetControlUi(enabled: Boolean) {
