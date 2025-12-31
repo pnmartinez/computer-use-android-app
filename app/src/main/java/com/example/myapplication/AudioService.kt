@@ -766,13 +766,14 @@ class AudioService : Service() {
     }
     
     /**
-     * Feedback auditivo unificado para inicio de grabación en modo manos libres.
-     * Reproduce un sonido largo y distintivo (~3s) que cubre el tiempo de activación de SCO.
-     * - "Preparando..." (tono largo de 2.5s)
-     * - "¡Listo!" (triple bip rápido de 500ms)
+     * Feedback auditivo para inicio de grabación en modo manos libres.
+     * Secuencia rápida (~1.5s total):
+     * - Bip de confirmación (tap recibido)
+     * - Tono ascendente (preparando)
+     * - Doble bip (¡listo!)
      * 
-     * El usuario debe esperar a que termine TODO el sonido antes de hablar.
-     * Usa STREAM_ALARM para máxima prioridad (funciona con pantalla bloqueada).
+     * IMPORTANTE: Usa STREAM_VOICE_CALL para que el sonido salga por la ruta de comunicación
+     * (SCO/communication device) que ya está establecida. Esto evita que se corte el audio.
      */
     private fun playPreparingAndReadyFeedback() {
         if (!headsetFeedbackEnabled || !headsetControlEnabled) {
@@ -781,46 +782,46 @@ class AudioService : Service() {
         }
         
         try {
-            // STREAM_ALARM tiene máxima prioridad y funciona con pantalla bloqueada
-            val toneGen = ToneGenerator(AudioManager.STREAM_ALARM, 100)
-            Log.d("AudioService", "Playing PREPARING AND READY feedback (3s total, STREAM_ALARM)")
+            // STREAM_VOICE_CALL = ruta de comunicación (equivalente a USAGE_VOICE_COMMUNICATION_SIGNALLING)
+            // Ya estamos en MODE_IN_COMMUNICATION con SCO activo, así que el sonido saldrá por esa ruta
+            val toneGen = ToneGenerator(AudioManager.STREAM_VOICE_CALL, 100)
+            Log.d("AudioService", "Playing START feedback (1.5s total, STREAM_VOICE_CALL on communication route)")
             
-            // FASE 1: Tono largo de "preparando" (2500ms) - más largo para mejor percepción
-            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 2500)
-            Log.d("AudioService", "Phase 1: Long tone started (2500ms)")
+            // Bip 1: Confirmación de tap recibido (200ms)
+            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 200)
+            Log.d("AudioService", "Bip 1: Tap confirmed")
             
-            // FASE 2: Triple bip rápido de "¡listo!" (500ms total)
-            // Bip 1 (150ms) - al final del tono largo
+            // Bip 2: Tono ascendente de preparación (400ms)
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, 150)
-                    Log.d("AudioService", "Phase 2: Bip 1 started")
+                    toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_INCALL_LITE, 400)
+                    Log.d("AudioService", "Bip 2: Preparing tone")
                 } catch (e: Exception) {
-                    Log.e("AudioService", "Error playing bip 1: ${e.message}", e)
+                    Log.e("AudioService", "Error playing tone 2: ${e.message}", e)
                 }
-            }, 2600) // 2500ms tono + 100ms margen
+            }, 250)
             
-            // Bip 2 (150ms)
+            // Bip 3: Primer bip de "listo" (150ms)
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 150)
-                    Log.d("AudioService", "Phase 2: Bip 2 started")
+                    Log.d("AudioService", "Bip 3: Ready 1")
                 } catch (e: Exception) {
-                    Log.e("AudioService", "Error playing bip 2: ${e.message}", e)
+                    Log.e("AudioService", "Error playing tone 3: ${e.message}", e)
                 }
-            }, 2800) // 2600 + 200ms
+            }, 700)
             
-            // Bip 3 (150ms) - final
+            // Bip 4: Segundo bip de "listo" - más agudo (200ms)
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 150)
-                    Log.d("AudioService", "Phase 2: Bip 3 started (final)")
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 200)
+                    Log.d("AudioService", "Bip 4: Ready 2 (final)")
                 } catch (e: Exception) {
-                    Log.e("AudioService", "Error playing bip 3: ${e.message}", e)
+                    Log.e("AudioService", "Error playing tone 4: ${e.message}", e)
                 }
-            }, 3000) // 2800 + 200ms
+            }, 900)
             
-            // Liberar ToneGenerator después de toda la secuencia
+            // Liberar ToneGenerator después de la secuencia
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     toneGen.release()
@@ -828,7 +829,7 @@ class AudioService : Service() {
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}", e)
                 }
-            }, 3200) // 3000ms total + 200ms margen
+            }, 1200)
         } catch (e: Exception) {
             Log.e("AudioService", "Error playing preparing and ready feedback: ${e.message}", e)
         }
@@ -1461,26 +1462,72 @@ class AudioService : Service() {
         Log.d("AudioService", "startRecording() called, headsetControlEnabled=$headsetControlEnabled")
         
         if (headsetControlEnabled) {
-            // Flujo optimizado: sonido largo (2.5s) mientras se activa SCO, grabación inicia cuando SCO está listo
-            Log.d("AudioService", "Handsfree mode: starting unified feedback sequence")
+            // NUEVA SECUENCIA: Primero establecer ruta de comunicación, luego bip, luego grabar
+            // Esto evita que el cambio de ruta A2DP → SCO corte el sonido
+            Log.d("AudioService", "Handsfree mode: establishing communication route first")
             
-            // PASO 1: Iniciar sonido de preparación y listo (2.5s total)
-            playPreparingAndReadyFeedback()
-            
-            // PASO 2: Activar SCO mientras suena (en paralelo, inmediatamente)
-            // La grabación se iniciará cuando SCO esté realmente activo
             serviceScope.launch(Dispatchers.IO) {
-                Log.d("AudioService", "Activating Bluetooth mic while feedback is playing...")
-                activateBluetoothMicForRecording()
+                // PASO 1: Establecer ruta de comunicación (SCO/communication device)
+                Log.d("AudioService", "Step 1: Activating Bluetooth communication route...")
+                val routeEstablished = activateBluetoothMicForRecording()
                 
-                // PASO 3: Iniciar grabación inmediatamente cuando SCO esté activo
-                // No esperamos delay fijo, iniciamos tan pronto como SCO esté listo
-                Log.d("AudioService", "SCO activation complete, starting recording now")
-                Handler(Looper.getMainLooper()).post {
-                    // Configurar timeout automático
-                    setupRecordingTimeout()
+                if (!routeEstablished) {
+                    sendLogMessage("⚠️ No se pudo activar micrófono Bluetooth, usando dispositivo")
+                    Log.w("AudioService", "Failed to establish Bluetooth route, using device mic")
+                    Handler(Looper.getMainLooper()).post {
+                        setupRecordingTimeout()
+                        startRecordingInternal()
+                    }
+                    return@launch
+                }
+                
+                // PASO 2: Esperar confirmación de que la ruta está estable (con timeout)
+                Log.d("AudioService", "Step 2: Waiting for communication route confirmation...")
+                var routeConfirmed = false
+                val maxWaitTime = 3000L // 3 segundos máximo
+                val checkInterval = 100L
+                var waited = 0L
+                
+                while (waited < maxWaitTime && !routeConfirmed) {
+                    Thread.sleep(checkInterval)
+                    waited += checkInterval
                     
-                    // Iniciar grabación - el usuario ya escuchó el feedback y SCO está activo
+                    // Verificar si SCO está activo o communication device está configurado
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        val currentDevice = audioManager.communicationDevice
+                        routeConfirmed = (currentDevice != null && 
+                                        currentDevice.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO)
+                        // TYPE_BLUETOOTH_BLE solo disponible en API 34+, por ahora solo SCO
+                    } else {
+                        routeConfirmed = audioManager.isBluetoothScoOn
+                    }
+                    
+                    if (routeConfirmed) {
+                        Log.d("AudioService", "Communication route confirmed after ${waited}ms")
+                        break
+                    }
+                }
+                
+                if (!routeConfirmed) {
+                    Log.w("AudioService", "Route not confirmed after ${maxWaitTime}ms, proceeding anyway")
+                }
+                
+                // PASO 3: Pequeño delay de "priming" para que la ruta se estabilice
+                Thread.sleep(200)
+                
+                // PASO 4: Reproducir feedback en la ruta de comunicación establecida
+                Log.d("AudioService", "Step 3: Playing feedback on communication route...")
+                Handler(Looper.getMainLooper()).post {
+                    playPreparingAndReadyFeedback()
+                }
+                
+                // PASO 5: Esperar a que termine el feedback antes de iniciar grabación
+                Thread.sleep(1300) // Feedback dura ~1.2s
+                
+                // PASO 6: Iniciar grabación
+                Log.d("AudioService", "Step 4: Starting recording...")
+                Handler(Looper.getMainLooper()).post {
+                    setupRecordingTimeout()
                     startRecordingInternal()
                 }
             }
@@ -1491,67 +1538,43 @@ class AudioService : Service() {
     }
     
     /**
-     * Activa el micrófono Bluetooth con MODE_IN_COMMUNICATION.
+     * Activa el micrófono Bluetooth estableciendo la ruta de comunicación.
+     * Retorna true si la ruta se estableció correctamente.
+     * 
+     * SECUENCIA RECOMENDADA:
+     * 1. Establecer ruta de comunicación (SCO/communication device)
+     * 2. Esperar confirmación
+     * 3. Reproducir feedback en esa ruta
+     * 4. Iniciar grabación
+     * 
      * NOTA: Esto bloquea los botones de media, por eso usamos timeout automático.
      */
-    @Suppress("DEPRECATION")
-    private fun activateBluetoothMicForRecording() {
+    private fun activateBluetoothMicForRecording(): Boolean {
         try {
-            Log.d("AudioService", "=== ACTIVATING BLUETOOTH MIC ===")
-            sendLogMessage("🔵 Activando micrófono Bluetooth...")
+            Log.d("AudioService", "=== ACTIVATING BLUETOOTH COMMUNICATION ROUTE ===")
+            sendLogMessage("🔵 Estableciendo ruta de comunicación Bluetooth...")
             
-            // 1. Primero cambiar a modo comunicación (CRÍTICO para mic BT)
-            val previousMode = audioManager.mode
-            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-            Log.d("AudioService", "Audio mode: $previousMode -> MODE_IN_COMMUNICATION (3)")
-            sendLogMessage("📞 Modo: COMUNICACIÓN")
-            
-            // 2. Activar SCO
-            Log.d("AudioService", "Current SCO state: ${audioManager.isBluetoothScoOn}")
-            audioManager.startBluetoothSco()
-            Log.d("AudioService", "startBluetoothSco() called")
-            
-            // 3. Esperar a que SCO se active (puede tomar hasta 2 segundos)
-            var scoActivated = false
-            for (i in 1..10) {
-                Thread.sleep(200)
-                if (audioManager.isBluetoothScoOn) {
-                    scoActivated = true
-                    Log.d("AudioService", "SCO activated after ${i * 200}ms")
-                    break
-                }
-                Log.d("AudioService", "Waiting for SCO... attempt $i")
-            }
-            
-            // 4. Obtener el nombre del dispositivo Bluetooth activo
-            val inputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
-            var bluetoothDeviceName: String? = null
-            Log.d("AudioService", "Available input devices: ${inputDevices.size}")
-            for (device in inputDevices) {
-                Log.d("AudioService", "  - ${device.productName} (type=${device.type})")
-                if (device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
-                    bluetoothDeviceName = device.productName?.toString() ?: "Bluetooth"
-                }
-            }
-            
-            if (scoActivated) {
-                sendLogMessage("✅ SCO activado")
-                sendLogMessage("⏱️ Grabación máx: ${RECORDING_TIMEOUT_MS/1000}s")
-                Log.d("AudioService", "SCO activated successfully")
-                isBluetoothScoOn = true
-                // Actualizar UI con el nombre del dispositivo
-                sendMicrophoneChanged(bluetoothDeviceName ?: "Bluetooth SCO")
+            // Usar método moderno (Android 12+) o legacy según versión
+            val success = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                startBluetoothScoModern()
             } else {
-                sendLogMessage("⚠️ SCO no se activó, intentando grabar igual...")
-                Log.w("AudioService", "SCO did not activate, will try recording anyway")
-                // Mantener MODE_IN_COMMUNICATION de todos modos, puede funcionar
-                // Actualizar UI indicando que está intentando usar Bluetooth
-                sendMicrophoneChanged(bluetoothDeviceName ?: "Bluetooth (pendiente)")
+                startBluetoothScoLegacy()
             }
             
+            if (success) {
+                sendLogMessage("✅ Ruta de comunicación establecida")
+                sendLogMessage("⏱️ Grabación máx: ${RECORDING_TIMEOUT_MS/1000}s")
+                Log.d("AudioService", "Bluetooth communication route established successfully")
+            } else {
+                sendLogMessage("⚠️ No se pudo establecer ruta Bluetooth")
+                Log.w("AudioService", "Failed to establish Bluetooth communication route")
+            }
+            
+            return success
         } catch (e: Exception) {
             Log.e("AudioService", "Error activating Bluetooth mic: ${e.message}", e)
             sendLogMessage("❌ Error: ${e.message}")
+            return false
         }
     }
     
@@ -2342,6 +2365,18 @@ class AudioService : Service() {
         
         if (file.length() == 0L) {
             sendLogMessage(getString(R.string.file_empty_warning, file.name))
+        }
+        
+        // CRÍTICO: Si es una grabación, copiar a caché para que MainActivity pueda recuperarla
+        // aunque el broadcast se pierda (pantalla bloqueada)
+        if (type == "recording" && file.exists() && file.length() > 0) {
+            try {
+                val cacheFile = File(cacheDir, "last_sent_recording.ogg")
+                file.copyTo(cacheFile, overwrite = true)
+                Log.d("AudioService", "Recording cached to: ${cacheFile.absolutePath} (${cacheFile.length()} bytes)")
+            } catch (e: Exception) {
+                Log.e("AudioService", "Error caching recording: ${e.message}", e)
+            }
         }
         
         val intent = Intent(ACTION_AUDIO_FILE_INFO).apply {
