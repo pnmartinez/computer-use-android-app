@@ -767,8 +767,8 @@ class AudioService : Service() {
     
     /**
      * Feedback auditivo unificado para inicio de grabación en modo manos libres.
-     * Reproduce un sonido largo y distintivo (~1.5s) que indica:
-     * - "Preparando..." (tono largo de 1s)
+     * Reproduce un sonido largo y distintivo (~2.5s) que cubre el tiempo de activación de SCO.
+     * - "Preparando..." (tono largo de 2s)
      * - "¡Listo!" (triple bip rápido de 500ms)
      * 
      * El usuario debe esperar a que termine TODO el sonido antes de hablar.
@@ -783,42 +783,42 @@ class AudioService : Service() {
         try {
             // Usar STREAM_MUSIC que se rutea mejor a auriculares Bluetooth
             val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
-            Log.d("AudioService", "Playing PREPARING AND READY feedback (1.5s total)")
+            Log.d("AudioService", "Playing PREPARING AND READY feedback (2.5s total)")
             
-            // FASE 1: Tono largo de "preparando" (1000ms)
-            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 1000)
-            Log.d("AudioService", "Phase 1: Long tone started (1000ms)")
+            // FASE 1: Tono largo de "preparando" (2000ms) - cubre tiempo de activación SCO
+            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 2000)
+            Log.d("AudioService", "Phase 1: Long tone started (2000ms)")
             
             // FASE 2: Triple bip rápido de "¡listo!" (500ms total)
-            // Bip 1 (100ms) - al final del tono largo
+            // Bip 1 (150ms) - al final del tono largo
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, 100)
+                    toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, 150)
                     Log.d("AudioService", "Phase 2: Bip 1 started")
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error playing bip 1: ${e.message}", e)
                 }
-            }, 1050) // 1000ms tono + 50ms margen
+            }, 2100) // 2000ms tono + 100ms margen
             
-            // Bip 2 (100ms)
+            // Bip 2 (150ms)
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 100)
+                    toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 150)
                     Log.d("AudioService", "Phase 2: Bip 2 started")
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error playing bip 2: ${e.message}", e)
                 }
-            }, 1200) // 1050 + 150ms
+            }, 2300) // 2100 + 200ms
             
-            // Bip 3 (100ms) - final
+            // Bip 3 (150ms) - final
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 100)
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 150)
                     Log.d("AudioService", "Phase 2: Bip 3 started (final)")
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error playing bip 3: ${e.message}", e)
                 }
-            }, 1350) // 1200 + 150ms
+            }, 2500) // 2300 + 200ms
             
             // Liberar ToneGenerator después de toda la secuencia
             Handler(Looper.getMainLooper()).postDelayed({
@@ -828,7 +828,7 @@ class AudioService : Service() {
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error releasing ToneGenerator: ${e.message}", e)
                 }
-            }, 1600) // 1500ms total + 100ms margen
+            }, 2700) // 2500ms total + 200ms margen
         } catch (e: Exception) {
             Log.e("AudioService", "Error playing preparing and ready feedback: ${e.message}", e)
         }
@@ -1426,29 +1426,29 @@ class AudioService : Service() {
         Log.d("AudioService", "startRecording() called, headsetControlEnabled=$headsetControlEnabled")
         
         if (headsetControlEnabled) {
-            // Flujo simplificado: un solo sonido largo (1.5s) mientras se activa SCO en paralelo
+            // Flujo optimizado: sonido largo (2.5s) mientras se activa SCO, grabación inicia cuando SCO está listo
             Log.d("AudioService", "Handsfree mode: starting unified feedback sequence")
             
-            // PASO 1: Iniciar sonido de preparación y listo (1.5s total)
+            // PASO 1: Iniciar sonido de preparación y listo (2.5s total)
             playPreparingAndReadyFeedback()
             
-            // PASO 2: Activar SCO mientras suena (en paralelo, después de 500ms)
-            // Esto da tiempo para que el routing de audio se estabilice
-            Handler(Looper.getMainLooper()).postDelayed({
+            // PASO 2: Activar SCO mientras suena (en paralelo, inmediatamente)
+            // La grabación se iniciará cuando SCO esté realmente activo
+            serviceScope.launch(Dispatchers.IO) {
                 Log.d("AudioService", "Activating Bluetooth mic while feedback is playing...")
                 activateBluetoothMicForRecording()
-            }, 500)
-            
-            // PASO 3: Iniciar grabación cuando termine el sonido (1.6s total)
-            // El usuario escuchará: "tuuuuu-bip-bip-bip" y al terminar puede hablar
-            Handler(Looper.getMainLooper()).postDelayed({
-                Log.d("AudioService", "Feedback finished, starting recording now")
-                // Configurar timeout automático
-                setupRecordingTimeout()
                 
-                // Iniciar grabación - el usuario ya escuchó todo el feedback
-                startRecordingInternal()
-            }, 1600) // 1.5s sonido + 100ms margen
+                // PASO 3: Iniciar grabación inmediatamente cuando SCO esté activo
+                // No esperamos delay fijo, iniciamos tan pronto como SCO esté listo
+                Log.d("AudioService", "SCO activation complete, starting recording now")
+                Handler(Looper.getMainLooper()).post {
+                    // Configurar timeout automático
+                    setupRecordingTimeout()
+                    
+                    // Iniciar grabación - el usuario ya escuchó el feedback y SCO está activo
+                    startRecordingInternal()
+                }
+            }
         } else {
             // Modo normal: grabar directamente
             startRecordingInternal()
