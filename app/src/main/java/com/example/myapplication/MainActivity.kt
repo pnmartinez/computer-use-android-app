@@ -990,18 +990,27 @@ class MainActivity : AppCompatActivity() {
         // Verify file exists and has content
         if (!file.exists()) {
             addLogMessage("[${getCurrentTime()}] ${getString(R.string.file_not_found, filePath)}")
-            currentAudioFile = null
             return
         }
         
         if (fileSize <= 0) {
             addLogMessage("[${getCurrentTime()}] ${getString(R.string.file_empty_corrupt, filePath)}")
-            currentAudioFile = null
             return
         }
         
-        // File seems valid, update reference
-        currentAudioFile = file
+        // Only persist recording files (not response files) for playback
+        if (type == "recording") {
+            try {
+                // Copy to a persistent cache file that won't be overwritten
+                val cacheFile = File(cacheDir, "last_sent_recording.ogg")
+                file.copyTo(cacheFile, overwrite = true)
+                currentAudioFile = cacheFile
+                Log.d("MainActivity", "Audio file cached for playback: ${cacheFile.absolutePath} (${fileSize} bytes)")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error caching audio file: ${e.message}", e)
+                currentAudioFile = null
+            }
+        }
         
         // Format file size for logging
         val fileType = if (type == "recording") getString(R.string.audio_recording) else getString(R.string.audio_response)
