@@ -1433,27 +1433,29 @@ class AudioService : Service() {
         Log.d("AudioService", "startRecording() called, headsetControlEnabled=$headsetControlEnabled")
         
         if (headsetControlEnabled) {
-            // PASO 1: Reproducir feedback de "preparando" ANTES de cambiar modo de audio
+            // IMPORTANTE: Todos los sonidos ANTES de MODE_IN_COMMUNICATION
+            // porque ese modo reduce drásticamente el volumen del ToneGenerator
+            
+            // PASO 1: Reproducir feedback de "preparando"
             playRecordingStartFeedback()
             
-            // PASO 2: Esperar brevemente, luego activar SCO
+            // PASO 2: Esperar y reproducir feedback de "¡LISTO!"
+            // Ambos sonidos se reproducen ANTES de activar SCO/MODE_IN_COMMUNICATION
             Handler(Looper.getMainLooper()).postDelayed({
-                // Activar SCO CON MODE_IN_COMMUNICATION para usar mic BT
-                activateBluetoothMicForRecording()
-                
-                // PASO 3: Reproducir feedback de "¡LISTO!" - ahora el usuario puede hablar
-                // Esto se reproduce DESPUÉS de que SCO esté activo
                 playReadyToRecordFeedback()
                 
-                // PASO 4: Esperar a que termine el feedback de "listo" antes de grabar
+                // PASO 3: Esperar a que termine el sonido de "listo", luego activar SCO y grabar
                 Handler(Looper.getMainLooper()).postDelayed({
+                    // Activar SCO CON MODE_IN_COMMUNICATION para usar mic BT
+                    activateBluetoothMicForRecording()
+                    
                     // Configurar timeout automático
                     setupRecordingTimeout()
                     
-                    // Iniciar grabación - AHORA el usuario ya escuchó el sonido de "listo"
+                    // Iniciar grabación - el usuario ya escuchó ambos sonidos
                     startRecordingInternal()
-                }, 700) // Esperar 700ms para que el feedback de "listo" termine
-            }, 400) // Esperar 400ms para que el feedback de "preparando" termine
+                }, 800) // Esperar 800ms para que el feedback de "listo" termine completamente
+            }, 500) // Esperar 500ms después del primer bip antes del segundo
         } else {
             // Modo normal: grabar directamente
             startRecordingInternal()
