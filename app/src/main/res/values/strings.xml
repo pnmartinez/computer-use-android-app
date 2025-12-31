@@ -172,6 +172,7 @@
     <string name="screen_summary_title">Resumen</string>
     <string name="summary_unavailable">Sin resumen disponible</string>
     <string name="play_summary">Reproducir</string>
+    <string name="play_last_audio">Reproducir audio</string>
     <string name="summary_status_ready">Listo para reproducir</string>
     <string name="summary_status_playing">Reproduciendo</string>
     <string name="summary_status_error">Error al reproducir</string>

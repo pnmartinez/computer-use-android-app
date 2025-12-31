@@ -115,6 +115,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var summaryCard: MaterialCardView
     private lateinit var summaryTextView: TextView
     private lateinit var btnPlaySummary: MaterialButton
+    private lateinit var btnPlayLastAudio: MaterialButton
     private lateinit var summaryStatusTextView: TextView
     private var lastScreenSummary: String = ""
     private var isSummaryPlaying: Boolean = false
@@ -123,6 +124,7 @@ class MainActivity : AppCompatActivity() {
     // Keep track of app state
     private var isRecording = false
     private var currentAudioFile: File? = null
+    private var audioPlayer: android.media.MediaPlayer? = null
     private val logBuffer = SpannableStringBuilder()
     private var headsetControlEnabled = false
     
@@ -402,6 +404,9 @@ class MainActivity : AppCompatActivity() {
         // Cancel countdown timer to avoid memory leaks
         cancelRecordingCountdown()
         
+        // Stop audio playback to avoid memory leaks
+        stopAudioPlayback()
+        
         // Save logs state
         saveLogsState()
         
@@ -484,6 +489,7 @@ class MainActivity : AppCompatActivity() {
         summaryCard = findViewById(R.id.summaryCard)
         summaryTextView = findViewById(R.id.summaryText)
         btnPlaySummary = findViewById(R.id.btnPlaySummary)
+        btnPlayLastAudio = findViewById(R.id.btnPlayLastAudio)
         summaryStatusTextView = findViewById(R.id.summaryStatusText)
         summaryCard.setCardForegroundColor(ColorStateList.valueOf(Color.TRANSPARENT))
         btnPlaySummary.setOnClickListener {
@@ -492,6 +498,9 @@ class MainActivity : AppCompatActivity() {
             } else {
                 Toast.makeText(this, getString(R.string.summary_unavailable), Toast.LENGTH_SHORT).show()
             }
+        }
+        btnPlayLastAudio.setOnClickListener {
+            playLastAudio()
         }
         
         // Voice control info button
@@ -1172,6 +1181,55 @@ class MainActivity : AppCompatActivity() {
     private fun logMessage(message: String) {
         runOnUiThread {
             logsTextView.append("$message\n")
+        }
+    }
+
+    private fun playLastAudio() {
+        if (currentAudioFile == null || !currentAudioFile!!.exists()) {
+            Toast.makeText(this, getString(R.string.no_audio_available), Toast.LENGTH_SHORT).show()
+            Log.d("MainActivity", "No audio file available to play")
+            return
+        }
+        
+        // Stop any currently playing audio
+        stopAudioPlayback()
+        
+        try {
+            audioPlayer = android.media.MediaPlayer().apply {
+                setDataSource(currentAudioFile!!.absolutePath)
+                prepare()
+                setOnCompletionListener {
+                    stopAudioPlayback()
+                    Log.d("MainActivity", "Audio playback completed")
+                }
+                setOnErrorListener { _, what, extra ->
+                    Log.e("MainActivity", "Error playing audio: what=$what, extra=$extra")
+                    stopAudioPlayback()
+                    Toast.makeText(this@MainActivity, getString(R.string.error_playing_audio, "MediaPlayer error"), Toast.LENGTH_SHORT).show()
+                    true
+                }
+                start()
+            }
+            Log.d("MainActivity", "Playing audio file: ${currentAudioFile!!.absolutePath}")
+            Toast.makeText(this, getString(R.string.playing_audio_response), Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error playing audio: ${e.message}", e)
+            Toast.makeText(this, getString(R.string.error_playing_audio, e.message ?: "Unknown error"), Toast.LENGTH_SHORT).show()
+            stopAudioPlayback()
+        }
+    }
+    
+    private fun stopAudioPlayback() {
+        audioPlayer?.let {
+            try {
+                if (it.isPlaying) {
+                    it.stop()
+                }
+                it.release()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error stopping audio playback: ${e.message}", e)
+            }
+            audioPlayer = null
         }
     }
 
