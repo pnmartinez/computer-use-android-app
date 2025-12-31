@@ -321,6 +321,7 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_IS_FAVORITES_EXPANDED = "isFavoritesExpanded"
         private const val KEY_SCREENSHOT_REFRESH_PERIOD = "screenshotRefreshPeriod"
         private const val KEY_TUTORIAL_SHOWN = "tutorialShown"
+        private const val KEY_LAST_SUMMARY = "lastScreenSummary"
         private const val PERMISSION_REQUEST_RECORD_AUDIO = 100
     }
     
@@ -387,8 +388,9 @@ class MainActivity : AppCompatActivity() {
         // Restore logs state
         loadLogsState()
         
-        // Restore last audio file from cache (in case broadcasts were missed while in background)
+        // Restore last audio file and summary from cache (in case broadcasts were missed while in background)
         restoreLastAudioFile()
+        restoreLastSummary()
         
         // If auto-refresh was enabled, restart it
         if (autoRefreshEnabled) {
@@ -426,6 +428,29 @@ class MainActivity : AppCompatActivity() {
             }
         } else {
             Log.d("MainActivity", "No audio file found to restore (cache or original)")
+        }
+    }
+    
+    /**
+     * Restaura el último resumen desde SharedPreferences.
+     * Esto es necesario porque si la Activity estaba en background (pantalla bloqueada),
+     * el broadcast ACTION_RESPONSE_RECEIVED se pierde y la tarjeta de resumen no se actualiza.
+     */
+    private fun restoreLastSummary() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val savedSummary = prefs.getString(KEY_LAST_SUMMARY, null)
+        
+        if (!savedSummary.isNullOrBlank() && lastScreenSummary.isBlank()) {
+            // Solo restaurar si no tenemos un resumen actual
+            Log.d("MainActivity", "Restoring last summary from SharedPreferences: ${savedSummary.take(50)}...")
+            lastScreenSummary = savedSummary
+            summaryTextView.text = savedSummary
+            btnPlaySummary.isEnabled = true
+            updateSummaryStatus(getString(R.string.summary_status_ready))
+        } else if (savedSummary.isNullOrBlank()) {
+            Log.d("MainActivity", "No saved summary to restore")
+        } else {
+            Log.d("MainActivity", "Current summary already present, not restoring")
         }
     }
     
@@ -476,7 +501,7 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
-            registerReceiver(serviceReceiver, filter)
+        registerReceiver(serviceReceiver, filter)
         }
     }
     
@@ -768,7 +793,7 @@ class MainActivity : AppCompatActivity() {
             if (isChecked) {
                 // Mostrar diálogo de advertencia al activar modo manos libres
                 showHandsfreeBetaDialog()
-            } else {
+        } else {
                 // Desactivar directamente
                 activateHandsfreeMode(false)
             }
@@ -1165,6 +1190,15 @@ class MainActivity : AppCompatActivity() {
         }
         if (trimmedSummary.isNotEmpty() && trimmedSummary != previousSummary) {
             animateSummaryCardUpdate()
+        }
+        
+        // Persistir el resumen en SharedPreferences para recuperarlo si la Activity estaba en background
+        if (trimmedSummary.isNotEmpty()) {
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_LAST_SUMMARY, trimmedSummary)
+                .apply()
+            Log.d("MainActivity", "Summary saved to SharedPreferences: ${trimmedSummary.take(50)}...")
         }
     }
 
