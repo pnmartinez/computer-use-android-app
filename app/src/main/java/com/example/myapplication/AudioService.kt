@@ -2281,7 +2281,8 @@ class AudioService : Service() {
             val estimatedDuration = if (file.length() > 0) (file.length() / 1024) * 500 else 0 // rough estimate: 500ms per KB
             putExtra(EXTRA_AUDIO_DURATION, estimatedDuration)
         }
-        sendBroadcast(intent)
+        // Use sendAppBroadcast to set package name (required for RECEIVER_NOT_EXPORTED)
+        sendAppBroadcast(intent)
         sendLogMessage(getString(R.string.audio_available, type, formatFileSize(file.length()), file.absolutePath))
     }
     
