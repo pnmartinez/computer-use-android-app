@@ -1091,6 +1091,38 @@ class AudioService : Service() {
         }
         sendBroadcast(intent)
     }
+    
+    /**
+     * Obtiene el nombre del dispositivo Bluetooth SCO conectado.
+     * Busca en los dispositivos de entrada disponibles.
+     */
+    private fun getBluetoothDeviceName(): String {
+        try {
+            val inputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            for (device in inputDevices) {
+                if (device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                    val name = device.productName?.toString()
+                    if (!name.isNullOrBlank()) {
+                        return name
+                    }
+                }
+            }
+            // Si no encontramos en inputs, buscar en outputs
+            val outputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            for (device in outputDevices) {
+                if (device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || 
+                    device.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                    val name = device.productName?.toString()
+                    if (!name.isNullOrBlank()) {
+                        return name
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AudioService", "Error getting Bluetooth device name: ${e.message}", e)
+        }
+        return "Bluetooth"
+    }
 
     private fun requestAudioFocus(): Boolean {
         val attrs = AudioAttributes.Builder()
@@ -1315,7 +1347,10 @@ class AudioService : Service() {
                         Log.d("AudioService", "Bluetooth SCO CONNECTED")
                         sendLogMessage("🎧 Micrófono Bluetooth conectado")
                         isBluetoothScoOn = true
-                        sendMicrophoneChanged("Auriculares Bluetooth")
+                        
+                        // Obtener el nombre real del dispositivo Bluetooth
+                        val btDeviceName = getBluetoothDeviceName()
+                        sendMicrophoneChanged(btDeviceName)
                         
                         if (pendingRecordingAfterSco) {
                             pendingRecordingAfterSco = false
@@ -1488,22 +1523,30 @@ class AudioService : Service() {
                 Log.d("AudioService", "Waiting for SCO... attempt $i")
             }
             
+            // 4. Obtener el nombre del dispositivo Bluetooth activo
+            val inputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            var bluetoothDeviceName: String? = null
+            Log.d("AudioService", "Available input devices: ${inputDevices.size}")
+            for (device in inputDevices) {
+                Log.d("AudioService", "  - ${device.productName} (type=${device.type})")
+                if (device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                    bluetoothDeviceName = device.productName?.toString() ?: "Bluetooth"
+                }
+            }
+            
             if (scoActivated) {
                 sendLogMessage("✅ SCO activado")
                 sendLogMessage("⏱️ Grabación máx: ${RECORDING_TIMEOUT_MS/1000}s")
                 Log.d("AudioService", "SCO activated successfully")
                 isBluetoothScoOn = true
+                // Actualizar UI con el nombre del dispositivo
+                sendMicrophoneChanged(bluetoothDeviceName ?: "Bluetooth SCO")
             } else {
                 sendLogMessage("⚠️ SCO no se activó, intentando grabar igual...")
                 Log.w("AudioService", "SCO did not activate, will try recording anyway")
                 // Mantener MODE_IN_COMMUNICATION de todos modos, puede funcionar
-            }
-            
-            // 4. Listar dispositivos de entrada disponibles
-            val inputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
-            Log.d("AudioService", "Available input devices: ${inputDevices.size}")
-            for (device in inputDevices) {
-                Log.d("AudioService", "  - ${device.productName} (type=${device.type})")
+                // Actualizar UI indicando que está intentando usar Bluetooth
+                sendMicrophoneChanged(bluetoothDeviceName ?: "Bluetooth (pendiente)")
             }
             
         } catch (e: Exception) {
