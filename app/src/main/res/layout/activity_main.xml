@@ -225,15 +225,6 @@
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
 
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnVoiceControlInfo"
-                            style="@style/Widget.Material3.Button.IconButton"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:contentDescription="@string/voice_control_info"
-                            app:icon="@android:drawable/ic_menu_info_details"
-                            app:iconSize="24dp" />
-
-                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnPlaySummary"
                             style="@style/Widget.Material3.Button.TextButton"
                             android:layout_width="wrap_content"
@@ -499,6 +490,17 @@
                             android:layout_weight="1"
                             android:text="@string/logs_title"
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCopyLogs"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="80dp"
+                            android:minHeight="48dp"
+                            android:text="@string/copy"
+                            android:textSize="14sp"
+                            app:icon="@android:drawable/ic_menu_save" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnClearLogs"

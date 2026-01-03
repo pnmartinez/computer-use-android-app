@@ -12,6 +12,7 @@
 
     <!-- UI Strings -->
     <string name="logs_title">Logs (Logcat)</string>
+    <string name="copy">Copy</string>
     <string name="clear">Clear</string>
     <string name="server_ip_hint">Server IP</string>
     <string name="server_port_hint">Server Port</string>
@@ -66,19 +67,19 @@
     <string name="timestamp_unavailable">Timestamp no disponible</string>
     <string name="capture_image_description">Captura tomada %1$s</string>
     <string name="tutorial_menu_title">Tutorial</string>
-    <string name="tutorial_title">Bienvenido a Simple Computer Use</string>
-    <string name="tutorial_subtitle">Controla tu ordenador remoto con comandos de voz o texto y revisa los resultados en tiempo real.</string>
+    <string name="tutorial_title">Bienvenido</string>
+    <string name="tutorial_subtitle">Controla tu ordenador por voz o texto, con lenguaje natural. Da órdenes como las darías a un compañero que maneja un ordenador.</string>
     <string name="tutorial_highlight_title">Tu guía en el primer inicio</string>
     <string name="tutorial_highlight_body">Este tutorial aparece automáticamente la primera vez. También puedes abrirlo desde la barra lateral en “Tutorial”.</string>
     <string name="tutorial_steps_title">Cómo empezar</string>
-    <string name="tutorial_steps_body">1. Configura la IP/puerto del servidor.\n2. Pulsa “Start Recording” y dicta tu comando.\n3. Espera la respuesta y revisa los pasos ejecutados.\n4. Usa las capturas y el resumen para validar el resultado.</string>
-    <string name="tutorial_commands_title">Ejemplos de comandos</string>
-    <string name="tutorial_commands_body">Describe la acción con claridad usando keywords simples como click, escribe o presiona.</string>
+    <string name="tutorial_steps_body">1. Ve a configuración y ajusta la IP y puerto del PC con la Desktop app instalada y corriendo.\n2. Pulsa “Start Recording” y dicta tu comando.\n3. Espera ejecución y revisa los pasos ejecutados en Command History.\n4. Usa las capturas y el resumen para validar el resultado.</string>
+    <string name="tutorial_commands_title">3 comandos: click, escribe, presiona</string>
+    <string name="tutorial_commands_body">Describe la acción con claridad usando keywords como click, escribe o presiona.</string>
     <string name="tutorial_commands_examples">“Click en Ajustes”\n“escribe hola mundo Lorem ipsum”\n“scroll abajo”\n“presiona Control Shift T”</string>
-    <string name="tutorial_voice_title">Comandos de voz y texto</string>
-    <string name="tutorial_voice_body">Habla de forma natural o usa comandos directos. El sistema traduce a pasos accionables y puedes repetir una orden desde el historial.</string>
+    <string name="tutorial_voice_title">Dicta varios pasos seguidos</string>
+    <string name="tutorial_voice_body">Dicta varios comandos en la misma petición, como &quot;click Firefox, escribe google, presiona enter&quot;. Una LLM los segmenta adecuadamente en pasos: puedes comprobarlo en Command History.</string>
     <string name="tutorial_tips_title">Consejos pro</string>
-    <string name="tutorial_tips_body">• Sé específico con el texto en botones, campos o pestañas.\n• Usa “captura pantalla” para actualizar la vista antes de una nueva orden.</string>
+    <string name="tutorial_tips_body">• Para las órdenes de click, sé específico con el texto en botones, campos o pestañas: el blanco del click usa OCR.\n• Los tiempos de ejecución de cada orden varían según la potencia del equipo, tamaño de los modelos usados, y disponibilidad de GPU.</string>
     <string name="tutorial_settings_button">Configurar servidor</string>
     <string name="tutorial_close_button">Entendido</string>
     
@@ -185,6 +186,8 @@
     <string name="unknown_error">Unknown error</string>
     <string name="app_started">Application started</string>
     <string name="logs_cleared">Logs cleared</string>
+    <string name="logs_copied">Logs copied to clipboard</string>
+    <string name="app_logo">Logo de la app</string>
     <string name="recording_state_reset">Recording state reset</string>
     <string name="server_settings_updated">Server settings updated: %1$s:%2$s, model: %3$s</string>
     <string name="testing_connection">Testing connection to %1$s...</string>
@@ -291,7 +294,6 @@
     <string name="headset_control_status_off">Manos libres: desactivado</string>
     <string name="headset_control_status_pending">Manos libres: solicitando…</string>
     <string name="headset_control_status_timeout">Manos libres: sin respuesta</string>
-    <string name="voice_control_info">Información sobre control de voz</string>
     <string name="drawer_mic_inactive">Mic: No activo</string>
     <string name="drawer_mic_device">Mic: %1$s</string>
     <string name="headset_feedback_enabled">Feedback auditivo en auriculares</string>
