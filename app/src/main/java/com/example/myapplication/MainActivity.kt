@@ -53,7 +53,6 @@ import android.widget.PopupMenu
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -71,6 +70,8 @@ import com.example.myapplication.AudioService.Companion.KEY_SERVER_IP
 import com.example.myapplication.AudioService.Companion.KEY_SERVER_PORT
 import kotlin.math.sqrt
 import android.widget.ProgressBar
+import android.content.ClipData
+import android.content.ClipboardManager
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.switchmaterial.SwitchMaterial
@@ -96,6 +97,7 @@ class MainActivity : AppCompatActivity() {
     
     // Logs - Find ScrollView directly by ID
     private lateinit var logsTextView: TextView
+    private lateinit var btnCopyLogs: MaterialButton
     private lateinit var btnClearLogs: MaterialButton
     private lateinit var logsScrollView: ScrollView
     private lateinit var btnToggleLogs: MaterialButton
@@ -526,6 +528,7 @@ class MainActivity : AppCompatActivity() {
         
         // Logs - Find ScrollView directly by ID
         logsTextView = findViewById(R.id.logsTextView)
+        btnCopyLogs = findViewById(R.id.btnCopyLogs)
         btnClearLogs = findViewById(R.id.btnClearLogs)
         logsScrollView = findViewById(R.id.logsScrollView)
         
@@ -564,12 +567,6 @@ class MainActivity : AppCompatActivity() {
             playLastAudio()
         }
         
-        // Voice control info button
-        val btnVoiceControlInfo = findViewById<MaterialButton>(R.id.btnVoiceControlInfo)
-        btnVoiceControlInfo.setOnClickListener {
-            showVoiceControlInfoDialog()
-        }
-        
         updateScreenSummary("")
 
         updateHeadsetControlUi(headsetControlEnabled)
@@ -580,6 +577,16 @@ class MainActivity : AppCompatActivity() {
             logBuffer.clear()
             logsTextView.text = ""
             addLogMessage("[${getCurrentTime()}] ${getString(R.string.logs_cleared)}")
+        }
+
+        btnCopyLogs.setOnClickListener {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText(
+                getString(R.string.logs_title),
+                logsTextView.text.toString()
+            )
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(this, getString(R.string.logs_copied), Toast.LENGTH_SHORT).show()
         }
         
         // Setup log toggle button
@@ -1874,27 +1881,6 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-    }
-    
-    private fun showVoiceControlInfoDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Control de Voz Manos Libres")
-            .setMessage("""
-                Este modo te permite controlar la aplicación usando los botones de tus auriculares Bluetooth.
-                
-                Cómo funciona:
-                
-                • 1 toque: Iniciar/Detener grabación
-                • 2 toques rápidos: Detener y enviar
-                • 3 toques rápidos: Cancelar grabación
-                
-                El sistema reproduce audio silencioso en segundo plano para mantener el control de los botones.
-                
-                Nota: Desactiva el modo cuando no lo uses para ahorrar batería.
-            """.trimIndent())
-            .setIcon(android.R.drawable.ic_menu_info_details)
-            .setPositiveButton("Entendido") { dialog, _ -> dialog.dismiss() }
-            .show()
     }
     
     private fun saveAppPreferences() {
