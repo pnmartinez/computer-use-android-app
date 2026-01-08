@@ -20,4 +20,12 @@
     <color name="md_theme_surfaceVariant">#404943</color>
     <color name="md_theme_onSurfaceVariant">#C0C9C1</color>
     <color name="md_theme_outline">#8A938C</color>
+    
+    <!-- Settings section background (dark theme) -->
+    <color name="settings_section_bg">#242424</color>
+    
+    <!-- Glassmorphism footer background (dark theme - more transparent) -->
+    <color name="glass_footer_bg">#99222222</color>
+    <!-- Glass border highlight (dark theme) -->
+    <color name="glass_border">#30FFFFFF</color>
 </resources> 

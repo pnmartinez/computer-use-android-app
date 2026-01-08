@@ -9,6 +9,8 @@ import android.content.res.ColorStateList
 import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -16,6 +18,8 @@ import android.os.Looper
 import android.text.SpannableStringBuilder
 import android.view.MotionEvent
 import android.view.View
+import android.widget.Button
+import androidx.appcompat.widget.AppCompatButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -147,6 +151,21 @@ class MainActivity : AppCompatActivity() {
         )
     }
     
+    // Long Polling for server updates
+    private var longPollingService: LongPollingService? = null
+    private val pollingJob = Job()
+    private val pollingScope = CoroutineScope(Dispatchers.Main + pollingJob)
+    private var isPollingConnected = false
+    
+    // Long Polling Debug UI
+    private lateinit var pollingStatusDot: View
+    private lateinit var pollingStatusText: TextView
+    private lateinit var pollingServerUrl: TextView
+    private lateinit var pollingLastEvent: TextView
+    private lateinit var btnPollingReconnect: MaterialButton
+    private lateinit var switchPollingEnabled: com.google.android.material.materialswitch.MaterialSwitch
+    private var isPollingEnabled = true
+    
     // Broadcast receiver to listen for service state changes
     private val serviceReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -272,6 +291,34 @@ class MainActivity : AppCompatActivity() {
                     Log.d("MainActivity", getString(R.string.connection_test_received, success, message))
                     addLogMessage("[${getCurrentTime()}] ${getString(R.string.connection_test_received, success, message)}")
                 }
+                
+                // Long Polling broadcasts
+                LongPollingService.ACTION_UPDATE_RECEIVED -> {
+                    val updateId = intent.getStringExtra(LongPollingService.EXTRA_UPDATE_ID) ?: ""
+                    val updateType = intent.getStringExtra(LongPollingService.EXTRA_UPDATE_TYPE) ?: ""
+                    val updateSummary = intent.getStringExtra(LongPollingService.EXTRA_UPDATE_SUMMARY) ?: ""
+                    val updateChanges = intent.getStringArrayListExtra(LongPollingService.EXTRA_UPDATE_CHANGES) ?: arrayListOf()
+                    
+                    Log.d("MainActivity", "Server update received: $updateId - $updateSummary")
+                    handleServerUpdate(updateType, updateSummary, updateChanges)
+                }
+                LongPollingService.ACTION_POLLING_STATUS -> {
+                    val connected = intent.getBooleanExtra(LongPollingService.EXTRA_POLLING_CONNECTED, false)
+                    isPollingConnected = connected
+                    updatePollingStatusUi(connected)
+                }
+                LongPollingService.ACTION_POLLING_ERROR -> {
+                    val errorMessage = intent.getStringExtra(LongPollingService.EXTRA_ERROR_MESSAGE) ?: ""
+                    Log.e("MainActivity", "Polling error: $errorMessage")
+                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.polling_error, errorMessage)}")
+                    // Update debug UI with error
+                    updatePollingDebugUI("error", "Error")
+                    pollingLastEvent.text = "❌ ${getCurrentTime()}: ${errorMessage.take(50)}"
+                }
+                LongPollingService.ACTION_POLLING_DEBUG -> {
+                    val debugMessage = intent.getStringExtra(LongPollingService.EXTRA_DEBUG_MESSAGE) ?: ""
+                    pollingLastEvent.text = "🔍 ${getCurrentTime()}: $debugMessage"
+                }
             }
         }
     }
@@ -357,6 +404,9 @@ class MainActivity : AppCompatActivity() {
         // Setup screenshot section
         setupScreenshotSection()
         
+        // Setup glass effect on footer
+        setupGlassEffect()
+        
         // Load logs state
         loadLogsState()
         
@@ -376,6 +426,9 @@ class MainActivity : AppCompatActivity() {
         // Fetch command history after all views are initialized
         // This will also fetch favorites after completion
         fetchCommandHistory()
+        
+        // Start long polling for server updates
+        startLongPolling()
     }
     
     override fun onResume() {
@@ -397,6 +450,11 @@ class MainActivity : AppCompatActivity() {
         // If auto-refresh was enabled, restart it
         if (autoRefreshEnabled) {
             startAutoRefresh()
+        }
+        
+        // Restart long polling if not running
+        if (longPollingService?.isPolling() != true) {
+            startLongPolling()
         }
     }
     
@@ -485,6 +543,10 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         // Cancel any ongoing screenshot jobs
         screenshotJob.cancel()
+        
+        // Stop long polling
+        stopLongPolling()
+        pollingJob.cancel()
     }
     
     private fun registerReceiver() {
@@ -499,6 +561,11 @@ class MainActivity : AppCompatActivity() {
             addAction(AudioService.ACTION_TTS_STATUS)
             addAction(AudioService.ACTION_HEADSET_CONTROL_STATUS)
             addAction(AudioService.ACTION_MICROPHONE_CHANGED)
+            // Long Polling broadcasts
+            addAction(LongPollingService.ACTION_UPDATE_RECEIVED)
+            addAction(LongPollingService.ACTION_POLLING_STATUS)
+            addAction(LongPollingService.ACTION_POLLING_ERROR)
+            addAction(LongPollingService.ACTION_POLLING_DEBUG)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -568,6 +635,49 @@ class MainActivity : AppCompatActivity() {
         }
         
         updateScreenSummary("")
+        
+        // Long Polling / MCP Server UI
+        pollingStatusDot = findViewById(R.id.pollingStatusDot)
+        pollingStatusText = findViewById(R.id.pollingStatusText)
+        pollingServerUrl = findViewById(R.id.pollingServerUrl)
+        pollingLastEvent = findViewById(R.id.pollingLastEvent)
+        btnPollingReconnect = findViewById(R.id.btnPollingReconnect)
+        switchPollingEnabled = findViewById(R.id.switchPollingEnabled)
+        
+        // Load polling preference
+        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        isPollingEnabled = prefs.getBoolean("polling_enabled", true)
+        switchPollingEnabled.isChecked = isPollingEnabled
+        
+        switchPollingEnabled.setOnCheckedChangeListener { _, isChecked ->
+            isPollingEnabled = isChecked
+            prefs.edit().putBoolean("polling_enabled", isChecked).apply()
+            if (isChecked) {
+                updatePollingDebugUI("connecting", "Conectando...")
+                startLongPolling()
+            } else {
+                stopLongPolling()
+                updatePollingDebugUI("disabled", "Desactivado")
+                pollingLastEvent.text = "Activa el switch para recibir notificaciones"
+            }
+        }
+        
+        btnPollingReconnect.setOnClickListener {
+            if (isPollingEnabled) {
+                addLogMessage("[${getCurrentTime()}] 🔄 Reconectando MCP Server...")
+                updatePollingDebugUI("reconnecting", "Reconectando...")
+                stopLongPolling()
+                startLongPolling()
+            }
+        }
+        
+        // Initialize polling UI based on preference
+        if (isPollingEnabled) {
+            updatePollingDebugUI("inactive", "Esperando...")
+        } else {
+            updatePollingDebugUI("disabled", "Desactivado")
+            pollingLastEvent.text = "Activa el switch para recibir notificaciones"
+        }
 
         updateHeadsetControlUi(headsetControlEnabled)
         updateMicrophoneStatus(null) // Initial state
@@ -703,21 +813,22 @@ class MainActivity : AppCompatActivity() {
     
     private fun updateButtonStates() {
         Log.d("MainActivity", "updateButtonStates() called - isRecording: $isRecording")
-        Log.e("MainActivity", "UPDATE_BUTTON: updateButtonStates() called - isRecording: $isRecording")
         if (isRecording) {
             Log.d("MainActivity", "Setting button to recording state (red)")
-            Log.e("MainActivity", "UPDATE_BUTTON: Setting button to recording state (red)")
             btnStartRecording.text = getString(R.string.stop_recording)
-            btnStartRecording.icon = ContextCompat.getDrawable(this, android.R.drawable.ic_media_pause)
-            // Set the background color to red when recording
-            btnStartRecording.setBackgroundColor(ContextCompat.getColor(this, R.color.md_theme_error))
+            // Set stop icon using MaterialButton API
+            btnStartRecording.setIconResource(android.R.drawable.ic_media_pause)
+            // Set red gradient background
+            btnStartRecording.background = ContextCompat.getDrawable(this, R.drawable.btn_record_stop_background)
+            btnStartRecording.backgroundTintList = null
         } else {
             Log.d("MainActivity", "Setting button to ready state (green)")
-            Log.e("MainActivity", "UPDATE_BUTTON: Setting button to ready state (green)")
             btnStartRecording.text = getString(R.string.start_recording_button)
-            btnStartRecording.icon = ContextCompat.getDrawable(this, android.R.drawable.ic_btn_speak_now)
-            // Set the default background color to Android's default dark green
-            btnStartRecording.setBackgroundColor(Color.parseColor("#006400"));
+            // Set microphone icon using MaterialButton API
+            btnStartRecording.setIconResource(android.R.drawable.ic_btn_speak_now)
+            // Set green gradient background
+            btnStartRecording.background = ContextCompat.getDrawable(this, R.drawable.btn_record_background)
+            btnStartRecording.backgroundTintList = null
         }
     }
     
@@ -730,7 +841,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     // Update button text with countdown
                     btnStartRecording.text = "${secondsRemaining}s"
-                    btnStartRecording.icon = null // Remove icon to make room for number
+                    btnStartRecording.icon = null // Remove icon during countdown
                 }
             }
             
@@ -1243,6 +1354,131 @@ class MainActivity : AppCompatActivity() {
         summaryUpdateAnimator?.start()
     }
 
+    // ==================== Long Polling Functions ====================
+    
+    /**
+     * Starts the long polling service to receive server updates
+     */
+    private fun startLongPolling() {
+        // Don't start if polling is disabled
+        if (!isPollingEnabled) {
+            Log.d("MainActivity", "Long polling disabled by user")
+            return
+        }
+        
+        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        val serverIp = prefs.getString(AudioService.KEY_SERVER_IP, AudioService.DEFAULT_SERVER_IP) ?: AudioService.DEFAULT_SERVER_IP
+        val serverPort = prefs.getInt(AudioService.KEY_SERVER_PORT, AudioService.DEFAULT_SERVER_PORT)
+        
+        // Don't start if server is not configured
+        if (serverIp == AudioService.DEFAULT_SERVER_IP || serverIp.isBlank()) {
+            Log.d("MainActivity", "Long polling not started: server not configured")
+            updatePollingDebugUI("inactive", "No configurado")
+            pollingServerUrl.text = "Servidor: no configurado"
+            return
+        }
+        
+        val serverUrl = "https://$serverIp:$serverPort"
+        
+        // Stop existing service if running (without updating UI)
+        longPollingService?.stop()
+        longPollingService = null
+        
+        // Update debug UI AFTER stopping old service
+        pollingServerUrl.text = "Server: $serverUrl"
+        updatePollingDebugUI("connecting", "Conectando...")
+        pollingLastEvent.text = "Iniciando polling..."
+        
+        // Create and start new polling service
+        longPollingService = LongPollingService(this, serverUrl)
+        longPollingService?.start(pollingScope)
+        
+        Log.d("MainActivity", "Long polling started for $serverUrl")
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.polling_status_active)}")
+    }
+    
+    /**
+     * Stops the long polling service
+     */
+    private fun stopLongPolling() {
+        longPollingService?.stop()
+        longPollingService = null
+        isPollingConnected = false
+        updatePollingDebugUI("inactive", "Detenido")
+    }
+    
+    /**
+     * Handles a server update received via long polling.
+     * Behavior is identical to ACTION_RESPONSE_RECEIVED: updates the summary card and speaks via TTS.
+     */
+    private fun handleServerUpdate(updateType: String, summary: String, changes: List<String>) {
+        // Format the update message
+        val typeLabel = when (updateType) {
+            "cursor_update" -> getString(R.string.update_type_cursor)
+            else -> getString(R.string.update_type_generic)
+        }
+        
+        // Update debug UI
+        pollingLastEvent.text = "📥 ${getCurrentTime()}: $typeLabel recibido"
+        
+        // Update the summary card with the new update
+        val formattedSummary = if (changes.isNotEmpty()) {
+            "$summary\n\n${getString(R.string.update_changes, changes.joinToString(", "))}"
+        } else {
+            summary
+        }
+        
+        updateScreenSummary(formattedSummary)
+        
+        // Log the update
+        addLogMessage("[${getCurrentTime()}] 📥 $typeLabel: $summary")
+        
+        // Speak the summary via TTS (same behavior as voice command responses)
+        if (summary.isNotBlank()) {
+            speakSummary(summary)
+        }
+    }
+    
+    /**
+     * Updates the UI to reflect polling connection status
+     */
+    private fun updatePollingStatusUi(connected: Boolean) {
+        isPollingConnected = connected
+        if (connected) {
+            updatePollingDebugUI("connected", "Conectado")
+            pollingLastEvent.text = "✅ ${getCurrentTime()}: Conexión establecida"
+        } else {
+            updatePollingDebugUI("disconnected", "Desconectado")
+        }
+        Log.d("MainActivity", "Polling status: ${if (connected) "connected" else "disconnected"}")
+    }
+    
+    /**
+     * Updates the Long Polling debug UI card
+     */
+    private fun updatePollingDebugUI(status: String, message: String) {
+        val colorRes = when (status) {
+            "connected" -> R.color.md_theme_primary  // Green
+            "connecting", "reconnecting" -> R.color.md_theme_secondary  // Yellow/Orange
+            "error" -> R.color.md_theme_error  // Red
+            "disabled" -> R.color.md_theme_outline  // Gray for disabled
+            else -> R.color.md_theme_outline  // Gray for inactive/disconnected
+        }
+        pollingStatusDot.backgroundTintList = ColorStateList.valueOf(
+            ContextCompat.getColor(this, colorRes)
+        )
+        pollingStatusText.text = when (status) {
+            "connected" -> "🟢 $message"
+            "connecting", "reconnecting" -> "🟡 $message"
+            "error" -> "🔴 $message"
+            "disabled" -> "⚫ $message"
+            else -> "⚪ $message"
+        }
+        
+        // Show/hide reconnect button based on status
+        btnPollingReconnect.visibility = if (status == "disabled") View.GONE else View.VISIBLE
+    }
+
     /**
      * Check if we have recording permission
      */
@@ -1358,6 +1594,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestAudioPermission() {
         requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO_PERMISSION)
+    }
+    
+    /**
+     * Aplica efecto glassmorphism al footer.
+     * El efecto se logra con un fondo semitransparente definido en XML.
+     */
+    private fun setupGlassEffect() {
+        // El efecto glass se logra con:
+        // 1. Fondo semitransparente (definido en colors.xml: glass_footer_bg)
+        // 2. Elevación que crea sombra sutil
+        // El blur real requiere librerías externas o API específicas de Window
     }
 
     private fun setupScreenshotSection() {
@@ -1676,7 +1923,9 @@ class MainActivity : AppCompatActivity() {
                             throw IOException("Imagen vacía recibida")
                         }
                         
-                        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                        // Decode with downsampling to reduce memory usage
+                        val (targetWidth, targetHeight) = getScreenshotTargetDimensions()
+                        val bitmap = decodeScaledBitmap(imageBytes, targetWidth, targetHeight)
                             ?: throw IOException("Error al decodificar la imagen")
                         
                         withContext(Dispatchers.Main) {
@@ -1827,6 +2076,50 @@ class MainActivity : AppCompatActivity() {
         screenshotStatusText.text = "$baseText (Vista: Captura)"
     }
 
+    /**
+     * Decodes a bitmap from byte array with downsampling to fit the target ImageView size.
+     * This reduces memory usage significantly when displaying large screenshots.
+     */
+    private fun decodeScaledBitmap(imageBytes: ByteArray, targetWidth: Int, targetHeight: Int): Bitmap? {
+        // First decode with inJustDecodeBounds=true to get dimensions
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, options)
+        
+        // Calculate inSampleSize
+        options.inSampleSize = calculateInSampleSize(options, targetWidth, targetHeight)
+        options.inJustDecodeBounds = false
+        
+        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, options)
+    }
+
+    /**
+     * Calculate the largest inSampleSize value that is a power of 2 and keeps both
+     * height and width larger than the requested height and width.
+     */
+    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+        val (height, width) = options.run { outHeight to outWidth }
+        var inSampleSize = 1
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight = height / 2
+            val halfWidth = width / 2
+            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize.coerceAtLeast(1)
+    }
+
+    /**
+     * Gets the target dimensions for screenshot ImageView based on screen density.
+     * ImageView height is 200dp, width is match_parent.
+     */
+    private fun getScreenshotTargetDimensions(): Pair<Int, Int> {
+        val density = resources.displayMetrics.density
+        val targetHeight = (200 * density).toInt()  // 200dp as defined in layout
+        val targetWidth = resources.displayMetrics.widthPixels
+        return Pair(targetWidth, targetHeight)
+    }
+
     private fun showFullscreenImage() {
         // Get the current bitmap from the ImageView
         val bitmap = (screenshotImageView.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap ?: return
@@ -1966,9 +2259,10 @@ class MainActivity : AppCompatActivity() {
                                     if (jsonResponse.has("image_data") && filename.isNotEmpty()) {
                                         val base64ImageData = jsonResponse.getString("image_data")
                                         try {
-                                            // Convert base64 string to bitmap
+                                            // Convert base64 string to bitmap with downsampling
                                             val imageBytes = android.util.Base64.decode(base64ImageData, android.util.Base64.DEFAULT)
-                                            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                                            val (targetWidth, targetHeight) = getScreenshotTargetDimensions()
+                                            val bitmap = decodeScaledBitmap(imageBytes, targetWidth, targetHeight)
                                             
                                             // Display bitmap directly
                                             if (bitmap != null) {

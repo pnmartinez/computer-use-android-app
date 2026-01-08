@@ -5,12 +5,17 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.Uri
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.provider.Settings
 import android.util.Log
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.TextView
@@ -23,6 +28,10 @@ import com.example.myapplication.AudioService.Companion.KEY_TTS_LANGUAGE
 import com.example.myapplication.AudioService.Companion.KEY_TTS_PITCH
 import com.example.myapplication.AudioService.Companion.KEY_TTS_RATE
 import com.example.myapplication.AudioService.Companion.KEY_WHISPER_MODEL
+import com.example.myapplication.AudioService.Companion.KEY_RECORDING_START_TONE
+import com.example.myapplication.AudioService.Companion.KEY_RECORDING_STOP_TONE
+import com.example.myapplication.AudioService.Companion.DEFAULT_RECORDING_START_TONE
+import com.example.myapplication.AudioService.Companion.DEFAULT_RECORDING_STOP_TONE
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
@@ -44,6 +53,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnSaveSettings: MaterialButton
     private lateinit var connectionStatusText: TextView
     private lateinit var whisperModelDropdown: AutoCompleteTextView
+    private lateinit var recordingStartToneDropdown: AutoCompleteTextView
+    private lateinit var recordingStopToneDropdown: AutoCompleteTextView
 
     private var isDarkTheme = false
     private var connectionTestTimeoutHandler: Handler? = null
@@ -75,6 +86,7 @@ class SettingsActivity : AppCompatActivity() {
         loadThemePreference()
         loadServerSettings()
         setupActions()
+        setupGlassEffect()
     }
 
     override fun onResume() {
@@ -113,6 +125,8 @@ class SettingsActivity : AppCompatActivity() {
         btnSaveSettings = findViewById(R.id.btnSaveSettings)
         connectionStatusText = findViewById(R.id.connectionStatusText)
         whisperModelDropdown = findViewById(R.id.whisperModelDropdown)
+        recordingStartToneDropdown = findViewById(R.id.recordingStartToneDropdown)
+        recordingStopToneDropdown = findViewById(R.id.recordingStopToneDropdown)
 
         val adapter = ArrayAdapter(
             this,
@@ -120,6 +134,15 @@ class SettingsActivity : AppCompatActivity() {
             resources.getStringArray(R.array.whisper_model_options)
         )
         whisperModelDropdown.setAdapter(adapter)
+        
+        // Tone dropdowns
+        val toneAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_dropdown_item_1line,
+            resources.getStringArray(R.array.tone_options)
+        )
+        recordingStartToneDropdown.setAdapter(toneAdapter)
+        recordingStopToneDropdown.setAdapter(toneAdapter)
     }
 
     private fun setupActions() {
@@ -150,6 +173,17 @@ class SettingsActivity : AppCompatActivity() {
 
         headsetFeedbackSwitch.setOnCheckedChangeListener { _, isChecked ->
             updateHeadsetFeedbackSwitchText(isChecked)
+        }
+        
+        // Preview tone when selecting from dropdown
+        recordingStartToneDropdown.setOnItemClickListener { _, _, _, _ ->
+            val selectedTone = getToneValue(recordingStartToneDropdown.text.toString())
+            playTonePreview(selectedTone)
+        }
+        
+        recordingStopToneDropdown.setOnItemClickListener { _, _, _, _ ->
+            val selectedTone = getToneValue(recordingStopToneDropdown.text.toString())
+            playTonePreview(selectedTone)
         }
     }
 
@@ -217,6 +251,10 @@ class SettingsActivity : AppCompatActivity() {
             AudioService.KEY_HEADSET_FEEDBACK_ENABLED,
             AudioService.DEFAULT_HEADSET_FEEDBACK_ENABLED
         )
+        val recordingStartTone = prefs.getString(KEY_RECORDING_START_TONE, DEFAULT_RECORDING_START_TONE)
+            ?: DEFAULT_RECORDING_START_TONE
+        val recordingStopTone = prefs.getString(KEY_RECORDING_STOP_TONE, DEFAULT_RECORDING_STOP_TONE)
+            ?: DEFAULT_RECORDING_STOP_TONE
 
         serverIpInput.setText(serverIp)
         serverPortInput.setText(serverPort.toString())
@@ -230,6 +268,67 @@ class SettingsActivity : AppCompatActivity() {
         updateAudioPlaybackSwitchText(audioPlaybackEnabled)
         headsetFeedbackSwitch.isChecked = headsetFeedbackEnabled
         updateHeadsetFeedbackSwitchText(headsetFeedbackEnabled)
+        
+        // Load tone settings
+        recordingStartToneDropdown.setText(getToneDisplayName(recordingStartTone), false)
+        recordingStopToneDropdown.setText(getToneDisplayName(recordingStopTone), false)
+    }
+    
+    private fun getToneDisplayName(toneValue: String): String {
+        val toneValues = resources.getStringArray(R.array.tone_values)
+        val toneOptions = resources.getStringArray(R.array.tone_options)
+        val index = toneValues.indexOf(toneValue)
+        return if (index >= 0) toneOptions[index] else toneOptions[0]
+    }
+    
+    private fun getToneValue(displayName: String): String {
+        val toneValues = resources.getStringArray(R.array.tone_values)
+        val toneOptions = resources.getStringArray(R.array.tone_options)
+        val index = toneOptions.indexOf(displayName)
+        return if (index >= 0) toneValues[index] else toneValues[0]
+    }
+    
+    /**
+     * Reproduce una previsualización del tono seleccionado.
+     */
+    private fun playTonePreview(toneName: String) {
+        try {
+            val toneType = getToneGeneratorValue(toneName)
+            val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+            toneGen.startTone(toneType, 300)
+            
+            // Liberar después de reproducir
+            Handler(mainLooper).postDelayed({
+                try {
+                    toneGen.release()
+                } catch (e: Exception) {
+                    Log.e("SettingsActivity", "Error releasing ToneGenerator: ${e.message}")
+                }
+            }, 400)
+        } catch (e: Exception) {
+            Log.e("SettingsActivity", "Error playing tone preview: ${e.message}")
+        }
+    }
+    
+    /**
+     * Convierte el nombre del tono a su valor ToneGenerator correspondiente.
+     */
+    private fun getToneGeneratorValue(toneName: String): Int {
+        return when (toneName) {
+            "TONE_PROP_BEEP" -> ToneGenerator.TONE_PROP_BEEP
+            "TONE_PROP_BEEP2" -> ToneGenerator.TONE_PROP_BEEP2
+            "TONE_PROP_ACK" -> ToneGenerator.TONE_PROP_ACK
+            "TONE_CDMA_ALERT_INCALL_LITE" -> ToneGenerator.TONE_CDMA_ALERT_INCALL_LITE
+            "TONE_CDMA_CALLDROP_LITE" -> ToneGenerator.TONE_CDMA_CALLDROP_LITE
+            "TONE_DTMF_0" -> ToneGenerator.TONE_DTMF_0
+            "TONE_DTMF_1" -> ToneGenerator.TONE_DTMF_1
+            "TONE_DTMF_5" -> ToneGenerator.TONE_DTMF_5
+            "TONE_DTMF_9" -> ToneGenerator.TONE_DTMF_9
+            "TONE_SUP_RINGTONE" -> ToneGenerator.TONE_SUP_RINGTONE
+            "TONE_PROP_PROMPT" -> ToneGenerator.TONE_PROP_PROMPT
+            "TONE_SUP_ERROR" -> ToneGenerator.TONE_SUP_ERROR
+            else -> ToneGenerator.TONE_PROP_BEEP
+        }
     }
 
     private fun saveServerSettings() {
@@ -243,6 +342,8 @@ class SettingsActivity : AppCompatActivity() {
         val ttsPitchText = ttsPitchInput.text.toString().trim()
         val audioPlaybackEnabled = audioPlaybackSwitch.isChecked
         val headsetFeedbackEnabled = headsetFeedbackSwitch.isChecked
+        val recordingStartTone = getToneValue(recordingStartToneDropdown.text.toString())
+        val recordingStopTone = getToneValue(recordingStopToneDropdown.text.toString())
 
         if (ip.isEmpty()) {
             Toast.makeText(this, getString(R.string.empty_server_ip_error), Toast.LENGTH_SHORT).show()
@@ -319,6 +420,8 @@ class SettingsActivity : AppCompatActivity() {
             putFloat(KEY_TTS_PITCH, pitch)
             putBoolean(AudioService.KEY_AUDIO_PLAYBACK_ENABLED, audioPlaybackEnabled)
             putBoolean(AudioService.KEY_HEADSET_FEEDBACK_ENABLED, headsetFeedbackEnabled)
+            putString(KEY_RECORDING_START_TONE, recordingStartTone)
+            putString(KEY_RECORDING_STOP_TONE, recordingStopTone)
             commit()
         }
 
@@ -333,6 +436,8 @@ class SettingsActivity : AppCompatActivity() {
             putExtra(KEY_TTS_PITCH, pitch)
             putExtra(AudioService.KEY_AUDIO_PLAYBACK_ENABLED, audioPlaybackEnabled)
             putExtra(AudioService.KEY_HEADSET_FEEDBACK_ENABLED, headsetFeedbackEnabled)
+            putExtra(KEY_RECORDING_START_TONE, recordingStartTone)
+            putExtra(KEY_RECORDING_STOP_TONE, recordingStopTone)
         }
         startService(intent)
 
@@ -405,6 +510,17 @@ class SettingsActivity : AppCompatActivity() {
                     .show()
             }
         }
+    }
+    
+    /**
+     * Aplica efecto glassmorphism al footer.
+     * El efecto se logra con un fondo semitransparente definido en XML.
+     */
+    private fun setupGlassEffect() {
+        // El efecto glass se logra con:
+        // 1. Fondo semitransparente (definido en colors.xml: glass_footer_bg)
+        // 2. Elevación que crea sombra sutil
+        // El blur real requiere librerías externas o API específicas de Window
     }
 
     companion object {

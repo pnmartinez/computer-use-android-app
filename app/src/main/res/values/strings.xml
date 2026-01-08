@@ -53,6 +53,13 @@
     
     <!-- Advanced Settings Section -->
     <string name="advanced_settings_title">Advanced Settings</string>
+    
+    <!-- Settings Section Titles -->
+    <string name="settings_section_connection">Conexión al Servidor</string>
+    <string name="settings_section_transcription">Transcripción</string>
+    <string name="settings_section_voice">Respuestas de Voz</string>
+    <string name="settings_section_handsfree">Modo Manos Libres</string>
+    <string name="settings_section_general">General</string>
     <string name="expand_advanced_settings">Expand advanced settings</string>
     <string name="start_server">Start your Simple Computer Use server</string>
     <string name="switch_to_dark_theme">Switch to dark theme</string>
@@ -300,6 +307,42 @@
     <string name="headset_feedback_enabled_on">Feedback auditivo activado</string>
     <string name="headset_feedback_enabled_off">Feedback auditivo desactivado</string>
     
+    <!-- Recording Tone Settings -->
+    <string name="recording_start_tone_hint">Tono de inicio de grabación</string>
+    <string name="recording_stop_tone_hint">Tono de fin de grabación</string>
+    
+    <!-- Tone options array -->
+    <string-array name="tone_options">
+        <item>Beep</item>
+        <item>Beep 2</item>
+        <item>Confirmación (ACK)</item>
+        <item>Alerta suave</item>
+        <item>Tono descendente</item>
+        <item>DTMF 0</item>
+        <item>DTMF 1</item>
+        <item>DTMF 5</item>
+        <item>DTMF 9</item>
+        <item>Tono de llamada</item>
+        <item>Tono positivo</item>
+        <item>Tono negativo</item>
+    </string-array>
+    
+    <!-- Tone values (corresponding to ToneGenerator constants) -->
+    <string-array name="tone_values">
+        <item>TONE_PROP_BEEP</item>
+        <item>TONE_PROP_BEEP2</item>
+        <item>TONE_PROP_ACK</item>
+        <item>TONE_CDMA_ALERT_INCALL_LITE</item>
+        <item>TONE_CDMA_CALLDROP_LITE</item>
+        <item>TONE_DTMF_0</item>
+        <item>TONE_DTMF_1</item>
+        <item>TONE_DTMF_5</item>
+        <item>TONE_DTMF_9</item>
+        <item>TONE_SUP_RINGTONE</item>
+        <item>TONE_PROP_PROMPT</item>
+        <item>TONE_SUP_ERROR</item>
+    </string-array>
+    
     <!-- Handsfree Beta Dialog -->
     <string name="handsfree_dialog_title">Manos Libres</string>
     <string name="handsfree_dialog_beta_tag">⚡ Funcionalidad Beta</string>
@@ -323,4 +366,18 @@
     <string name="favorite_executed">Favorite executed successfully</string>
     <string name="favorite_execute_failed">Failed to execute favorite: %1$s</string>
     <string name="loading_favorites">Loading favorites…</string>
+
+    <!-- Long Polling / Server Updates -->
+    <string name="server_updates_title">Actualizaciones del Servidor</string>
+    <string name="polling_connected">Conectado al servidor</string>
+    <string name="polling_disconnected">Desconectado del servidor</string>
+    <string name="polling_error">Error de conexión: %1$s</string>
+    <string name="update_received">Actualización recibida</string>
+    <string name="update_type_cursor">Cambio en Cursor</string>
+    <string name="update_type_generic">Actualización</string>
+    <string name="update_changes">Archivos modificados: %1$s</string>
+    <string name="no_updates">Sin actualizaciones pendientes</string>
+    <string name="polling_status_active">🟢 Escuchando actualizaciones</string>
+    <string name="polling_status_inactive">⚪ Polling inactivo</string>
+    <string name="polling_status_error">🔴 Error de conexión</string>
 </resources>

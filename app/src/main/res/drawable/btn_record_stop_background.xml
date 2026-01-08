@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#40FFFFFF">
+    <item>
+        <layer-list>
+            <!-- Sombra interior sutil (parte inferior más oscura) -->
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="28dp" />
+                    <gradient
+                        android:angle="90"
+                        android:startColor="#00000000"
+                        android:centerColor="#10000000"
+                        android:endColor="#20000000"
+                        android:type="linear" />
+                </shape>
+            </item>
+            <!-- Color principal rojo con gradiente para profundidad -->
+            <item android:bottom="3dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="28dp" />
+                    <gradient
+                        android:angle="90"
+                        android:startColor="@color/md_theme_error"
+                        android:endColor="#8B0000"
+                        android:type="linear" />
+                </shape>
+            </item>
+            <!-- Highlight superior (luz) -->
+            <item android:bottom="3dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="28dp" />
+                    <gradient
+                        android:angle="90"
+                        android:startColor="#00FFFFFF"
+                        android:centerColor="#00FFFFFF"
+                        android:endColor="#25FFFFFF"
+                        android:type="linear" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</ripple>

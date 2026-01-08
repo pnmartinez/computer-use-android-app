@@ -39,12 +39,15 @@ android {
 }
 
 dependencies {
-    // OkHttp for WebSocket
-    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    // OkHttp for WebSocket and Long Polling
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // Gson for JSON parsing
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     // Media3 (ExoPlayer)
     val media3Version = "1.2.1"

@@ -27,4 +27,12 @@
     <!-- App-specific colors -->
     <color name="error">#BA1A1A</color>
     <color name="success">#006C51</color>
+    
+    <!-- Settings section background (light theme) -->
+    <color name="settings_section_bg">#F5F5F5</color>
+    
+    <!-- Glassmorphism footer background (light theme - more transparent) -->
+    <color name="glass_footer_bg">#B3FFFFFF</color>
+    <!-- Glass border highlight (light theme) -->
+    <color name="glass_border">#40FFFFFF</color>
 </resources>

@@ -29,4 +29,10 @@
     </style>
 
     <style name="Theme.RemotePCControl" parent="Base.Theme.RemotePCControl" />
+    
+    <!-- Settings section style with background -->
+    <style name="SettingsSection">
+        <item name="android:background">@color/settings_section_bg</item>
+        <item name="android:padding">12dp</item>
+    </style>
 </resources>

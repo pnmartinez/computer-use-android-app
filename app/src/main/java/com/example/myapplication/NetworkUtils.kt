@@ -22,6 +22,26 @@ object NetworkUtils {
         readTimeout: Long = 30, 
         writeTimeout: Long = 30
     ): OkHttpClient {
+        return createTrustAllClientInternal(connectTimeout, readTimeout, writeTimeout)
+    }
+    
+    /**
+     * Creates an OkHttpClient optimized for long polling with extended timeouts
+     * The read timeout should be longer than the server's polling timeout (typically 30-60s)
+     */
+    fun createLongPollingClient(
+        connectTimeout: Long = 10,
+        readTimeout: Long = 70,  // Longer than server timeout (60s max)
+        writeTimeout: Long = 10
+    ): OkHttpClient {
+        return createTrustAllClientInternal(connectTimeout, readTimeout, writeTimeout)
+    }
+    
+    private fun createTrustAllClientInternal(
+        connectTimeout: Long,
+        readTimeout: Long,
+        writeTimeout: Long
+    ): OkHttpClient {
         
         // Create a trust manager that accepts all certificates
         val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {

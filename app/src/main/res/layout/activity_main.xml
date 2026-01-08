@@ -72,7 +72,7 @@
         android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginBottom="132dp"
+        android:paddingBottom="150dp"
         android:clipToPadding="false"
         android:overScrollMode="never"
         android:scrollbarStyle="outsideOverlay"
@@ -87,6 +87,112 @@
             android:paddingBottom="24dp"
             android:animateLayoutChanges="true">
 
+            <!-- MCP Server Connection Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/pollingDebugCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="?attr/colorOutline"
+                app:cardBackgroundColor="?attr/colorSurfaceVariant"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <!-- Title row with switch -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="🖥️ MCP Server"
+                            android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchPollingEnabled"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true" />
+                    </LinearLayout>
+
+                    <!-- Status row -->
+                    <LinearLayout
+                        android:id="@+id/pollingStatusContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp">
+
+                        <!-- Status indicator dot -->
+                        <View
+                            android:id="@+id/pollingStatusDot"
+                            android:layout_width="10dp"
+                            android:layout_height="10dp"
+                            android:background="@drawable/status_tag_background"
+                            android:backgroundTint="@color/md_theme_outline" />
+
+                        <TextView
+                            android:id="@+id/pollingStatusText"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:text="Desactivado"
+                            android:textAppearance="?attr/textAppearanceBodySmall" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnPollingReconnect"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:text="Reconectar"
+                            android:textSize="11sp"
+                            android:minWidth="0dp"
+                            android:paddingHorizontal="8dp" />
+                    </LinearLayout>
+
+                    <!-- Server info -->
+                    <TextView
+                        android:id="@+id/pollingServerUrl"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Servidor: no configurado"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="11sp" />
+
+                    <!-- Last event -->
+                    <TextView
+                        android:id="@+id/pollingLastEvent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Recibe notificaciones del servidor LLM Control"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="10sp"
+                        android:maxLines="2"
+                        android:ellipsize="end" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Screenshot Section with updated styling -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/screenshotCard"
@@ -99,7 +205,9 @@
                 app:cardCornerRadius="16dp"
                 app:strokeWidth="0dp"
                 android:stateListAnimator="@animator/card_state_list_anim"
-                app:layout_constraintTop_toTopOf="parent">
+                app:layout_constraintTop_toBottomOf="@id/pollingDebugCard"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -570,51 +678,53 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Fixed footer with recording button -->
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <!-- Fixed footer with recording button (floating, no background) -->
+    <LinearLayout
+        android:id="@+id/glassFooter"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="?attr/colorSurfaceVariant"
-        android:elevation="8dp"
-        android:padding="5dp">
+        android:background="@android:color/transparent"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="16dp">
 
         <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/progressIndicator"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:indeterminate="true"
-            android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@+id/recordButtonContainer"
-            app:layout_constraintEnd_toEndOf="@+id/recordButtonContainer"
-            app:layout_constraintStart_toStartOf="@+id/recordButtonContainer"
-            app:layout_constraintWidth_percent="0.85" />
+            android:visibility="gone" />
 
         <!-- Container for the recording buttons -->
         <FrameLayout
             android:id="@+id/recordButtonContainer"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintWidth_percent="0.85">
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
 
             <!-- Large button for normal/idle state -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnStartRecording"
                 android:layout_width="match_parent"
-                android:layout_height="130dp"
+                android:layout_height="100dp"
+                android:background="@drawable/btn_record_background"
+                android:backgroundTint="@null"
                 android:text="@string/start_recording"
                 android:textColor="@color/white"
-                app:cornerRadius="35dp"
+                android:textSize="18sp"
+                android:textAllCaps="false"
                 app:icon="@android:drawable/ic_btn_speak_now"
                 app:iconGravity="textStart"
-                app:iconSize="32dp"
+                app:iconSize="28dp"
                 app:iconTint="@color/white"
-                app:rippleColor="@color/white"
-                app:elevation="12dp" />
+                app:iconPadding="12dp"
+                app:cornerRadius="28dp"
+                app:rippleColor="#40FFFFFF"
+                android:elevation="8dp"
+                android:stateListAnimator="@animator/card_state_list_anim" />
 
             <!-- Compact button for loading/processing state - initially invisible -->
             <com.google.android.material.button.MaterialButton
@@ -635,7 +745,7 @@
                 android:visibility="gone"/>
         </FrameLayout>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 

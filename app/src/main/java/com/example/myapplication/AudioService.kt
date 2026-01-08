@@ -57,6 +57,8 @@ class AudioService : Service() {
     private var ttsPitch: Float = DEFAULT_TTS_PITCH
     private var audioPlaybackEnabled: Boolean = DEFAULT_AUDIO_PLAYBACK_ENABLED
     private var headsetFeedbackEnabled: Boolean = DEFAULT_HEADSET_FEEDBACK_ENABLED
+    private var recordingStartTone: String = DEFAULT_RECORDING_START_TONE
+    private var recordingStopTone: String = DEFAULT_RECORDING_STOP_TONE
     private lateinit var mediaSession: MediaSessionCompat
     private val mediaButtonHandler = Handler(Looper.getMainLooper())
     // Timings optimizados para Bluetooth - compensa latencia BT (50-200ms según codec)
@@ -161,6 +163,12 @@ class AudioService : Service() {
         const val KEY_TTS_PITCH = "tts_pitch"
         const val KEY_AUDIO_PLAYBACK_ENABLED = "audio_playback_enabled"
         const val KEY_HEADSET_FEEDBACK_ENABLED = "headset_feedback_enabled"
+        const val KEY_RECORDING_START_TONE = "recording_start_tone"
+        const val KEY_RECORDING_STOP_TONE = "recording_stop_tone"
+        
+        // Default tone values (correspond to ToneGenerator constants)
+        const val DEFAULT_RECORDING_START_TONE = "TONE_PROP_BEEP"
+        const val DEFAULT_RECORDING_STOP_TONE = "TONE_PROP_BEEP2"
 
         const val TTS_STATUS_PLAYING = "playing"
         const val TTS_STATUS_IDLE = "idle"
@@ -511,6 +519,8 @@ class AudioService : Service() {
                 KEY_HEADSET_FEEDBACK_ENABLED,
                 headsetFeedbackEnabled
             )
+            val newStartTone = intent.getStringExtra(KEY_RECORDING_START_TONE)
+            val newStopTone = intent.getStringExtra(KEY_RECORDING_STOP_TONE)
             
             if (newIp != null) {
                 updateServerSettings(
@@ -522,7 +532,9 @@ class AudioService : Service() {
                     newTtsRate,
                     newTtsPitch,
                     newAudioPlaybackEnabled,
-                    newHeadsetFeedbackEnabled
+                    newHeadsetFeedbackEnabled,
+                    newStartTone,
+                    newStopTone
                 )
                 sendLogMessage(getString(R.string.server_configuration_updated, serverIp, serverPort, whisperModel))
             }
@@ -785,11 +797,12 @@ class AudioService : Service() {
             // STREAM_VOICE_CALL = ruta de comunicación (equivalente a USAGE_VOICE_COMMUNICATION_SIGNALLING)
             // Ya estamos en MODE_IN_COMMUNICATION con SCO activo, así que el sonido saldrá por esa ruta
             val toneGen = ToneGenerator(AudioManager.STREAM_VOICE_CALL, 100)
-            Log.d("AudioService", "Playing START feedback (1.5s total, STREAM_VOICE_CALL on communication route)")
+            val startToneType = getToneGeneratorValue(recordingStartTone)
+            Log.d("AudioService", "Playing START feedback with tone: $recordingStartTone ($startToneType)")
             
-            // Bip 1: Confirmación de tap recibido (200ms)
-            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 200)
-            Log.d("AudioService", "Bip 1: Tap confirmed")
+            // Bip 1: Tono configurado por el usuario (200ms)
+            toneGen.startTone(startToneType, 200)
+            Log.d("AudioService", "Bip 1: Start tone played")
             
             // Bip 2: Tono ascendente de preparación (400ms)
             Handler(Looper.getMainLooper()).postDelayed({
@@ -837,22 +850,23 @@ class AudioService : Service() {
     
     /**
      * Feedback auditivo para fin de grabación.
-     * Doble tono descendente para indicar que la grabación ha terminado.
+     * Usa el tono configurado por el usuario.
      */
     private fun playRecordingStopFeedback() {
         if (!headsetFeedbackEnabled || !headsetControlEnabled) return
         
         try {
             val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
-            Log.d("AudioService", "Playing recording STOP feedback")
+            val toneType = getToneGeneratorValue(recordingStopTone)
+            Log.d("AudioService", "Playing recording STOP feedback with tone: $recordingStopTone ($toneType)")
             
-            // Primer tono: confirmación larga (300ms)
-            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 300)
+            // Primer tono: configurado por el usuario (300ms)
+            toneGen.startTone(toneType, 300)
             
-            // Segundo tono después del primero: tono descendente (300ms)
+            // Segundo tono después del primero: confirmación (300ms)
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
-                    toneGen.startTone(ToneGenerator.TONE_CDMA_CALLDROP_LITE, 300)
+                    toneGen.startTone(ToneGenerator.TONE_PROP_ACK, 300)
                 } catch (e: Exception) {
                     Log.e("AudioService", "Error playing second stop tone: ${e.message}")
                 }
@@ -868,6 +882,27 @@ class AudioService : Service() {
             }, 750)
         } catch (e: Exception) {
             Log.e("AudioService", "Error playing recording stop feedback: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Convierte el nombre del tono a su valor ToneGenerator correspondiente.
+     */
+    private fun getToneGeneratorValue(toneName: String): Int {
+        return when (toneName) {
+            "TONE_PROP_BEEP" -> ToneGenerator.TONE_PROP_BEEP
+            "TONE_PROP_BEEP2" -> ToneGenerator.TONE_PROP_BEEP2
+            "TONE_PROP_ACK" -> ToneGenerator.TONE_PROP_ACK
+            "TONE_CDMA_ALERT_INCALL_LITE" -> ToneGenerator.TONE_CDMA_ALERT_INCALL_LITE
+            "TONE_CDMA_CALLDROP_LITE" -> ToneGenerator.TONE_CDMA_CALLDROP_LITE
+            "TONE_DTMF_0" -> ToneGenerator.TONE_DTMF_0
+            "TONE_DTMF_1" -> ToneGenerator.TONE_DTMF_1
+            "TONE_DTMF_5" -> ToneGenerator.TONE_DTMF_5
+            "TONE_DTMF_9" -> ToneGenerator.TONE_DTMF_9
+            "TONE_SUP_RINGTONE" -> ToneGenerator.TONE_SUP_RINGTONE
+            "TONE_PROP_PROMPT" -> ToneGenerator.TONE_PROP_PROMPT
+            "TONE_SUP_ERROR" -> ToneGenerator.TONE_SUP_ERROR
+            else -> ToneGenerator.TONE_PROP_BEEP
         }
     }
 
@@ -2640,6 +2675,10 @@ class AudioService : Service() {
             KEY_HEADSET_FEEDBACK_ENABLED,
             DEFAULT_HEADSET_FEEDBACK_ENABLED
         )
+        recordingStartTone = prefs.getString(KEY_RECORDING_START_TONE, DEFAULT_RECORDING_START_TONE) 
+            ?: DEFAULT_RECORDING_START_TONE
+        recordingStopTone = prefs.getString(KEY_RECORDING_STOP_TONE, DEFAULT_RECORDING_STOP_TONE) 
+            ?: DEFAULT_RECORDING_STOP_TONE
         sendLogMessage(getString(R.string.configuration_loaded, serverIp, serverPort, whisperModel))
     }
     
@@ -2655,7 +2694,9 @@ class AudioService : Service() {
         rate: Float? = null,
         pitch: Float? = null,
         audioPlaybackEnabled: Boolean? = null,
-        headsetFeedbackEnabled: Boolean? = null
+        headsetFeedbackEnabled: Boolean? = null,
+        startTone: String? = null,
+        stopTone: String? = null
     ) {
         serverIp = ip
         serverPort = port
@@ -2680,6 +2721,12 @@ class AudioService : Service() {
         if (headsetFeedbackEnabled != null) {
             this.headsetFeedbackEnabled = headsetFeedbackEnabled
         }
+        if (startTone != null) {
+            this.recordingStartTone = startTone
+        }
+        if (stopTone != null) {
+            this.recordingStopTone = stopTone
+        }
         
         // Save to SharedPreferences
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -2693,6 +2740,8 @@ class AudioService : Service() {
             putFloat(KEY_TTS_PITCH, ttsPitch)
             putBoolean(KEY_AUDIO_PLAYBACK_ENABLED, this@AudioService.audioPlaybackEnabled)
             putBoolean(KEY_HEADSET_FEEDBACK_ENABLED, this@AudioService.headsetFeedbackEnabled)
+            putString(KEY_RECORDING_START_TONE, this@AudioService.recordingStartTone)
+            putString(KEY_RECORDING_STOP_TONE, this@AudioService.recordingStopTone)
             apply()
         }
 
