@@ -198,6 +198,7 @@
     <string name="vnc_health_failed">Health falló: %1$s</string>
     <string name="vnc_status_failed">Estado VNC falló: %1$s</string>
     <string name="vnc_status_unavailable">Estado VNC no disponible.</string>
+    <string name="vnc_status_refreshing">Actualizando estado VNC...</string>
     <string name="vnc_start_prompt_title">Arrancar VNC</string>
     <string name="vnc_start_prompt_message">VNC está habilitado pero detenido. ¿Quieres iniciarlo ahora?</string>
     <string name="vnc_start_confirm">Iniciar VNC</string>

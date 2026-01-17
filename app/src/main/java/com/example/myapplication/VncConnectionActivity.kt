@@ -15,6 +15,8 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -30,6 +32,8 @@ class VncConnectionActivity : AppCompatActivity() {
 
     private var latestVncInfo: VncInfo? = null
     private var latestServerHost: String = ""
+    private var refreshJob: Job? = null
+    private var isRefreshing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +46,17 @@ class VncConnectionActivity : AppCompatActivity() {
         bindViews()
         loadPreferences()
         setupActions()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startAutoRefresh()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        refreshJob?.cancel()
+        refreshJob = null
     }
 
     private fun bindViews() {
@@ -87,46 +102,24 @@ class VncConnectionActivity : AppCompatActivity() {
         savePreferences()
         updateUiLoading(true)
 
-        val serverHost = serverHostInput.text?.toString()?.trim().orEmpty()
-        val serverPort = serverPortInput.text?.toString()?.trim().orEmpty()
-        if (serverHost.isBlank() || serverPort.isBlank()) {
+        val serverConfig = getServerConfig()
+        if (serverConfig == null) {
             updateStatus(getString(R.string.vnc_missing_server_info))
             updateUiLoading(false)
             return
         }
 
-        latestServerHost = serverHost
-        val baseUrl = "https://$serverHost:$serverPort"
-        val apiClient = VncApiClient(baseUrl)
+        latestServerHost = serverConfig.host
+        val apiClient = VncApiClient(serverConfig.baseUrl)
 
         lifecycleScope.launch {
-            val healthResult = withContext(Dispatchers.IO) { apiClient.fetchHealth() }
-            if (healthResult.error != null) {
-                updateStatus(getString(R.string.vnc_health_failed, healthResult.error))
-                updateUiLoading(false)
-                return@launch
-            }
-            val statusResult = withContext(Dispatchers.IO) { apiClient.fetchStatus() }
-            if (statusResult.error != null) {
-                updateStatus(getString(R.string.vnc_status_failed, statusResult.error))
-                updateUiLoading(false)
-                return@launch
-            }
-            val vncInfo = statusResult.data?.vnc
-            latestVncInfo = vncInfo
-            if (vncInfo == null) {
-                updateStatus(getString(R.string.vnc_status_unavailable))
-                updateUiLoading(false)
-                return@launch
-            }
-
-            if (!vncInfo.running && vncInfo.enabled) {
+            val refreshResult = refreshVncStatus(apiClient, allowPrompt = false)
+            if (refreshResult != null && !refreshResult.running && refreshResult.enabled) {
                 updateUiLoading(false)
                 promptStartVnc(apiClient)
             } else {
-                updateStatus(formatStatus(vncInfo))
                 updateUiLoading(false)
-                updateStreamButtons(vncInfo.running)
+                updateStreamButtons(refreshResult?.running == true)
             }
         }
     }
@@ -159,13 +152,12 @@ class VncConnectionActivity : AppCompatActivity() {
     }
 
     private fun stopVncServer() {
-        val serverHost = serverHostInput.text?.toString()?.trim().orEmpty()
-        val serverPort = serverPortInput.text?.toString()?.trim().orEmpty()
-        if (serverHost.isBlank() || serverPort.isBlank()) {
+        val serverConfig = getServerConfig()
+        if (serverConfig == null) {
             updateStatus(getString(R.string.vnc_missing_server_info))
             return
         }
-        val apiClient = VncApiClient("https://$serverHost:$serverPort")
+        val apiClient = VncApiClient(serverConfig.baseUrl)
         lifecycleScope.launch {
             updateUiLoading(true)
             val stopResult = withContext(Dispatchers.IO) { apiClient.stopVnc() }
@@ -179,6 +171,69 @@ class VncConnectionActivity : AppCompatActivity() {
             updateUiLoading(false)
             updateStreamButtons(false)
         }
+    }
+
+    private fun startAutoRefresh() {
+        refreshJob?.cancel()
+        refreshJob = lifecycleScope.launch {
+            while (true) {
+                if (!isRefreshing) {
+                    val serverConfig = getServerConfig()
+                    if (serverConfig != null) {
+                        latestServerHost = serverConfig.host
+                        val apiClient = VncApiClient(serverConfig.baseUrl)
+                        updateStatus(getString(R.string.vnc_status_refreshing))
+                        refreshVncStatus(apiClient, allowPrompt = false)
+                    }
+                }
+                delay(REFRESH_INTERVAL_MS)
+            }
+        }
+    }
+
+    private suspend fun refreshVncStatus(
+        apiClient: VncApiClient,
+        allowPrompt: Boolean = true
+    ): VncInfo? {
+        isRefreshing = true
+        try {
+            val healthResult = withContext(Dispatchers.IO) { apiClient.fetchHealth() }
+            if (healthResult.error != null) {
+                updateStatus(getString(R.string.vnc_health_failed, healthResult.error))
+                return null
+            }
+            val statusResult = withContext(Dispatchers.IO) { apiClient.fetchStatus() }
+            if (statusResult.error != null) {
+                updateStatus(getString(R.string.vnc_status_failed, statusResult.error))
+                return null
+            }
+            val vncInfo = statusResult.data?.vnc
+            latestVncInfo = vncInfo
+            if (vncInfo == null) {
+                updateStatus(getString(R.string.vnc_status_unavailable))
+                return null
+            }
+            updateStatus(formatStatus(vncInfo))
+            if (!vncInfo.running && vncInfo.enabled && allowPrompt) {
+                promptStartVnc(apiClient)
+            }
+            updateStreamButtons(vncInfo.running)
+            return vncInfo
+        } finally {
+            isRefreshing = false
+        }
+    }
+
+    private fun getServerConfig(): ServerConfig? {
+        val serverHost = serverHostInput.text?.toString()?.trim().orEmpty()
+        val serverPort = serverPortInput.text?.toString()?.trim().orEmpty()
+        if (serverHost.isBlank() || serverPort.isBlank()) {
+            return null
+        }
+        return ServerConfig(
+            host = serverHost,
+            baseUrl = "https://$serverHost:$serverPort"
+        )
     }
 
     private fun openVncStream() {
@@ -230,10 +285,16 @@ class VncConnectionActivity : AppCompatActivity() {
         btnStopVnc.isEnabled = running
     }
 
+    private data class ServerConfig(
+        val host: String,
+        val baseUrl: String
+    )
+
     companion object {
         private const val PREFS_NAME = "VncPreferences"
         private const val KEY_VNC_PORT = "vnc_port"
         private const val KEY_VNC_PASSWORD = "vnc_password"
         private const val DEFAULT_VNC_PORT = 5901
+        private const val REFRESH_INTERVAL_MS = 10_000L
     }
 }
