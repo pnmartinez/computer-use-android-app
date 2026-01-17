@@ -238,7 +238,7 @@ class VncConnectionActivity : AppCompatActivity() {
 
     private fun openVncStream() {
         val vncInfo = latestVncInfo
-        val vncHost = vncInfo?.host?.takeIf { it.isNotBlank() } ?: latestServerHost
+        val vncHost = resolveVncHost(vncInfo)
         val vncPort = vncInfo?.port ?: vncPortInput.text?.toString()?.toIntOrNull() ?: DEFAULT_VNC_PORT
         val password = vncPasswordInput.text?.toString().orEmpty()
 
@@ -271,10 +271,11 @@ class VncConnectionActivity : AppCompatActivity() {
             return getString(R.string.vnc_status_unavailable)
         }
         val runningText = if (vncInfo.running) getString(R.string.vnc_status_running) else getString(R.string.vnc_status_stopped)
+        val resolvedHost = resolveVncHost(vncInfo)
         return getString(
             R.string.vnc_status_summary,
             runningText,
-            vncInfo.host ?: latestServerHost,
+            resolvedHost,
             vncInfo.port ?: DEFAULT_VNC_PORT,
             vncInfo.display ?: "--"
         )
@@ -283,6 +284,15 @@ class VncConnectionActivity : AppCompatActivity() {
     private fun updateStreamButtons(running: Boolean) {
         btnOpenStream.isEnabled = running
         btnStopVnc.isEnabled = running
+    }
+
+    private fun resolveVncHost(vncInfo: VncInfo?): String {
+        val advertisedHost = vncInfo?.host?.trim().orEmpty()
+        return if (advertisedHost.isBlank() || advertisedHost == "0.0.0.0") {
+            latestServerHost
+        } else {
+            advertisedHost
+        }
     }
 
     private data class ServerConfig(
