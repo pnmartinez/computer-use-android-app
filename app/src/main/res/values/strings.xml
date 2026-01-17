@@ -216,6 +216,9 @@
     <string name="vnc_stream_failed">No se pudo iniciar el stream: %1$s</string>
     <string name="vnc_stream_missing_host">Host VNC no disponible.</string>
     <string name="vnc_stream_missing_library">No se pudo cargar el visor VNC embebido.</string>
+    <string name="vnc_stream_missing_title">Visor VNC no disponible</string>
+    <string name="vnc_stream_missing_body">No se pudo cargar el visor embebido. Puedes abrir un cliente VNC externo si está instalado.</string>
+    <string name="vnc_stream_open_external">Abrir cliente externo</string>
 
     <!-- MainActivity Messages -->
     <string name="recording_finished_processing">Recording finished, processing...</string>

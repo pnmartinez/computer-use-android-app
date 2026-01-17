@@ -1,17 +1,18 @@
 package com.example.myapplication
 
 import android.os.Bundle
-import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class VncStreamActivity : AppCompatActivity() {
     private lateinit var container: FrameLayout
     private lateinit var statusText: TextView
     private var vncViewInstance: Any? = null
+    private var connectionInfo: ConnectionInfo? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,6 +28,7 @@ class VncStreamActivity : AppCompatActivity() {
         val host = intent.getStringExtra(EXTRA_HOST).orEmpty()
         val port = intent.getIntExtra(EXTRA_PORT, DEFAULT_VNC_PORT)
         val password = intent.getStringExtra(EXTRA_PASSWORD).orEmpty()
+        connectionInfo = ConnectionInfo(host, port, password)
 
         if (host.isBlank()) {
             showError(getString(R.string.vnc_stream_missing_host))
@@ -47,7 +49,7 @@ class VncStreamActivity : AppCompatActivity() {
             val viewClass = Class.forName("android.vnc.VncCanvasView")
             val view = viewClass.getConstructor(android.content.Context::class.java).newInstance(this)
             vncViewInstance = view
-            container.addView(view as View)
+            container.addView(view as android.view.View)
 
             invokeIfExists(view, "setConnectionInfo", arrayOf(String::class.java, Int::class.java, String::class.java), host, port, password)
             invokeIfExists(view, "setHost", arrayOf(String::class.java), host)
@@ -63,7 +65,7 @@ class VncStreamActivity : AppCompatActivity() {
                 statusText.text = getString(R.string.vnc_stream_connected)
             }
         } catch (e: ClassNotFoundException) {
-            showError(getString(R.string.vnc_stream_missing_library))
+            showMissingViewerDialog()
         } catch (e: Exception) {
             showError(getString(R.string.vnc_stream_failed, e.message ?: "Error"))
         }
@@ -98,6 +100,39 @@ class VncStreamActivity : AppCompatActivity() {
         statusText.text = message
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
+
+    private fun showMissingViewerDialog() {
+        statusText.text = getString(R.string.vnc_stream_missing_library)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.vnc_stream_missing_title)
+            .setMessage(R.string.vnc_stream_missing_body)
+            .setPositiveButton(R.string.vnc_stream_open_external) { _, _ ->
+                openExternalVncClient()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun openExternalVncClient() {
+        val info = connectionInfo ?: return
+        val uri = if (info.password.isNotBlank()) {
+            android.net.Uri.parse("vnc://${info.password}@${info.host}:${info.port}")
+        } else {
+            android.net.Uri.parse("vnc://${info.host}:${info.port}")
+        }
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivity(intent)
+        } else {
+            showError(getString(R.string.vnc_client_missing))
+        }
+    }
+
+    private data class ConnectionInfo(
+        val host: String,
+        val port: Int,
+        val password: String
+    )
 
     companion object {
         const val EXTRA_HOST = "extra_vnc_host"
