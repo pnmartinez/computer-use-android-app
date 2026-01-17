@@ -1,13 +1,10 @@
 package com.example.myapplication
 
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -241,18 +238,12 @@ class VncConnectionActivity : AppCompatActivity() {
         val vncHost = resolveVncHost(vncInfo)
         val vncPort = vncInfo?.port ?: vncPortInput.text?.toString()?.toIntOrNull() ?: DEFAULT_VNC_PORT
         val password = vncPasswordInput.text?.toString().orEmpty()
-
-        val uri = if (password.isNotBlank()) {
-            Uri.parse("vnc://$password@$vncHost:$vncPort")
-        } else {
-            Uri.parse("vnc://$vncHost:$vncPort")
+        val intent = Intent(this, VncStreamActivity::class.java).apply {
+            putExtra(VncStreamActivity.EXTRA_HOST, vncHost)
+            putExtra(VncStreamActivity.EXTRA_PORT, vncPort)
+            putExtra(VncStreamActivity.EXTRA_PASSWORD, password)
         }
-
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
-        } catch (e: ActivityNotFoundException) {
-            Toast.makeText(this, R.string.vnc_client_missing, Toast.LENGTH_LONG).show()
-        }
+        startActivity(intent)
     }
 
     private fun updateUiLoading(loading: Boolean) {

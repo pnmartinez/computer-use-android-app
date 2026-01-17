@@ -210,6 +210,12 @@
     <string name="vnc_status_stopped">Detenido</string>
     <string name="vnc_status_summary">Estado: %1$s\nHost: %2$s\nPuerto: %3$d\nDisplay: %4$s</string>
     <string name="vnc_client_missing">No hay un cliente VNC instalado para abrir el stream.</string>
+    <string name="vnc_stream_title">Streaming VNC</string>
+    <string name="vnc_stream_connecting">Conectando a %1$s:%2$d...</string>
+    <string name="vnc_stream_connected">Conexión establecida.</string>
+    <string name="vnc_stream_failed">No se pudo iniciar el stream: %1$s</string>
+    <string name="vnc_stream_missing_host">Host VNC no disponible.</string>
+    <string name="vnc_stream_missing_library">No se pudo cargar el visor VNC embebido.</string>
 
     <!-- MainActivity Messages -->
     <string name="recording_finished_processing">Recording finished, processing...</string>
