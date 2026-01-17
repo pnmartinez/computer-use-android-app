@@ -74,6 +74,7 @@
     <string name="timestamp_unavailable">Timestamp no disponible</string>
     <string name="capture_image_description">Captura tomada %1$s</string>
     <string name="tutorial_menu_title">Tutorial</string>
+    <string name="vnc_menu_title">VNC Streaming</string>
     <string name="tutorial_title">Bienvenido</string>
     <string name="tutorial_subtitle">Controla tu ordenador por voz o texto, con lenguaje natural. Da órdenes como las darías a un compañero que maneja un ordenador.</string>
     <string name="tutorial_highlight_title">Tu guía en el primer inicio</string>
@@ -185,6 +186,29 @@
     <string name="summary_status_playing">Reproduciendo</string>
     <string name="summary_status_error">Error al reproducir</string>
     <string name="summary_status_empty">Esperando resumen</string>
+    <string name="vnc_connection_title">Conexión VNC</string>
+    <string name="vnc_connection_section">Conexión al servidor VNC</string>
+    <string name="vnc_connection_help">Primero valida el estado del servidor. Si VNC está habilitado pero detenido, puedes arrancarlo desde aquí. Luego abre un cliente VNC instalado en el dispositivo.</string>
+    <string name="vnc_port_hint">Puerto VNC</string>
+    <string name="vnc_password_hint">Contraseña VNC</string>
+    <string name="vnc_connect">Conectar</string>
+    <string name="vnc_open_stream">Abrir stream</string>
+    <string name="vnc_stop">Detener VNC</string>
+    <string name="vnc_missing_server_info">Introduce host y puerto del servidor.</string>
+    <string name="vnc_health_failed">Health falló: %1$s</string>
+    <string name="vnc_status_failed">Estado VNC falló: %1$s</string>
+    <string name="vnc_status_unavailable">Estado VNC no disponible.</string>
+    <string name="vnc_start_prompt_title">Arrancar VNC</string>
+    <string name="vnc_start_prompt_message">VNC está habilitado pero detenido. ¿Quieres iniciarlo ahora?</string>
+    <string name="vnc_start_confirm">Iniciar VNC</string>
+    <string name="vnc_start_failed">No se pudo iniciar VNC: %1$s</string>
+    <string name="vnc_start_cancelled">Inicio de VNC cancelado.</string>
+    <string name="vnc_stop_failed">No se pudo detener VNC: %1$s</string>
+    <string name="vnc_stopped">VNC detenido.</string>
+    <string name="vnc_status_running">En ejecución</string>
+    <string name="vnc_status_stopped">Detenido</string>
+    <string name="vnc_status_summary">Estado: %1$s\nHost: %2$s\nPuerto: %3$d\nDisplay: %4$s</string>
+    <string name="vnc_client_missing">No hay un cliente VNC instalado para abrir el stream.</string>
 
     <!-- MainActivity Messages -->
     <string name="recording_finished_processing">Recording finished, processing...</string>

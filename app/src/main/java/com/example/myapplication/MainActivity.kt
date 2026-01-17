@@ -896,6 +896,10 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, CapturesActivity::class.java))
             drawerLayout.closeDrawer(GravityCompat.START)
         }
+        navigationView.findViewById<View>(R.id.nav_vnc)?.setOnClickListener {
+            startActivity(Intent(this, VncConnectionActivity::class.java))
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
         navigationView.findViewById<View>(R.id.nav_settings)?.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
             drawerLayout.closeDrawer(GravityCompat.START)
