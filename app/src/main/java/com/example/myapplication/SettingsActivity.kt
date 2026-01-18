@@ -43,6 +43,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var serverPortInput: TextInputEditText
     private lateinit var unlockPasswordInput: TextInputEditText
     private lateinit var responseTimeoutInput: TextInputEditText
+    private lateinit var vncPortInput: TextInputEditText
+    private lateinit var vncPasswordInput: TextInputEditText
     private lateinit var ttsLanguageInput: TextInputEditText
     private lateinit var ttsRateInput: TextInputEditText
     private lateinit var ttsPitchInput: TextInputEditText
@@ -115,6 +117,8 @@ class SettingsActivity : AppCompatActivity() {
         serverPortInput = findViewById(R.id.serverPortInput)
         unlockPasswordInput = findViewById(R.id.unlockPasswordInput)
         responseTimeoutInput = findViewById(R.id.responseTimeoutInput)
+        vncPortInput = findViewById(R.id.vncPortInput)
+        vncPasswordInput = findViewById(R.id.vncPasswordInput)
         ttsLanguageInput = findViewById(R.id.ttsLanguageInput)
         ttsRateInput = findViewById(R.id.ttsRateInput)
         ttsPitchInput = findViewById(R.id.ttsPitchInput)
@@ -239,6 +243,8 @@ class SettingsActivity : AppCompatActivity() {
             ?: AudioService.DEFAULT_WHISPER_MODEL
         val unlockPassword = prefs.getString(KEY_UNLOCK_PASSWORD, "your_password") ?: "your_password"
         val responseTimeout = prefs.getInt(KEY_RESPONSE_TIMEOUT, AudioService.DEFAULT_RESPONSE_TIMEOUT)
+        val vncPort = prefs.getInt(VncPreferences.KEY_VNC_PORT, VncPreferences.DEFAULT_VNC_PORT)
+        val vncPassword = prefs.getString(VncPreferences.KEY_VNC_PASSWORD, "")
         val ttsLanguage = prefs.getString(KEY_TTS_LANGUAGE, AudioService.DEFAULT_TTS_LANGUAGE)
             ?: AudioService.DEFAULT_TTS_LANGUAGE
         val ttsRate = prefs.getFloat(KEY_TTS_RATE, AudioService.DEFAULT_TTS_RATE)
@@ -261,6 +267,8 @@ class SettingsActivity : AppCompatActivity() {
         whisperModelDropdown.setText(whisperModel, false)
         unlockPasswordInput.setText(unlockPassword)
         responseTimeoutInput.setText((responseTimeout / 1000).toString())
+        vncPortInput.setText(vncPort.toString())
+        vncPasswordInput.setText(vncPassword)
         ttsLanguageInput.setText(ttsLanguage)
         ttsRateInput.setText(ttsRate.toString())
         ttsPitchInput.setText(ttsPitch.toString())
@@ -337,6 +345,8 @@ class SettingsActivity : AppCompatActivity() {
         val whisperModel = whisperModelDropdown.text.toString().trim()
         val unlockPassword = unlockPasswordInput.text.toString()
         val timeoutText = responseTimeoutInput.text.toString().trim()
+        val vncPortText = vncPortInput.text.toString().trim()
+        val vncPassword = vncPasswordInput.text.toString()
         val ttsLanguage = ttsLanguageInput.text.toString().trim()
         val ttsRateText = ttsRateInput.text.toString().trim()
         val ttsPitchText = ttsPitchInput.text.toString().trim()
@@ -379,6 +389,13 @@ class SettingsActivity : AppCompatActivity() {
             return
         }
 
+        val vncPort = try {
+            vncPortText.toInt()
+        } catch (e: NumberFormatException) {
+            Toast.makeText(this, getString(R.string.invalid_vnc_port_error), Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val rate = try {
             ttsRateText.toFloat().also {
                 if (it < 0.1f || it > 2.0f) {
@@ -415,6 +432,8 @@ class SettingsActivity : AppCompatActivity() {
             putString(KEY_WHISPER_MODEL, whisperModel)
             putString(KEY_UNLOCK_PASSWORD, unlockPassword)
             putInt(KEY_RESPONSE_TIMEOUT, timeout)
+            putInt(VncPreferences.KEY_VNC_PORT, vncPort)
+            putString(VncPreferences.KEY_VNC_PASSWORD, vncPassword)
             putString(KEY_TTS_LANGUAGE, ttsLanguage)
             putFloat(KEY_TTS_RATE, rate)
             putFloat(KEY_TTS_PITCH, pitch)

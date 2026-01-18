@@ -189,8 +189,12 @@
     <string name="vnc_connection_title">Conexión VNC</string>
     <string name="vnc_connection_section">Conexión al servidor VNC</string>
     <string name="vnc_connection_help">Primero valida el estado del servidor. Si VNC está habilitado pero detenido, puedes arrancarlo desde aquí. Luego abre un cliente VNC instalado en el dispositivo.</string>
+    <string name="vnc_settings_title">Ajustes VNC</string>
     <string name="vnc_port_hint">Puerto VNC</string>
     <string name="vnc_password_hint">Contraseña VNC</string>
+    <string name="vnc_toggle_live">VNC en vivo</string>
+    <string name="vnc_mode_active">Modo VNC activo</string>
+    <string name="invalid_vnc_port_error">Puerto VNC inválido</string>
     <string name="vnc_connect">Conectar</string>
     <string name="vnc_open_stream">Abrir stream</string>
     <string name="vnc_stop">Detener VNC</string>

@@ -82,16 +82,20 @@ class VncConnectionActivity : AppCompatActivity() {
             serverPrefs.getInt(AudioService.KEY_SERVER_PORT, AudioService.DEFAULT_SERVER_PORT).toString()
         )
 
-        val vncPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        vncPortInput.setText(vncPrefs.getInt(KEY_VNC_PORT, DEFAULT_VNC_PORT).toString())
-        vncPasswordInput.setText(vncPrefs.getString(KEY_VNC_PASSWORD, ""))
+        vncPortInput.setText(
+            serverPrefs.getInt(VncPreferences.KEY_VNC_PORT, VncPreferences.DEFAULT_VNC_PORT).toString()
+        )
+        vncPasswordInput.setText(serverPrefs.getString(VncPreferences.KEY_VNC_PASSWORD, ""))
     }
 
     private fun savePreferences() {
-        val vncPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val vncPrefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
         vncPrefs.edit()
-            .putInt(KEY_VNC_PORT, vncPortInput.text?.toString()?.toIntOrNull() ?: DEFAULT_VNC_PORT)
-            .putString(KEY_VNC_PASSWORD, vncPasswordInput.text?.toString().orEmpty())
+            .putInt(
+                VncPreferences.KEY_VNC_PORT,
+                vncPortInput.text?.toString()?.toIntOrNull() ?: VncPreferences.DEFAULT_VNC_PORT
+            )
+            .putString(VncPreferences.KEY_VNC_PASSWORD, vncPasswordInput.text?.toString().orEmpty())
             .apply()
     }
 
@@ -236,7 +240,9 @@ class VncConnectionActivity : AppCompatActivity() {
     private fun openVncStream() {
         val vncInfo = latestVncInfo
         val vncHost = resolveVncHost(vncInfo)
-        val vncPort = vncInfo?.port ?: vncPortInput.text?.toString()?.toIntOrNull() ?: DEFAULT_VNC_PORT
+        val vncPort = vncInfo?.port
+            ?: vncPortInput.text?.toString()?.toIntOrNull()
+            ?: VncPreferences.DEFAULT_VNC_PORT
         val password = vncPasswordInput.text?.toString().orEmpty()
         val intent = Intent(this, VncStreamActivity::class.java).apply {
             putExtra(VncStreamActivity.EXTRA_HOST, vncHost)
@@ -267,7 +273,7 @@ class VncConnectionActivity : AppCompatActivity() {
             R.string.vnc_status_summary,
             runningText,
             resolvedHost,
-            vncInfo.port ?: DEFAULT_VNC_PORT,
+            vncInfo.port ?: VncPreferences.DEFAULT_VNC_PORT,
             vncInfo.display ?: "--"
         )
     }
@@ -292,10 +298,6 @@ class VncConnectionActivity : AppCompatActivity() {
     )
 
     companion object {
-        private const val PREFS_NAME = "VncPreferences"
-        private const val KEY_VNC_PORT = "vnc_port"
-        private const val KEY_VNC_PASSWORD = "vnc_password"
-        private const val DEFAULT_VNC_PORT = 5901
         private const val REFRESH_INTERVAL_MS = 10_000L
     }
 }
