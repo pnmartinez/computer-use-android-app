@@ -64,7 +64,6 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
-    implementation("com.glavsoft:android-vnc-viewer:0.9.10")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
