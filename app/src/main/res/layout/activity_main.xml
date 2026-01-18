@@ -213,7 +213,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -278,7 +281,7 @@
                         android:id="@+id/screenshotStatusText"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="4dp"
                         android:text="@string/no_screenshots_available"
                         android:textAppearance="?attr/textAppearanceBodySmall"
                         android:textStyle="italic" />
@@ -289,7 +292,7 @@
                         style="@style/Widget.AppCompat.ProgressBar.Horizontal"
                         android:layout_width="match_parent"
                         android:layout_height="4dp"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="4dp"
                         android:visibility="gone"
                         android:indeterminate="true"
                         android:progressTint="?attr/colorPrimary" />
