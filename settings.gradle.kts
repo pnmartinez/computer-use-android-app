@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Simple Computer Use"
 include(":app")
+include(":vncviewer")
  

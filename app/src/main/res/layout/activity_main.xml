@@ -198,7 +198,7 @@
                 android:id="@+id/screenshotCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="4dp"
                 android:clickable="true"
                 android:focusable="true"
                 app:cardElevation="2dp"
@@ -213,7 +213,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -227,6 +230,13 @@
                             android:layout_weight="1"
                             android:text="@string/screenshots_title"
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchVncMode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="8dp"
+                            android:text="@string/vnc_toggle_live" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnRefreshPeriod"
@@ -271,7 +281,7 @@
                         android:id="@+id/screenshotStatusText"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="4dp"
                         android:text="@string/no_screenshots_available"
                         android:textAppearance="?attr/textAppearanceBodySmall"
                         android:textStyle="italic" />
@@ -282,7 +292,7 @@
                         style="@style/Widget.AppCompat.ProgressBar.Horizontal"
                         android:layout_width="match_parent"
                         android:layout_height="4dp"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="4dp"
                         android:visibility="gone"
                         android:indeterminate="true"
                         android:progressTint="?attr/colorPrimary" />
@@ -290,13 +300,21 @@
                     <ImageView
                         android:id="@+id/screenshotImageView"
                         android:layout_width="match_parent"
-                        android:layout_height="200dp"
+                        android:layout_height="@dimen/visual_surface_height"
                         android:layout_marginTop="4dp"
                         android:adjustViewBounds="true"
                         android:background="@color/md_theme_surfaceVariant"
                         android:contentDescription="@string/remote_screenshot"
                         android:scaleType="fitCenter"
                         android:padding="4dp" />
+
+                    <FrameLayout
+                        android:id="@+id/vncStreamContainerMain"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/visual_surface_height"
+                        android:layout_marginTop="4dp"
+                        android:visibility="gone"
+                        android:background="@color/md_theme_surfaceVariant" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

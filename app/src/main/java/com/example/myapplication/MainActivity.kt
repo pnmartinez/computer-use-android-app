@@ -115,7 +115,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnCaptureScreenshot: MaterialButton
     private lateinit var btnUnlockScreen: MaterialButton
     private lateinit var btnRefreshPeriod: MaterialButton
+    private lateinit var switchVncMode: SwitchMaterial
+    private lateinit var vncStreamContainer: FrameLayout
     lateinit var screenshotLoadingProgress: ProgressBar
+    private var vncView: android.vnc.VncCanvasView? = null
+    private var isVncModeEnabled: Boolean = false
 
     // Screen summary section
     private lateinit var summaryCard: MaterialCardView
@@ -537,6 +541,7 @@ class MainActivity : AppCompatActivity() {
         // Stop any scheduled timers
         responseTimeoutHandler?.removeCallbacksAndMessages(null)
         stopAutoRefresh()
+        stopVncStream()
     }
     
     override fun onDestroy() {
@@ -614,6 +619,8 @@ class MainActivity : AppCompatActivity() {
         btnCaptureScreenshot = findViewById(R.id.btnCaptureScreenshot)
         btnUnlockScreen = findViewById(R.id.btnUnlockScreen)
         btnRefreshPeriod = findViewById(R.id.btnRefreshPeriod)
+        switchVncMode = findViewById(R.id.switchVncMode)
+        vncStreamContainer = findViewById(R.id.vncStreamContainerMain)
         screenshotLoadingProgress = findViewById(R.id.screenshotLoadingProgress)
 
         // Screen summary section
@@ -681,6 +688,15 @@ class MainActivity : AppCompatActivity() {
 
         updateHeadsetControlUi(headsetControlEnabled)
         updateMicrophoneStatus(null) // Initial state
+
+        val vncPrefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        isVncModeEnabled = vncPrefs.getBoolean(VncPreferences.KEY_VNC_MODE_ENABLED, false)
+        switchVncMode.isChecked = isVncModeEnabled
+        switchVncMode.setOnCheckedChangeListener { _, isChecked ->
+            isVncModeEnabled = isChecked
+            vncPrefs.edit().putBoolean(VncPreferences.KEY_VNC_MODE_ENABLED, isChecked).apply()
+            applyVncMode(isChecked)
+        }
         
         // Setup log clear button
         btnClearLogs.setOnClickListener {
@@ -1626,20 +1642,30 @@ class MainActivity : AppCompatActivity() {
         
         // Fetch initial screenshot with a slight delay to allow the UI to initialize
         Handler(mainLooper).postDelayed({
-            captureNewScreenshot()
+            if (!isVncModeEnabled) {
+                captureNewScreenshot()
+            }
         }, 1000)
         
         // Setup auto-refresh
         if (autoRefreshEnabled) {
-            startAutoRefresh()
+            if (!isVncModeEnabled) {
+                startAutoRefresh()
+            }
         }
         
         btnCaptureScreenshot.setOnClickListener {
-            captureNewScreenshot()
+            if (!isVncModeEnabled) {
+                captureNewScreenshot()
+            }
         }
+        applyVncMode(isVncModeEnabled)
     }
     
     private fun fetchLatestScreenshot() {
+        if (isVncModeEnabled) {
+            return
+        }
         screenshotScope.launch {
             try {
                 updateScreenshotState(ScreenshotState.Loading)
@@ -1980,6 +2006,10 @@ class MainActivity : AppCompatActivity() {
     private fun startAutoRefresh() {
         // Cancel any existing auto-refresh
         stopAutoRefresh()
+
+        if (isVncModeEnabled) {
+            return
+        }
         
         // Don't start if auto-refresh is disabled
         if (!autoRefreshEnabled) {
@@ -2004,6 +2034,54 @@ class MainActivity : AppCompatActivity() {
             refreshHandler?.removeCallbacks(runnable)
         }
         refreshRunnable = null
+    }
+
+    private fun applyVncMode(enabled: Boolean) {
+        if (enabled) {
+            stopAutoRefresh()
+            screenshotImageView.visibility = View.GONE
+            vncStreamContainer.visibility = View.VISIBLE
+            screenshotLoadingProgress.visibility = View.GONE
+            btnCaptureScreenshot.isEnabled = false
+            btnUnlockScreen.isEnabled = false
+            btnRefreshPeriod.isEnabled = false
+            screenshotStatusText.text = getString(R.string.vnc_mode_active)
+            startVncStream()
+        } else {
+            stopVncStream()
+            screenshotImageView.visibility = View.VISIBLE
+            vncStreamContainer.visibility = View.GONE
+            screenshotLoadingProgress.visibility = View.GONE
+            btnCaptureScreenshot.isEnabled = true
+            btnUnlockScreen.isEnabled = true
+            btnRefreshPeriod.isEnabled = true
+            screenshotStatusText.text = getString(R.string.no_screenshots_available)
+            if (autoRefreshEnabled) {
+                startAutoRefresh()
+            }
+        }
+    }
+
+    private fun startVncStream() {
+        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        val host = prefs.getString(AudioService.KEY_SERVER_IP, AudioService.DEFAULT_SERVER_IP)
+            ?: AudioService.DEFAULT_SERVER_IP
+        val vncPort = prefs.getInt(VncPreferences.KEY_VNC_PORT, VncPreferences.DEFAULT_VNC_PORT)
+        val vncPassword = prefs.getString(VncPreferences.KEY_VNC_PASSWORD, "").orEmpty()
+        if (vncView == null) {
+            vncView = android.vnc.VncCanvasView(this)
+            vncStreamContainer.removeAllViews()
+            vncStreamContainer.addView(vncView)
+        }
+        vncView?.setConnectionInfo(host, vncPort, vncPassword)
+        vncView?.connect()
+    }
+
+    private fun stopVncStream() {
+        vncView?.disconnect()
+        vncView?.shutdown()
+        vncView = null
+        vncStreamContainer.removeAllViews()
     }
 
     private fun showRefreshPeriodMenu() {
@@ -2199,6 +2277,9 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun captureNewScreenshot() {
+        if (isVncModeEnabled) {
+            return
+        }
         screenshotScope.launch {
             try {
                 // Show loading progress bar instead of just text

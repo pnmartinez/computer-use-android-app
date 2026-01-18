@@ -46,6 +46,14 @@
             android:name=".CapturesActivity"
             android:exported="false"
             android:label="@string/captures_title" />
+        <activity
+            android:name=".VncConnectionActivity"
+            android:exported="false"
+            android:label="@string/vnc_connection_title" />
+        <activity
+            android:name=".VncStreamActivity"
+            android:exported="false"
+            android:label="@string/vnc_stream_title" />
 
         <!-- Servicio de audio en primer plano -->
         <service
