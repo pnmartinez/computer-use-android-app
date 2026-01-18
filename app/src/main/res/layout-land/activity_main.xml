@@ -232,6 +232,13 @@
                             android:text="@string/screenshots_title"
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
 
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchVncMode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="8dp"
+                            android:text="@string/vnc_toggle_live" />
+
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnRefreshPeriod"
                             style="@style/Widget.Material3.Button.TextButton"
@@ -294,11 +301,19 @@
                     <ImageView
                         android:id="@+id/screenshotImageView"
                         android:layout_width="match_parent"
-                        android:layout_height="250dp"
+                        android:layout_height="@dimen/visual_surface_height"
                         android:adjustViewBounds="true"
                         android:background="@color/md_theme_surfaceVariant"
                         android:contentDescription="@string/remote_screenshot"
                         android:scaleType="centerCrop" />
+
+                    <FrameLayout
+                        android:id="@+id/vncStreamContainerMain"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/visual_surface_height"
+                        android:layout_marginTop="4dp"
+                        android:visibility="gone"
+                        android:background="@color/md_theme_surfaceVariant" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

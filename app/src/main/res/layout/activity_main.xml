@@ -297,7 +297,7 @@
                     <ImageView
                         android:id="@+id/screenshotImageView"
                         android:layout_width="match_parent"
-                        android:layout_height="200dp"
+                        android:layout_height="@dimen/visual_surface_height"
                         android:layout_marginTop="4dp"
                         android:adjustViewBounds="true"
                         android:background="@color/md_theme_surfaceVariant"
@@ -308,7 +308,7 @@
                     <FrameLayout
                         android:id="@+id/vncStreamContainerMain"
                         android:layout_width="match_parent"
-                        android:layout_height="200dp"
+                        android:layout_height="@dimen/visual_surface_height"
                         android:layout_marginTop="4dp"
                         android:visibility="gone"
                         android:background="@color/md_theme_surfaceVariant" />

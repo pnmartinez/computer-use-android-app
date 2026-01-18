@@ -2041,6 +2041,7 @@ class MainActivity : AppCompatActivity() {
             stopAutoRefresh()
             screenshotImageView.visibility = View.GONE
             vncStreamContainer.visibility = View.VISIBLE
+            screenshotLoadingProgress.visibility = View.GONE
             btnCaptureScreenshot.isEnabled = false
             btnUnlockScreen.isEnabled = false
             btnRefreshPeriod.isEnabled = false
@@ -2050,6 +2051,7 @@ class MainActivity : AppCompatActivity() {
             stopVncStream()
             screenshotImageView.visibility = View.VISIBLE
             vncStreamContainer.visibility = View.GONE
+            screenshotLoadingProgress.visibility = View.GONE
             btnCaptureScreenshot.isEnabled = true
             btnUnlockScreen.isEnabled = true
             btnRefreshPeriod.isEnabled = true
