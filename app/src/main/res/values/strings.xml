@@ -31,7 +31,7 @@
     <string name="show_code">Show Code</string>
     
     <!-- Screenshot Section -->
-    <string name="screenshots_title">Screenshots</string>
+    <string name="screenshots_title">Screen</string>
     <string name="change_refresh_period">Change refresh period</string>
 
     <string name="unlock_screen">Unlock screen</string>
