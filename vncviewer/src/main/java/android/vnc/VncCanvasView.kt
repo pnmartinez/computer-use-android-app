@@ -300,8 +300,8 @@ class VncCanvasView @JvmOverloads constructor(
 
     private fun selectSecurityType(types: ByteArray): Int {
         return when {
-            types.contains(SECURITY_NONE) -> SECURITY_NONE
-            types.contains(SECURITY_VNC_AUTH) && password.isNotBlank() -> SECURITY_VNC_AUTH
+            types.contains(SECURITY_NONE.toByte()) -> SECURITY_NONE
+            types.contains(SECURITY_VNC_AUTH.toByte()) && password.isNotBlank() -> SECURITY_VNC_AUTH
             else -> SECURITY_NONE
         }
     }
