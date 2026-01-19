@@ -3397,10 +3397,17 @@ private class FullscreenImageDialog(
         setContentView(container)
         
         // Make sure the dialog takes up the full screen
+        val prefs = context.getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        val keepScreenOnEnabled = prefs.getBoolean(
+            AudioService.KEY_KEEP_SCREEN_ON_FULLSCREEN,
+            AudioService.DEFAULT_KEEP_SCREEN_ON_FULLSCREEN
+        )
         window?.apply {
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
             setBackgroundDrawable(ColorDrawable(Color.BLACK))
-            addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (keepScreenOnEnabled) {
+                addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
         }
         
         // Center the image initially
@@ -3409,7 +3416,9 @@ private class FullscreenImageDialog(
         // Set dismiss callback
         setOnDismissListener { 
             // Remove keep screen on flag when dialog is dismissed
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (keepScreenOnEnabled) {
+                window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
             try {
                 context.unregisterReceiver(recordingStateReceiver)
             } catch (_: Exception) { /* already unregistered */ }
@@ -3718,16 +3727,25 @@ private class FullscreenVncDialog(
         setContentView(container)
         
         // Make sure the dialog takes up the full screen
+        val prefs = context.getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        val keepScreenOnEnabled = prefs.getBoolean(
+            AudioService.KEY_KEEP_SCREEN_ON_FULLSCREEN,
+            AudioService.DEFAULT_KEEP_SCREEN_ON_FULLSCREEN
+        )
         window?.apply {
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
             setBackgroundDrawable(ColorDrawable(Color.BLACK))
-            addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (keepScreenOnEnabled) {
+                addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
         }
         
         // Set dismiss callback
         setOnDismissListener { 
             // Remove keep screen on flag when dialog is dismissed
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (keepScreenOnEnabled) {
+                window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
             vncView.disconnect()
             vncView.shutdown()
             onDismissCallback?.invoke() 
