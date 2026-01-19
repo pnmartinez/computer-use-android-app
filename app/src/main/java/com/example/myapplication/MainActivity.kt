@@ -3400,6 +3400,7 @@ private class FullscreenImageDialog(
         window?.apply {
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
             setBackgroundDrawable(ColorDrawable(Color.BLACK))
+            addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
         
         // Center the image initially
@@ -3407,6 +3408,8 @@ private class FullscreenImageDialog(
         
         // Set dismiss callback
         setOnDismissListener { 
+            // Remove keep screen on flag when dialog is dismissed
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             try {
                 context.unregisterReceiver(recordingStateReceiver)
             } catch (_: Exception) { /* already unregistered */ }
@@ -3718,10 +3721,13 @@ private class FullscreenVncDialog(
         window?.apply {
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
             setBackgroundDrawable(ColorDrawable(Color.BLACK))
+            addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
         
         // Set dismiss callback
         setOnDismissListener { 
+            // Remove keep screen on flag when dialog is dismissed
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             vncView.disconnect()
             vncView.shutdown()
             onDismissCallback?.invoke() 
