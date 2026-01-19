@@ -140,6 +140,7 @@ class MainActivity : AppCompatActivity() {
     
     // Track active fullscreen dialog
     private var activeFullscreenDialog: FullscreenImageDialog? = null
+    private var activeFullscreenVncDialog: FullscreenVncDialog? = null
     
     // Handler for response timeout
     private var responseTimeoutHandler: Handler? = null
@@ -2069,12 +2070,31 @@ class MainActivity : AppCompatActivity() {
         val vncPort = prefs.getInt(VncPreferences.KEY_VNC_PORT, VncPreferences.DEFAULT_VNC_PORT)
         val vncPassword = prefs.getString(VncPreferences.KEY_VNC_PASSWORD, "").orEmpty()
         if (vncView == null) {
-            vncView = android.vnc.VncCanvasView(this)
+            vncView = android.vnc.VncCanvasView(this, null, false) // Zoom disabled in small container
             vncStreamContainer.removeAllViews()
             vncStreamContainer.addView(vncView)
+            // Add click listener to open fullscreen
+            vncStreamContainer.setOnClickListener {
+                showFullscreenVnc()
+            }
         }
         vncView?.setConnectionInfo(host, vncPort, vncPassword)
         vncView?.connect()
+    }
+    
+    private fun showFullscreenVnc() {
+        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        val host = prefs.getString(AudioService.KEY_SERVER_IP, AudioService.DEFAULT_SERVER_IP)
+            ?: AudioService.DEFAULT_SERVER_IP
+        val vncPort = prefs.getInt(VncPreferences.KEY_VNC_PORT, VncPreferences.DEFAULT_VNC_PORT)
+        val vncPassword = prefs.getString(VncPreferences.KEY_VNC_PASSWORD, "").orEmpty()
+        
+        // Create and show the fullscreen VNC dialog
+        activeFullscreenVncDialog = FullscreenVncDialog(this, host, vncPort, vncPassword) {
+            // Clear reference when dialog is dismissed
+            activeFullscreenVncDialog = null
+        }
+        activeFullscreenVncDialog?.show()
     }
 
     private fun stopVncStream() {
@@ -3732,5 +3752,74 @@ private class FullscreenImageDialog(
         }
         
         updateImageMatrix()
+    }
+}
+
+/**
+ * Dialog for displaying VNC stream in fullscreen with zoom functionality
+ */
+private class FullscreenVncDialog(
+    context: Context,
+    private val host: String,
+    private val port: Int,
+    private val password: String,
+    private val onDismissCallback: (() -> Unit)? = null
+) : Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen) {
+    
+    private lateinit var vncView: android.vnc.VncCanvasView
+    
+    init {
+        // Create the container layout
+        val container = FrameLayout(context)
+        
+        // Create VNC view with zoom enabled
+        vncView = android.vnc.VncCanvasView(context, null, true) // enableZoom = true
+        vncView.layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        )
+        
+        // Create close button
+        val closeButton = MaterialButton(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.END
+                setMargins(16, 16, 16, 16)
+            }
+            setIconResource(android.R.drawable.ic_menu_close_clear_cancel)
+            setBackgroundColor(Color.TRANSPARENT)
+            iconTint = ColorStateList.valueOf(Color.WHITE)
+            setOnClickListener { dismiss() }
+        }
+        
+        // Add views to container
+        container.addView(vncView)
+        container.addView(closeButton)
+        
+        setContentView(container)
+        
+        // Make sure the dialog takes up the full screen
+        window?.apply {
+            setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+            setBackgroundDrawable(ColorDrawable(Color.BLACK))
+        }
+        
+        // Set dismiss callback
+        setOnDismissListener { 
+            vncView.disconnect()
+            vncView.shutdown()
+            onDismissCallback?.invoke() 
+        }
+        
+        // Connect VNC after dialog is shown and layout is complete
+        setOnShowListener {
+            // Wait a bit for the dialog to be fully laid out
+            window?.decorView?.postDelayed({
+                vncView.setConnectionInfo(host, port, password)
+                vncView.connect()
+            }, 100)
+        }
     }
 }
