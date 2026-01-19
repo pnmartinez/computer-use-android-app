@@ -51,6 +51,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnTtsSystemSettings: MaterialButton
     private lateinit var audioPlaybackSwitch: SwitchMaterial
     private lateinit var headsetFeedbackSwitch: SwitchMaterial
+    private lateinit var keepScreenOnFullscreenSwitch: SwitchMaterial
     private lateinit var btnTestConnection: MaterialButton
     private lateinit var btnSaveSettings: MaterialButton
     private lateinit var connectionStatusText: TextView
@@ -125,6 +126,7 @@ class SettingsActivity : AppCompatActivity() {
         btnTtsSystemSettings = findViewById(R.id.btnTtsSystemSettings)
         audioPlaybackSwitch = findViewById(R.id.audioPlaybackSwitch)
         headsetFeedbackSwitch = findViewById(R.id.headsetFeedbackSwitch)
+        keepScreenOnFullscreenSwitch = findViewById(R.id.keepScreenOnFullscreenSwitch)
         btnTestConnection = findViewById(R.id.btnTestConnection)
         btnSaveSettings = findViewById(R.id.btnSaveSettings)
         connectionStatusText = findViewById(R.id.connectionStatusText)
@@ -177,6 +179,10 @@ class SettingsActivity : AppCompatActivity() {
 
         headsetFeedbackSwitch.setOnCheckedChangeListener { _, isChecked ->
             updateHeadsetFeedbackSwitchText(isChecked)
+        }
+
+        keepScreenOnFullscreenSwitch.setOnCheckedChangeListener { _, isChecked ->
+            updateKeepScreenOnFullscreenSwitchText(isChecked)
         }
         
         // Preview tone when selecting from dropdown
@@ -257,6 +263,10 @@ class SettingsActivity : AppCompatActivity() {
             AudioService.KEY_HEADSET_FEEDBACK_ENABLED,
             AudioService.DEFAULT_HEADSET_FEEDBACK_ENABLED
         )
+        val keepScreenOnFullscreenEnabled = prefs.getBoolean(
+            AudioService.KEY_KEEP_SCREEN_ON_FULLSCREEN,
+            AudioService.DEFAULT_KEEP_SCREEN_ON_FULLSCREEN
+        )
         val recordingStartTone = prefs.getString(KEY_RECORDING_START_TONE, DEFAULT_RECORDING_START_TONE)
             ?: DEFAULT_RECORDING_START_TONE
         val recordingStopTone = prefs.getString(KEY_RECORDING_STOP_TONE, DEFAULT_RECORDING_STOP_TONE)
@@ -276,6 +286,8 @@ class SettingsActivity : AppCompatActivity() {
         updateAudioPlaybackSwitchText(audioPlaybackEnabled)
         headsetFeedbackSwitch.isChecked = headsetFeedbackEnabled
         updateHeadsetFeedbackSwitchText(headsetFeedbackEnabled)
+        keepScreenOnFullscreenSwitch.isChecked = keepScreenOnFullscreenEnabled
+        updateKeepScreenOnFullscreenSwitchText(keepScreenOnFullscreenEnabled)
         
         // Load tone settings
         recordingStartToneDropdown.setText(getToneDisplayName(recordingStartTone), false)
@@ -352,6 +364,7 @@ class SettingsActivity : AppCompatActivity() {
         val ttsPitchText = ttsPitchInput.text.toString().trim()
         val audioPlaybackEnabled = audioPlaybackSwitch.isChecked
         val headsetFeedbackEnabled = headsetFeedbackSwitch.isChecked
+        val keepScreenOnFullscreenEnabled = keepScreenOnFullscreenSwitch.isChecked
         val recordingStartTone = getToneValue(recordingStartToneDropdown.text.toString())
         val recordingStopTone = getToneValue(recordingStopToneDropdown.text.toString())
 
@@ -439,6 +452,7 @@ class SettingsActivity : AppCompatActivity() {
             putFloat(KEY_TTS_PITCH, pitch)
             putBoolean(AudioService.KEY_AUDIO_PLAYBACK_ENABLED, audioPlaybackEnabled)
             putBoolean(AudioService.KEY_HEADSET_FEEDBACK_ENABLED, headsetFeedbackEnabled)
+            putBoolean(AudioService.KEY_KEEP_SCREEN_ON_FULLSCREEN, keepScreenOnFullscreenEnabled)
             putString(KEY_RECORDING_START_TONE, recordingStartTone)
             putString(KEY_RECORDING_STOP_TONE, recordingStopTone)
             commit()
@@ -514,6 +528,12 @@ class SettingsActivity : AppCompatActivity() {
     private fun updateHeadsetFeedbackSwitchText(enabled: Boolean) {
         headsetFeedbackSwitch.text = getString(
             if (enabled) R.string.headset_feedback_enabled_on else R.string.headset_feedback_enabled_off
+        )
+    }
+
+    private fun updateKeepScreenOnFullscreenSwitchText(enabled: Boolean) {
+        keepScreenOnFullscreenSwitch.text = getString(
+            if (enabled) R.string.keep_screen_on_fullscreen_enabled else R.string.keep_screen_on_fullscreen_disabled
         )
     }
 

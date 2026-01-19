@@ -251,6 +251,9 @@
     <string name="audio_service_stopped">Audio service stopped</string>
     <string name="audio_playback_enabled">Audio playback enabled</string>
     <string name="audio_playback_disabled">Audio playback disabled</string>
+    <string name="keep_screen_on_fullscreen">Mantener pantalla encendida en fullscreen</string>
+    <string name="keep_screen_on_fullscreen_enabled">Pantalla encendida activada</string>
+    <string name="keep_screen_on_fullscreen_disabled">Pantalla encendida desactivada</string>
     <string name="error_starting_recording">Error starting recording</string>
     <string name="error_unexpected_starting_recording">Unexpected error while starting recording</string>
     <string name="no_recording_in_progress_for_cancel">No recording in progress to cancel</string>

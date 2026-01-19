@@ -151,6 +151,7 @@ class AudioService : Service() {
         const val DEFAULT_TTS_PITCH = 1.0f
         const val DEFAULT_AUDIO_PLAYBACK_ENABLED = true
         const val DEFAULT_HEADSET_FEEDBACK_ENABLED = true  // Feedback auditivo activado por defecto
+        const val DEFAULT_KEEP_SCREEN_ON_FULLSCREEN = true  // Mantener pantalla encendida en fullscreen activado por defecto
         
         // SharedPreferences keys
         const val PREFS_NAME = "AudioServicePrefs"
@@ -163,6 +164,7 @@ class AudioService : Service() {
         const val KEY_TTS_PITCH = "tts_pitch"
         const val KEY_AUDIO_PLAYBACK_ENABLED = "audio_playback_enabled"
         const val KEY_HEADSET_FEEDBACK_ENABLED = "headset_feedback_enabled"
+        const val KEY_KEEP_SCREEN_ON_FULLSCREEN = "keep_screen_on_fullscreen"
         const val KEY_RECORDING_START_TONE = "recording_start_tone"
         const val KEY_RECORDING_STOP_TONE = "recording_stop_tone"
         

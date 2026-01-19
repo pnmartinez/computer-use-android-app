@@ -3397,9 +3397,17 @@ private class FullscreenImageDialog(
         setContentView(container)
         
         // Make sure the dialog takes up the full screen
+        val prefs = context.getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        val keepScreenOnEnabled = prefs.getBoolean(
+            AudioService.KEY_KEEP_SCREEN_ON_FULLSCREEN,
+            AudioService.DEFAULT_KEEP_SCREEN_ON_FULLSCREEN
+        )
         window?.apply {
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
             setBackgroundDrawable(ColorDrawable(Color.BLACK))
+            if (keepScreenOnEnabled) {
+                addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
         }
         
         // Center the image initially
@@ -3407,6 +3415,10 @@ private class FullscreenImageDialog(
         
         // Set dismiss callback
         setOnDismissListener { 
+            // Remove keep screen on flag when dialog is dismissed
+            if (keepScreenOnEnabled) {
+                window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
             try {
                 context.unregisterReceiver(recordingStateReceiver)
             } catch (_: Exception) { /* already unregistered */ }
@@ -3682,6 +3694,26 @@ private class FullscreenVncDialog(
     
     private lateinit var vncView: android.vnc.VncCanvasView
     
+    // Recording state within the dialog
+    private var isRecordingLocal = false
+    private lateinit var recordButton: MaterialButton
+    
+    // Receiver to sync recording state
+    private val recordingStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context, intent: Intent) {
+            when (intent.action) {
+                AudioService.ACTION_RECORDING_STARTED -> {
+                    isRecordingLocal = true
+                    updateRecordButtonState()
+                }
+                AudioService.ACTION_RECORDING_STOPPED -> {
+                    isRecordingLocal = false
+                    updateRecordButtonState()
+                }
+            }
+        }
+    }
+    
     init {
         // Create the container layout
         val container = FrameLayout(context)
@@ -3708,24 +3740,77 @@ private class FullscreenVncDialog(
             setOnClickListener { dismiss() }
         }
         
+        // Floating semi-transparent recording button (same as screenshot fullscreen)
+        recordButton = MaterialButton(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                144, // approx 72dp on mdpi; good enough for our use here
+                144
+            ).apply {
+                gravity = Gravity.BOTTOM or Gravity.END
+                setMargins(24, 24, 24, 36)
+            }
+            alpha = 0.7f
+            setIconResource(android.R.drawable.ic_btn_speak_now)
+            iconTint = ColorStateList.valueOf(Color.WHITE)
+            rippleColor = ColorStateList.valueOf(Color.WHITE)
+            setBackgroundColor(Color.parseColor("#006400"))
+            contentDescription = context.getString(R.string.start_recording)
+            setOnClickListener {
+                // Toggle start/stop by sending the same service intents MainActivity uses
+                val action = if (!isRecordingLocal) "START_RECORDING" else "STOP_RECORDING"
+                val svcIntent = Intent(context, AudioService::class.java).apply { this.action = action }
+                try {
+                    context.startService(svcIntent)
+                } catch (_: Exception) { /* ignore */ }
+            }
+        }
+        
         // Add views to container
         container.addView(vncView)
         container.addView(closeButton)
+        container.addView(recordButton)
         
         setContentView(container)
         
         // Make sure the dialog takes up the full screen
+        val prefs = context.getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
+        val keepScreenOnEnabled = prefs.getBoolean(
+            AudioService.KEY_KEEP_SCREEN_ON_FULLSCREEN,
+            AudioService.DEFAULT_KEEP_SCREEN_ON_FULLSCREEN
+        )
         window?.apply {
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
             setBackgroundDrawable(ColorDrawable(Color.BLACK))
+            if (keepScreenOnEnabled) {
+                addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
         }
         
         // Set dismiss callback
         setOnDismissListener { 
+            // Remove keep screen on flag when dialog is dismissed
+            if (keepScreenOnEnabled) {
+                window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+            try {
+                context.unregisterReceiver(recordingStateReceiver)
+            } catch (_: Exception) { /* already unregistered */ }
             vncView.disconnect()
             vncView.shutdown()
             onDismissCallback?.invoke() 
         }
+        
+        // Register receiver for recording state
+        try {
+            val filter = IntentFilter().apply {
+                addAction(AudioService.ACTION_RECORDING_STARTED)
+                addAction(AudioService.ACTION_RECORDING_STOPPED)
+            }
+            context.registerReceiver(recordingStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } catch (_: Exception) { /* ignore */ }
+        
+        // Initialize button state
+        updateRecordButtonState()
         
         // Connect VNC after dialog is shown and layout is complete
         setOnShowListener {
@@ -3734,6 +3819,22 @@ private class FullscreenVncDialog(
                 vncView.setConnectionInfo(host, port, password)
                 vncView.connect()
             }, 100)
+        }
+    }
+    
+    private fun updateRecordButtonState() {
+        if (::recordButton.isInitialized) {
+            if (isRecordingLocal) {
+                // Recording state - red background, pause icon
+                recordButton.setBackgroundColor(Color.parseColor("#D32F2F")) // Material red
+                recordButton.setIconResource(android.R.drawable.ic_media_pause)
+                recordButton.contentDescription = context.getString(R.string.stop_recording)
+            } else {
+                // Idle state - green background, mic icon
+                recordButton.setBackgroundColor(Color.parseColor("#006400")) // Dark green
+                recordButton.setIconResource(android.R.drawable.ic_btn_speak_now)
+                recordButton.contentDescription = context.getString(R.string.start_recording)
+            }
         }
     }
 }
