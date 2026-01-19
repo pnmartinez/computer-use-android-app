@@ -1,0 +1,14 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/nava/Descargas/computer-use-android-app-1/vncviewer/src/main/AndroidManifest.xml:2:1-13
+INJECTED from /home/nava/Descargas/computer-use-android-app-1/vncviewer/src/main/AndroidManifest.xml:2:1-13
+	package
+		INJECTED from /home/nava/Descargas/computer-use-android-app-1/vncviewer/src/main/AndroidManifest.xml
+uses-sdk
+INJECTED from /home/nava/Descargas/computer-use-android-app-1/vncviewer/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/nava/Descargas/computer-use-android-app-1/vncviewer/src/main/AndroidManifest.xml
+INJECTED from /home/nava/Descargas/computer-use-android-app-1/vncviewer/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /home/nava/Descargas/computer-use-android-app-1/vncviewer/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/nava/Descargas/computer-use-android-app-1/vncviewer/src/main/AndroidManifest.xml
