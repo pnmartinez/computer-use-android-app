@@ -1989,7 +1989,7 @@ class MainActivity : AppCompatActivity(), MainActivityBroadcastReceiver.Callback
             vncStreamContainer.visibility = View.VISIBLE
             screenshotLoadingProgress.visibility = View.GONE
             btnCaptureScreenshot.isEnabled = false
-            btnUnlockScreen.isEnabled = false
+            // btnUnlockScreen remains enabled in VNC mode - user can still unlock remote screen
             btnRefreshPeriod.isEnabled = false
             screenshotStatusText.text = getString(R.string.vnc_mode_active)
             startVncStream()
