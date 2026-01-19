@@ -80,8 +80,8 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.switchmaterial.SwitchMaterial
 
-class MainActivity : AppCompatActivity() {
-    
+class MainActivity : AppCompatActivity(), MainActivityBroadcastReceiver.Callbacks {
+
     // Main controls
     private lateinit var btnStartRecording: MaterialButton
     private lateinit var btnProcessingRecording: MaterialButton
@@ -118,8 +118,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var switchVncMode: SwitchMaterial
     private lateinit var vncStreamContainer: FrameLayout
     lateinit var screenshotLoadingProgress: ProgressBar
-    private var vncView: android.vnc.VncCanvasView? = null
     private var isVncModeEnabled: Boolean = false
+
+    // Managers (extracted logic from MainActivity)
+    private lateinit var vncManager: VncManager
+    private lateinit var screenshotRefreshManager: ScreenshotRefreshManager
 
     // Screen summary section
     private lateinit var summaryCard: MaterialCardView
@@ -156,11 +159,10 @@ class MainActivity : AppCompatActivity() {
         )
     }
     
-    // Long Polling for server updates
-    private var longPollingService: LongPollingService? = null
+    // Long Polling for server updates (managed by PollingManager)
     private val pollingJob = Job()
     private val pollingScope = CoroutineScope(Dispatchers.Main + pollingJob)
-    private var isPollingConnected = false
+    private lateinit var pollingManager: PollingManager
     
     // Long Polling Debug UI
     private lateinit var pollingStatusDot: View
@@ -169,164 +171,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pollingLastEvent: TextView
     private lateinit var btnPollingReconnect: MaterialButton
     private lateinit var switchPollingEnabled: com.google.android.material.materialswitch.MaterialSwitch
-    private var isPollingEnabled = true
-    
-    // Broadcast receiver to listen for service state changes
-    private val serviceReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            when (intent.action) {
-                AudioService.ACTION_RECORDING_STARTED -> {
-                    isRecording = true
-                    Log.d("MainActivity", "Recording started, isRecording = $isRecording")
-                    updateButtonStates()
-                    
-                    // Start countdown timer if in handsfree mode
-                    if (headsetControlEnabled) {
-                        startRecordingCountdown()
-                    }
-                }
-                AudioService.ACTION_RECORDING_STOPPED -> {
-                    Log.d("MainActivity", "Recording stopped, showing processing state")
-                    // Cancel countdown timer
-                    cancelRecordingCountdown()
-                    // Show the processing state when recording is stopped and we're waiting for the server response
-                    showProcessingState()
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.recording_finished_processing)}")
-                }
-                AudioService.ACTION_RESPONSE_RECEIVED -> {
-                    // Cancel the response timeout since we got a response
-                    Log.d("MainActivity", "ACTION_RESPONSE_RECEIVED received - canceling timeout")
-                    responseTimeoutHandler?.removeCallbacksAndMessages(null)
-                    responseTimeoutHandler = null
-                    
-                    // When a response is received, return to the ready state
-                    Log.d("MainActivity", "Response received, returning to ready state")
-                    showReadyState()
-                    
-                    // Show toast message for user feedback
-                    val message = intent.getStringExtra(AudioService.EXTRA_RESPONSE_MESSAGE) ?: getString(R.string.command_processed_successfully)
-                    val screenSummary = intent.getStringExtra(AudioService.EXTRA_SCREEN_SUMMARY).orEmpty()
-                    val success = intent.getBooleanExtra(AudioService.EXTRA_RESPONSE_SUCCESS, true)
 
-                    val summaryForUi = if (screenSummary.isNotBlank()) screenSummary else message
-                    updateScreenSummary(summaryForUi)
-                    
-                    // Call our handler with the response details
-                    handleVoiceCommandResponse(success, message)
-                    
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.response_received, message)}")
-                }
-                AudioService.ACTION_TTS_STATUS -> {
-                    val status = intent.getStringExtra(AudioService.EXTRA_TTS_STATUS).orEmpty()
-                    when (status) {
-                        AudioService.TTS_STATUS_PLAYING -> {
-                            isSummaryPlaying = true
-                            updateSummaryStatus(getString(R.string.summary_status_playing))
-                        }
-                        AudioService.TTS_STATUS_IDLE -> {
-                            isSummaryPlaying = false
-                            updateSummaryStatus(
-                                if (lastScreenSummary.isNotBlank()) {
-                                    getString(R.string.summary_status_ready)
-                                } else {
-                                    getString(R.string.summary_status_empty)
-                                }
-                            )
-                        }
-                        AudioService.TTS_STATUS_ERROR -> {
-                            isSummaryPlaying = false
-                            updateSummaryStatus(getString(R.string.summary_status_error))
-                        }
-                    }
-                }
-                AudioService.ACTION_HEADSET_CONTROL_STATUS -> {
-                    val enabled = intent.getBooleanExtra(
-                        AudioService.EXTRA_HEADSET_CONTROL_ENABLED,
-                        false
-                    )
-                    headsetControlEnabled = enabled
-                    updateHeadsetControlUi(enabled)
-                }
-                AudioService.ACTION_MICROPHONE_CHANGED -> {
-                    val micName = intent.getStringExtra(AudioService.EXTRA_MICROPHONE_NAME)
-                    updateMicrophoneStatus(micName)
-                }
-                AudioService.ACTION_LOG_MESSAGE -> {
-                    val message = intent.getStringExtra(AudioService.EXTRA_LOG_MESSAGE) ?: return
-                    
-                    // Check for error messages and go back to ready state for more error patterns
-                    if (message.contains("Error", ignoreCase = true) || 
-                        message.contains("Failed", ignoreCase = true) ||
-                        message.contains("Could not", ignoreCase = true) ||
-                        message.contains("No command detected", ignoreCase = true) ||
-                        message.contains("ERROR:", ignoreCase = true) ||
-                        message.contains("Exception", ignoreCase = true) ||
-                        message.contains("Timeout", ignoreCase = true) ||
-                        (message.contains("response", ignoreCase = true) && message.contains("empty", ignoreCase = true)) ||
-                        message.contains("Connection failed", ignoreCase = true)) {
-                        
-                        Log.d("MainActivity", "Error condition detected in logs, ensuring UI is reset: $message")
-                        showReadyState()
-                    }
-                    
-                    addLogMessage(message)
-                }
-                AudioService.ACTION_AUDIO_FILE_INFO -> {
-                    val filePath = intent.getStringExtra(AudioService.EXTRA_AUDIO_FILE_PATH) ?: return
-                    val fileSize = intent.getLongExtra(AudioService.EXTRA_AUDIO_FILE_SIZE, 0)
-                    val duration = intent.getLongExtra(AudioService.EXTRA_AUDIO_DURATION, 0)
-                    val type = intent.getStringExtra(AudioService.EXTRA_AUDIO_TYPE) ?: "unknown"
-                    
-                    updateAudioFileInfo(filePath, fileSize, duration, type)
-                }
-                AudioService.ACTION_PROCESSING_COMPLETED -> {
-                    // Cancel the response timeout since processing is complete
-                    Log.d("MainActivity", "ACTION_PROCESSING_COMPLETED received - canceling timeout")
-                    responseTimeoutHandler?.removeCallbacksAndMessages(null)
-                    responseTimeoutHandler = null
-                    
-                    // Ensure we return to the ready state when processing completes
-                    showReadyState()
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.processing_completed)}")
-                }
-                AudioService.ACTION_CONNECTION_TESTED -> {
-                    val success = intent.getBooleanExtra(AudioService.EXTRA_CONNECTION_SUCCESS, false)
-                    val message = intent.getStringExtra(AudioService.EXTRA_CONNECTION_MESSAGE) ?: getString(R.string.unknown_error)
-                    
-                    Log.d("MainActivity", getString(R.string.connection_test_received, success, message))
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.connection_test_received, success, message)}")
-                }
-                
-                // Long Polling broadcasts
-                LongPollingService.ACTION_UPDATE_RECEIVED -> {
-                    val updateId = intent.getStringExtra(LongPollingService.EXTRA_UPDATE_ID) ?: ""
-                    val updateType = intent.getStringExtra(LongPollingService.EXTRA_UPDATE_TYPE) ?: ""
-                    val updateSummary = intent.getStringExtra(LongPollingService.EXTRA_UPDATE_SUMMARY) ?: ""
-                    val updateChanges = intent.getStringArrayListExtra(LongPollingService.EXTRA_UPDATE_CHANGES) ?: arrayListOf()
-                    
-                    Log.d("MainActivity", "Server update received: $updateId - $updateSummary")
-                    handleServerUpdate(updateType, updateSummary, updateChanges)
-                }
-                LongPollingService.ACTION_POLLING_STATUS -> {
-                    val connected = intent.getBooleanExtra(LongPollingService.EXTRA_POLLING_CONNECTED, false)
-                    isPollingConnected = connected
-                    updatePollingStatusUi(connected)
-                }
-                LongPollingService.ACTION_POLLING_ERROR -> {
-                    val errorMessage = intent.getStringExtra(LongPollingService.EXTRA_ERROR_MESSAGE) ?: ""
-                    Log.e("MainActivity", "Polling error: $errorMessage")
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.polling_error, errorMessage)}")
-                    // Update debug UI with error
-                    updatePollingDebugUI("error", "Error")
-                    pollingLastEvent.text = "❌ ${getCurrentTime()}: ${errorMessage.take(50)}"
-                }
-                LongPollingService.ACTION_POLLING_DEBUG -> {
-                    val debugMessage = intent.getStringExtra(LongPollingService.EXTRA_DEBUG_MESSAGE) ?: ""
-                    pollingLastEvent.text = "🔍 ${getCurrentTime()}: $debugMessage"
-                }
+    // isPollingEnabled is delegated to PollingManager
+    private var isPollingEnabled: Boolean
+        get() = if (::pollingManager.isInitialized) pollingManager.isEnabled else true
+        set(value) {
+            if (::pollingManager.isInitialized) {
+                if (value) pollingManager.enable() else pollingManager.disable()
             }
         }
-    }
+    
+    // Broadcast receiver to listen for service state changes (extracted to separate class)
+    private val serviceReceiver = MainActivityBroadcastReceiver(this)
     
     // Screenshot related sealed classes
     sealed class ScreenshotState {
@@ -338,11 +194,11 @@ class MainActivity : AppCompatActivity() {
 
     
     
-    // Add these properties to track refresh state
-    private var refreshPeriodMs: Long = 30000 // Default: 30 seconds
-    private var refreshHandler: Handler? = null
-    private var refreshRunnable: Runnable? = null
-    private var autoRefreshEnabled = true
+    // Refresh state is now managed by ScreenshotRefreshManager
+    private val autoRefreshEnabled: Boolean
+        get() = screenshotRefreshManager.isEnabled
+    private val refreshPeriodMs: Long
+        get() = screenshotRefreshManager.refreshPeriodMs
     
     // Command History properties
     private lateinit var commandHistoryRecyclerView: androidx.recyclerview.widget.RecyclerView
@@ -458,7 +314,7 @@ class MainActivity : AppCompatActivity() {
         }
         
         // Restart long polling if not running
-        if (longPollingService?.isPolling() != true) {
+        if (!pollingManager.isPolling()) {
             startLongPolling()
         }
     }
@@ -556,28 +412,7 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun registerReceiver() {
-        val filter = IntentFilter().apply {
-            addAction(AudioService.ACTION_RECORDING_STARTED)
-            addAction(AudioService.ACTION_RECORDING_STOPPED)
-            addAction(AudioService.ACTION_RESPONSE_RECEIVED)
-            addAction(AudioService.ACTION_LOG_MESSAGE)
-            addAction(AudioService.ACTION_AUDIO_FILE_INFO)
-            addAction(AudioService.ACTION_PROCESSING_COMPLETED)
-            addAction(AudioService.ACTION_CONNECTION_TESTED)
-            addAction(AudioService.ACTION_TTS_STATUS)
-            addAction(AudioService.ACTION_HEADSET_CONTROL_STATUS)
-            addAction(AudioService.ACTION_MICROPHONE_CHANGED)
-            // Long Polling broadcasts
-            addAction(LongPollingService.ACTION_UPDATE_RECEIVED)
-            addAction(LongPollingService.ACTION_POLLING_STATUS)
-            addAction(LongPollingService.ACTION_POLLING_ERROR)
-            addAction(LongPollingService.ACTION_POLLING_DEBUG)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-        registerReceiver(serviceReceiver, filter)
-        }
+        MainActivityBroadcastReceiver.register(this, serviceReceiver)
     }
     
     private fun initViews() {
@@ -623,6 +458,9 @@ class MainActivity : AppCompatActivity() {
         switchVncMode = findViewById(R.id.switchVncMode)
         vncStreamContainer = findViewById(R.id.vncStreamContainerMain)
         screenshotLoadingProgress = findViewById(R.id.screenshotLoadingProgress)
+
+        // Initialize managers
+        initializeManagers()
 
         // Screen summary section
         summaryCard = findViewById(R.id.summaryCard)
@@ -738,9 +576,180 @@ class MainActivity : AppCompatActivity() {
         startAudioService(this, "RESET_STATE")
         
         addLogMessage("[${getCurrentTime()}] ${getString(R.string.recording_state_reset)}")
-        
+
     }
-    
+
+    /**
+     * Initialize manager classes that encapsulate extracted logic
+     */
+    private fun initializeManagers() {
+        // VNC Manager
+        vncManager = VncManager(
+            context = this,
+            vncStreamContainer = vncStreamContainer,
+            onFullscreenRequested = { showFullscreenVnc() }
+        )
+
+        // Screenshot Refresh Manager
+        screenshotRefreshManager = ScreenshotRefreshManager(
+            onRefreshTriggered = { captureNewScreenshot() }
+        )
+
+        // Polling Manager
+        pollingManager = PollingManager(
+            context = this,
+            onStatusChanged = { status -> handlePollingStatusChange(status) },
+            onDebugMessage = { message -> pollingLastEvent.text = message }
+        )
+    }
+
+    /**
+     * Handles polling status changes from PollingManager
+     */
+    private fun handlePollingStatusChange(status: PollingManager.PollingStatus) {
+        when (status) {
+            is PollingManager.PollingStatus.Connecting -> {
+                pollingServerUrl.text = "Server: ${status.serverUrl}"
+                updatePollingDebugUI("connecting", "Conectando...")
+            }
+            is PollingManager.PollingStatus.Connected -> {
+                updatePollingDebugUI("connected", "Conectado")
+                pollingLastEvent.text = "✅ ${getCurrentTime()}: Conexión establecida"
+            }
+            is PollingManager.PollingStatus.Disconnected -> {
+                updatePollingDebugUI("disconnected", "Desconectado")
+            }
+            is PollingManager.PollingStatus.Stopped -> {
+                updatePollingDebugUI("inactive", "Detenido")
+            }
+            is PollingManager.PollingStatus.Disabled -> {
+                updatePollingDebugUI("disabled", "Desactivado")
+                pollingLastEvent.text = "Activa el switch para recibir notificaciones"
+            }
+            is PollingManager.PollingStatus.NotConfigured -> {
+                updatePollingDebugUI("inactive", "No configurado")
+                pollingServerUrl.text = "Servidor: no configurado"
+            }
+            is PollingManager.PollingStatus.Error -> {
+                updatePollingDebugUI("error", "Error")
+                pollingLastEvent.text = "❌ ${getCurrentTime()}: ${status.message.take(50)}"
+            }
+        }
+    }
+
+    // ==================== MainActivityBroadcastReceiver.Callbacks Implementation ====================
+
+    override fun onRecordingStarted() {
+        isRecording = true
+        Log.d("MainActivity", "Recording started, isRecording = $isRecording")
+        updateButtonStates()
+        if (headsetControlEnabled) {
+            startRecordingCountdown()
+        }
+    }
+
+    override fun onRecordingStopped() {
+        Log.d("MainActivity", "Recording stopped, showing processing state")
+        cancelRecordingCountdown()
+        showProcessingState()
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.recording_finished_processing)}")
+    }
+
+    override fun onProcessingCompleted() {
+        Log.d("MainActivity", "Processing completed - canceling timeout")
+        responseTimeoutHandler?.removeCallbacksAndMessages(null)
+        responseTimeoutHandler = null
+        showReadyState()
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.processing_completed)}")
+    }
+
+    override fun onResponseReceived(message: String, screenSummary: String, success: Boolean) {
+        Log.d("MainActivity", "Response received - canceling timeout")
+        responseTimeoutHandler?.removeCallbacksAndMessages(null)
+        responseTimeoutHandler = null
+        showReadyState()
+
+        val summaryForUi = if (screenSummary.isNotBlank()) screenSummary else message
+        updateScreenSummary(summaryForUi)
+        handleVoiceCommandResponse(success, message)
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.response_received, message)}")
+    }
+
+    override fun onConnectionTested(success: Boolean, message: String) {
+        Log.d("MainActivity", getString(R.string.connection_test_received, success, message))
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.connection_test_received, success, message)}")
+    }
+
+    override fun onTtsStatusChanged(status: String) {
+        when (status) {
+            AudioService.TTS_STATUS_PLAYING -> {
+                isSummaryPlaying = true
+                updateSummaryStatus(getString(R.string.summary_status_playing))
+            }
+            AudioService.TTS_STATUS_IDLE -> {
+                isSummaryPlaying = false
+                updateSummaryStatus(
+                    if (lastScreenSummary.isNotBlank()) getString(R.string.summary_status_ready)
+                    else getString(R.string.summary_status_empty)
+                )
+            }
+            AudioService.TTS_STATUS_ERROR -> {
+                isSummaryPlaying = false
+                updateSummaryStatus(getString(R.string.summary_status_error))
+            }
+        }
+    }
+
+    override fun onHeadsetControlStatusChanged(enabled: Boolean) {
+        headsetControlEnabled = enabled
+        updateHeadsetControlUi(enabled)
+    }
+
+    override fun onMicrophoneChanged(micName: String?) {
+        updateMicrophoneStatus(micName)
+    }
+
+    override fun onLogMessage(message: String) {
+        // Check for error messages and go back to ready state
+        if (message.contains("Error", ignoreCase = true) ||
+            message.contains("Failed", ignoreCase = true) ||
+            message.contains("Could not", ignoreCase = true) ||
+            message.contains("No command detected", ignoreCase = true) ||
+            message.contains("ERROR:", ignoreCase = true) ||
+            message.contains("Exception", ignoreCase = true) ||
+            message.contains("Timeout", ignoreCase = true) ||
+            (message.contains("response", ignoreCase = true) && message.contains("empty", ignoreCase = true)) ||
+            message.contains("Connection failed", ignoreCase = true)) {
+            Log.d("MainActivity", "Error condition detected in logs, ensuring UI is reset: $message")
+            showReadyState()
+        }
+        addLogMessage(message)
+    }
+
+    override fun onAudioFileInfo(filePath: String, fileSize: Long, duration: Long, type: String) {
+        updateAudioFileInfo(filePath, fileSize, duration, type)
+    }
+
+    override fun onServerUpdateReceived(updateId: String, updateType: String, summary: String, changes: List<String>) {
+        handleServerUpdate(updateType, summary, changes)
+    }
+
+    override fun onPollingStatusChanged(connected: Boolean) {
+        updatePollingStatusUi(connected)
+    }
+
+    override fun onPollingError(errorMessage: String) {
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.polling_error, errorMessage)}")
+        updatePollingDebugUI("error", "Error")
+        pollingLastEvent.text = "❌ ${getCurrentTime()}: ${errorMessage.take(50)}"
+    }
+
+    override fun onPollingDebug(debugMessage: String) {
+        pollingLastEvent.text = "🔍 ${getCurrentTime()}: $debugMessage"
+    }
+
+    // ==================== End Callbacks Implementation ====================
+
     /**
      * Setup custom scrolling behavior for logs area
      */
@@ -1371,57 +1380,23 @@ class MainActivity : AppCompatActivity() {
         summaryUpdateAnimator?.start()
     }
 
-    // ==================== Long Polling Functions ====================
-    
+    // ==================== Long Polling Functions (delegated to PollingManager) ====================
+
     /**
      * Starts the long polling service to receive server updates
      */
     private fun startLongPolling() {
-        // Don't start if polling is disabled
-        if (!isPollingEnabled) {
-            Log.d("MainActivity", "Long polling disabled by user")
-            return
+        pollingManager.start(pollingScope)
+        if (pollingManager.isEnabled) {
+            addLogMessage("[${getCurrentTime()}] ${getString(R.string.polling_status_active)}")
         }
-        
-        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
-        val serverIp = prefs.getString(AudioService.KEY_SERVER_IP, AudioService.DEFAULT_SERVER_IP) ?: AudioService.DEFAULT_SERVER_IP
-        val serverPort = prefs.getInt(AudioService.KEY_SERVER_PORT, AudioService.DEFAULT_SERVER_PORT)
-        
-        // Don't start if server is not configured
-        if (serverIp == AudioService.DEFAULT_SERVER_IP || serverIp.isBlank()) {
-            Log.d("MainActivity", "Long polling not started: server not configured")
-            updatePollingDebugUI("inactive", "No configurado")
-            pollingServerUrl.text = "Servidor: no configurado"
-            return
-        }
-        
-        val serverUrl = "https://$serverIp:$serverPort"
-        
-        // Stop existing service if running (without updating UI)
-        longPollingService?.stop()
-        longPollingService = null
-        
-        // Update debug UI AFTER stopping old service
-        pollingServerUrl.text = "Server: $serverUrl"
-        updatePollingDebugUI("connecting", "Conectando...")
-        pollingLastEvent.text = "Iniciando polling..."
-        
-        // Create and start new polling service
-        longPollingService = LongPollingService(this, serverUrl)
-        longPollingService?.start(pollingScope)
-        
-        Log.d("MainActivity", "Long polling started for $serverUrl")
-        addLogMessage("[${getCurrentTime()}] ${getString(R.string.polling_status_active)}")
     }
-    
+
     /**
      * Stops the long polling service
      */
     private fun stopLongPolling() {
-        longPollingService?.stop()
-        longPollingService = null
-        isPollingConnected = false
-        updatePollingDebugUI("inactive", "Detenido")
+        pollingManager.stop()
     }
     
     /**
@@ -1460,13 +1435,7 @@ class MainActivity : AppCompatActivity() {
      * Updates the UI to reflect polling connection status
      */
     private fun updatePollingStatusUi(connected: Boolean) {
-        isPollingConnected = connected
-        if (connected) {
-            updatePollingDebugUI("connected", "Conectado")
-            pollingLastEvent.text = "✅ ${getCurrentTime()}: Conexión establecida"
-        } else {
-            updatePollingDebugUI("disconnected", "Desconectado")
-        }
+        pollingManager.updateConnectionStatus(connected)
         Log.d("MainActivity", "Polling status: ${if (connected) "connected" else "disconnected"}")
     }
     
@@ -2005,36 +1974,12 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun startAutoRefresh() {
-        // Cancel any existing auto-refresh
-        stopAutoRefresh()
-
-        if (isVncModeEnabled) {
-            return
-        }
-        
-        // Don't start if auto-refresh is disabled
-        if (!autoRefreshEnabled) {
-            return
-        }
-        
-        // Create a new handler and runnable
-        refreshHandler = Handler(mainLooper)
-        refreshRunnable = object : Runnable {
-            override fun run() {
-                captureNewScreenshot()
-                refreshHandler?.postDelayed(this, refreshPeriodMs)
-            }
-        }
-        
-        // Start the initial refresh after the configured delay
-        refreshHandler?.postDelayed(refreshRunnable!!, refreshPeriodMs)
+        if (isVncModeEnabled) return
+        screenshotRefreshManager.start()
     }
 
     private fun stopAutoRefresh() {
-        refreshRunnable?.let { runnable ->
-            refreshHandler?.removeCallbacks(runnable)
-        }
-        refreshRunnable = null
+        screenshotRefreshManager.stop()
     }
 
     private fun applyVncMode(enabled: Boolean) {
@@ -2064,44 +2009,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startVncStream() {
-        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
-        val host = prefs.getString(AudioService.KEY_SERVER_IP, AudioService.DEFAULT_SERVER_IP)
-            ?: AudioService.DEFAULT_SERVER_IP
-        val vncPort = prefs.getInt(VncPreferences.KEY_VNC_PORT, VncPreferences.DEFAULT_VNC_PORT)
-        val vncPassword = prefs.getString(VncPreferences.KEY_VNC_PASSWORD, "").orEmpty()
-        if (vncView == null) {
-            vncView = android.vnc.VncCanvasView(this, null, false) // Zoom disabled in small container
-            vncStreamContainer.removeAllViews()
-            vncStreamContainer.addView(vncView)
-            // Add click listener to open fullscreen
-            vncStreamContainer.setOnClickListener {
-                showFullscreenVnc()
-            }
-        }
-        vncView?.setConnectionInfo(host, vncPort, vncPassword)
-        vncView?.connect()
+        vncManager.startStream()
     }
-    
+
     private fun showFullscreenVnc() {
-        val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
-        val host = prefs.getString(AudioService.KEY_SERVER_IP, AudioService.DEFAULT_SERVER_IP)
-            ?: AudioService.DEFAULT_SERVER_IP
-        val vncPort = prefs.getInt(VncPreferences.KEY_VNC_PORT, VncPreferences.DEFAULT_VNC_PORT)
-        val vncPassword = prefs.getString(VncPreferences.KEY_VNC_PASSWORD, "").orEmpty()
-        
-        // Create and show the fullscreen VNC dialog
-        activeFullscreenVncDialog = FullscreenVncDialog(this, host, vncPort, vncPassword) {
-            // Clear reference when dialog is dismissed
+        val info = vncManager.getConnectionInfo()
+        activeFullscreenVncDialog = FullscreenVncDialog(this, info.host, info.port, info.password) {
             activeFullscreenVncDialog = null
         }
         activeFullscreenVncDialog?.show()
     }
 
     private fun stopVncStream() {
-        vncView?.disconnect()
-        vncView?.shutdown()
-        vncView = null
-        vncStreamContainer.removeAllViews()
+        vncManager.stopStream()
     }
 
     private fun showRefreshPeriodMenu() {
@@ -2132,34 +2052,22 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun updateRefreshPeriod(periodMs: Long) {
-        refreshPeriodMs = periodMs
-        btnRefreshPeriod.text = formatRefreshPeriod(periodMs)
-        autoRefreshEnabled = true
-        
-        // Restart auto-refresh with the new period
-        startAutoRefresh()
-        
-        // Notify the user
-        addLogMessage("[${getCurrentTime()}] ⏱️ ${getString(R.string.refresh_period_changed, formatRefreshPeriod(periodMs))}")
+        screenshotRefreshManager.updatePeriod(periodMs)
+        btnRefreshPeriod.text = screenshotRefreshManager.formatPeriod()
+        if (!isVncModeEnabled) {
+            startAutoRefresh()
+        }
+        addLogMessage("[${getCurrentTime()}] ⏱️ ${getString(R.string.refresh_period_changed, screenshotRefreshManager.formatPeriod())}")
     }
-    
+
     private fun disableAutoRefresh() {
-        autoRefreshEnabled = false
+        screenshotRefreshManager.disable()
         btnRefreshPeriod.text = getString(R.string.disabled)
-        stopAutoRefresh()
-        
-        // Notify the user
         addLogMessage("[${getCurrentTime()}] ⏱️ ${getString(R.string.auto_refresh_disabled)}")
     }
-    
+
     private fun formatRefreshPeriod(periodMs: Long): String {
-        return when (periodMs) {
-            5000L -> "5s"
-            10000L -> "10s"
-            30000L -> "30s"
-            60000L -> "60s"
-            else -> "${periodMs/1000}s"
-        }
+        return screenshotRefreshManager.formatPeriod()
     }
 
     private fun updateScreenshotUIState(filename: String) {
@@ -2236,8 +2144,14 @@ class MainActivity : AppCompatActivity() {
     private fun loadAppPreferences() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isLogsExpanded = prefs.getBoolean(KEY_IS_LOGS_EXPANDED, false)
-        refreshPeriodMs = prefs.getLong(KEY_REFRESH_PERIOD, 30000)
-        autoRefreshEnabled = prefs.getBoolean(KEY_AUTO_REFRESH_ENABLED, true)
+
+        // Load refresh settings into manager
+        val savedRefreshPeriod = prefs.getLong(KEY_REFRESH_PERIOD, ScreenshotRefreshManager.DEFAULT_REFRESH_PERIOD)
+        val savedAutoRefreshEnabled = prefs.getBoolean(KEY_AUTO_REFRESH_ENABLED, true)
+        screenshotRefreshManager.updatePeriod(savedRefreshPeriod)
+        if (!savedAutoRefreshEnabled) {
+            screenshotRefreshManager.disable()
+        }
     }
 
     private fun maybeShowTutorial() {
