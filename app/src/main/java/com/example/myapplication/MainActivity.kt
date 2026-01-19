@@ -80,8 +80,8 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.switchmaterial.SwitchMaterial
 
-class MainActivity : AppCompatActivity() {
-    
+class MainActivity : AppCompatActivity(), MainActivityBroadcastReceiver.Callbacks {
+
     // Main controls
     private lateinit var btnStartRecording: MaterialButton
     private lateinit var btnProcessingRecording: MaterialButton
@@ -181,161 +181,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
     
-    // Broadcast receiver to listen for service state changes
-    private val serviceReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            when (intent.action) {
-                AudioService.ACTION_RECORDING_STARTED -> {
-                    isRecording = true
-                    Log.d("MainActivity", "Recording started, isRecording = $isRecording")
-                    updateButtonStates()
-                    
-                    // Start countdown timer if in handsfree mode
-                    if (headsetControlEnabled) {
-                        startRecordingCountdown()
-                    }
-                }
-                AudioService.ACTION_RECORDING_STOPPED -> {
-                    Log.d("MainActivity", "Recording stopped, showing processing state")
-                    // Cancel countdown timer
-                    cancelRecordingCountdown()
-                    // Show the processing state when recording is stopped and we're waiting for the server response
-                    showProcessingState()
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.recording_finished_processing)}")
-                }
-                AudioService.ACTION_RESPONSE_RECEIVED -> {
-                    // Cancel the response timeout since we got a response
-                    Log.d("MainActivity", "ACTION_RESPONSE_RECEIVED received - canceling timeout")
-                    responseTimeoutHandler?.removeCallbacksAndMessages(null)
-                    responseTimeoutHandler = null
-                    
-                    // When a response is received, return to the ready state
-                    Log.d("MainActivity", "Response received, returning to ready state")
-                    showReadyState()
-                    
-                    // Show toast message for user feedback
-                    val message = intent.getStringExtra(AudioService.EXTRA_RESPONSE_MESSAGE) ?: getString(R.string.command_processed_successfully)
-                    val screenSummary = intent.getStringExtra(AudioService.EXTRA_SCREEN_SUMMARY).orEmpty()
-                    val success = intent.getBooleanExtra(AudioService.EXTRA_RESPONSE_SUCCESS, true)
-
-                    val summaryForUi = if (screenSummary.isNotBlank()) screenSummary else message
-                    updateScreenSummary(summaryForUi)
-                    
-                    // Call our handler with the response details
-                    handleVoiceCommandResponse(success, message)
-                    
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.response_received, message)}")
-                }
-                AudioService.ACTION_TTS_STATUS -> {
-                    val status = intent.getStringExtra(AudioService.EXTRA_TTS_STATUS).orEmpty()
-                    when (status) {
-                        AudioService.TTS_STATUS_PLAYING -> {
-                            isSummaryPlaying = true
-                            updateSummaryStatus(getString(R.string.summary_status_playing))
-                        }
-                        AudioService.TTS_STATUS_IDLE -> {
-                            isSummaryPlaying = false
-                            updateSummaryStatus(
-                                if (lastScreenSummary.isNotBlank()) {
-                                    getString(R.string.summary_status_ready)
-                                } else {
-                                    getString(R.string.summary_status_empty)
-                                }
-                            )
-                        }
-                        AudioService.TTS_STATUS_ERROR -> {
-                            isSummaryPlaying = false
-                            updateSummaryStatus(getString(R.string.summary_status_error))
-                        }
-                    }
-                }
-                AudioService.ACTION_HEADSET_CONTROL_STATUS -> {
-                    val enabled = intent.getBooleanExtra(
-                        AudioService.EXTRA_HEADSET_CONTROL_ENABLED,
-                        false
-                    )
-                    headsetControlEnabled = enabled
-                    updateHeadsetControlUi(enabled)
-                }
-                AudioService.ACTION_MICROPHONE_CHANGED -> {
-                    val micName = intent.getStringExtra(AudioService.EXTRA_MICROPHONE_NAME)
-                    updateMicrophoneStatus(micName)
-                }
-                AudioService.ACTION_LOG_MESSAGE -> {
-                    val message = intent.getStringExtra(AudioService.EXTRA_LOG_MESSAGE) ?: return
-                    
-                    // Check for error messages and go back to ready state for more error patterns
-                    if (message.contains("Error", ignoreCase = true) || 
-                        message.contains("Failed", ignoreCase = true) ||
-                        message.contains("Could not", ignoreCase = true) ||
-                        message.contains("No command detected", ignoreCase = true) ||
-                        message.contains("ERROR:", ignoreCase = true) ||
-                        message.contains("Exception", ignoreCase = true) ||
-                        message.contains("Timeout", ignoreCase = true) ||
-                        (message.contains("response", ignoreCase = true) && message.contains("empty", ignoreCase = true)) ||
-                        message.contains("Connection failed", ignoreCase = true)) {
-                        
-                        Log.d("MainActivity", "Error condition detected in logs, ensuring UI is reset: $message")
-                        showReadyState()
-                    }
-                    
-                    addLogMessage(message)
-                }
-                AudioService.ACTION_AUDIO_FILE_INFO -> {
-                    val filePath = intent.getStringExtra(AudioService.EXTRA_AUDIO_FILE_PATH) ?: return
-                    val fileSize = intent.getLongExtra(AudioService.EXTRA_AUDIO_FILE_SIZE, 0)
-                    val duration = intent.getLongExtra(AudioService.EXTRA_AUDIO_DURATION, 0)
-                    val type = intent.getStringExtra(AudioService.EXTRA_AUDIO_TYPE) ?: "unknown"
-                    
-                    updateAudioFileInfo(filePath, fileSize, duration, type)
-                }
-                AudioService.ACTION_PROCESSING_COMPLETED -> {
-                    // Cancel the response timeout since processing is complete
-                    Log.d("MainActivity", "ACTION_PROCESSING_COMPLETED received - canceling timeout")
-                    responseTimeoutHandler?.removeCallbacksAndMessages(null)
-                    responseTimeoutHandler = null
-                    
-                    // Ensure we return to the ready state when processing completes
-                    showReadyState()
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.processing_completed)}")
-                }
-                AudioService.ACTION_CONNECTION_TESTED -> {
-                    val success = intent.getBooleanExtra(AudioService.EXTRA_CONNECTION_SUCCESS, false)
-                    val message = intent.getStringExtra(AudioService.EXTRA_CONNECTION_MESSAGE) ?: getString(R.string.unknown_error)
-                    
-                    Log.d("MainActivity", getString(R.string.connection_test_received, success, message))
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.connection_test_received, success, message)}")
-                }
-                
-                // Long Polling broadcasts
-                LongPollingService.ACTION_UPDATE_RECEIVED -> {
-                    val updateId = intent.getStringExtra(LongPollingService.EXTRA_UPDATE_ID) ?: ""
-                    val updateType = intent.getStringExtra(LongPollingService.EXTRA_UPDATE_TYPE) ?: ""
-                    val updateSummary = intent.getStringExtra(LongPollingService.EXTRA_UPDATE_SUMMARY) ?: ""
-                    val updateChanges = intent.getStringArrayListExtra(LongPollingService.EXTRA_UPDATE_CHANGES) ?: arrayListOf()
-                    
-                    Log.d("MainActivity", "Server update received: $updateId - $updateSummary")
-                    handleServerUpdate(updateType, updateSummary, updateChanges)
-                }
-                LongPollingService.ACTION_POLLING_STATUS -> {
-                    val connected = intent.getBooleanExtra(LongPollingService.EXTRA_POLLING_CONNECTED, false)
-                    updatePollingStatusUi(connected)
-                }
-                LongPollingService.ACTION_POLLING_ERROR -> {
-                    val errorMessage = intent.getStringExtra(LongPollingService.EXTRA_ERROR_MESSAGE) ?: ""
-                    Log.e("MainActivity", "Polling error: $errorMessage")
-                    addLogMessage("[${getCurrentTime()}] ${getString(R.string.polling_error, errorMessage)}")
-                    // Update debug UI with error
-                    updatePollingDebugUI("error", "Error")
-                    pollingLastEvent.text = "❌ ${getCurrentTime()}: ${errorMessage.take(50)}"
-                }
-                LongPollingService.ACTION_POLLING_DEBUG -> {
-                    val debugMessage = intent.getStringExtra(LongPollingService.EXTRA_DEBUG_MESSAGE) ?: ""
-                    pollingLastEvent.text = "🔍 ${getCurrentTime()}: $debugMessage"
-                }
-            }
-        }
-    }
+    // Broadcast receiver to listen for service state changes (extracted to separate class)
+    private val serviceReceiver = MainActivityBroadcastReceiver(this)
     
     // Screenshot related sealed classes
     sealed class ScreenshotState {
@@ -565,28 +412,7 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun registerReceiver() {
-        val filter = IntentFilter().apply {
-            addAction(AudioService.ACTION_RECORDING_STARTED)
-            addAction(AudioService.ACTION_RECORDING_STOPPED)
-            addAction(AudioService.ACTION_RESPONSE_RECEIVED)
-            addAction(AudioService.ACTION_LOG_MESSAGE)
-            addAction(AudioService.ACTION_AUDIO_FILE_INFO)
-            addAction(AudioService.ACTION_PROCESSING_COMPLETED)
-            addAction(AudioService.ACTION_CONNECTION_TESTED)
-            addAction(AudioService.ACTION_TTS_STATUS)
-            addAction(AudioService.ACTION_HEADSET_CONTROL_STATUS)
-            addAction(AudioService.ACTION_MICROPHONE_CHANGED)
-            // Long Polling broadcasts
-            addAction(LongPollingService.ACTION_UPDATE_RECEIVED)
-            addAction(LongPollingService.ACTION_POLLING_STATUS)
-            addAction(LongPollingService.ACTION_POLLING_ERROR)
-            addAction(LongPollingService.ACTION_POLLING_DEBUG)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(serviceReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-        registerReceiver(serviceReceiver, filter)
-        }
+        MainActivityBroadcastReceiver.register(this, serviceReceiver)
     }
     
     private fun initViews() {
@@ -810,6 +636,119 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    // ==================== MainActivityBroadcastReceiver.Callbacks Implementation ====================
+
+    override fun onRecordingStarted() {
+        isRecording = true
+        Log.d("MainActivity", "Recording started, isRecording = $isRecording")
+        updateButtonStates()
+        if (headsetControlEnabled) {
+            startRecordingCountdown()
+        }
+    }
+
+    override fun onRecordingStopped() {
+        Log.d("MainActivity", "Recording stopped, showing processing state")
+        cancelRecordingCountdown()
+        showProcessingState()
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.recording_finished_processing)}")
+    }
+
+    override fun onProcessingCompleted() {
+        Log.d("MainActivity", "Processing completed - canceling timeout")
+        responseTimeoutHandler?.removeCallbacksAndMessages(null)
+        responseTimeoutHandler = null
+        showReadyState()
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.processing_completed)}")
+    }
+
+    override fun onResponseReceived(message: String, screenSummary: String, success: Boolean) {
+        Log.d("MainActivity", "Response received - canceling timeout")
+        responseTimeoutHandler?.removeCallbacksAndMessages(null)
+        responseTimeoutHandler = null
+        showReadyState()
+
+        val summaryForUi = if (screenSummary.isNotBlank()) screenSummary else message
+        updateScreenSummary(summaryForUi)
+        handleVoiceCommandResponse(success, message)
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.response_received, message)}")
+    }
+
+    override fun onConnectionTested(success: Boolean, message: String) {
+        Log.d("MainActivity", getString(R.string.connection_test_received, success, message))
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.connection_test_received, success, message)}")
+    }
+
+    override fun onTtsStatusChanged(status: String) {
+        when (status) {
+            AudioService.TTS_STATUS_PLAYING -> {
+                isSummaryPlaying = true
+                updateSummaryStatus(getString(R.string.summary_status_playing))
+            }
+            AudioService.TTS_STATUS_IDLE -> {
+                isSummaryPlaying = false
+                updateSummaryStatus(
+                    if (lastScreenSummary.isNotBlank()) getString(R.string.summary_status_ready)
+                    else getString(R.string.summary_status_empty)
+                )
+            }
+            AudioService.TTS_STATUS_ERROR -> {
+                isSummaryPlaying = false
+                updateSummaryStatus(getString(R.string.summary_status_error))
+            }
+        }
+    }
+
+    override fun onHeadsetControlStatusChanged(enabled: Boolean) {
+        headsetControlEnabled = enabled
+        updateHeadsetControlUi(enabled)
+    }
+
+    override fun onMicrophoneChanged(micName: String?) {
+        updateMicrophoneStatus(micName)
+    }
+
+    override fun onLogMessage(message: String) {
+        // Check for error messages and go back to ready state
+        if (message.contains("Error", ignoreCase = true) ||
+            message.contains("Failed", ignoreCase = true) ||
+            message.contains("Could not", ignoreCase = true) ||
+            message.contains("No command detected", ignoreCase = true) ||
+            message.contains("ERROR:", ignoreCase = true) ||
+            message.contains("Exception", ignoreCase = true) ||
+            message.contains("Timeout", ignoreCase = true) ||
+            (message.contains("response", ignoreCase = true) && message.contains("empty", ignoreCase = true)) ||
+            message.contains("Connection failed", ignoreCase = true)) {
+            Log.d("MainActivity", "Error condition detected in logs, ensuring UI is reset: $message")
+            showReadyState()
+        }
+        addLogMessage(message)
+    }
+
+    override fun onAudioFileInfo(filePath: String, fileSize: Long, duration: Long, type: String) {
+        updateAudioFileInfo(filePath, fileSize, duration, type)
+    }
+
+    override fun onServerUpdateReceived(updateId: String, updateType: String, summary: String, changes: List<String>) {
+        handleServerUpdate(updateType, summary, changes)
+    }
+
+    override fun onPollingStatusChanged(connected: Boolean) {
+        updatePollingStatusUi(connected)
+    }
+
+    override fun onPollingError(errorMessage: String) {
+        addLogMessage("[${getCurrentTime()}] ${getString(R.string.polling_error, errorMessage)}")
+        updatePollingDebugUI("error", "Error")
+        pollingLastEvent.text = "❌ ${getCurrentTime()}: ${errorMessage.take(50)}"
+    }
+
+    override fun onPollingDebug(debugMessage: String) {
+        pollingLastEvent.text = "🔍 ${getCurrentTime()}: $debugMessage"
+    }
+
+    // ==================== End Callbacks Implementation ====================
 
     /**
      * Setup custom scrolling behavior for logs area
