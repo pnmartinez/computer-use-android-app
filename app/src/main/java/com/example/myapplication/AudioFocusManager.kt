@@ -17,6 +17,7 @@ class AudioFocusManager(
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasFocus = false
 
+    
     private val focusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {

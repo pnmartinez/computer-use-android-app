@@ -171,6 +171,9 @@ class MainActivity : AppCompatActivity(), MainActivityBroadcastReceiver.Callback
     private lateinit var pollingLastEvent: TextView
     private lateinit var btnPollingReconnect: MaterialButton
     private lateinit var switchPollingEnabled: com.google.android.material.materialswitch.MaterialSwitch
+    private lateinit var pollingCollapsibleContent: LinearLayout
+    private lateinit var btnTogglePollingCard: MaterialButton
+    private var isPollingCardExpanded = false
 
     // isPollingEnabled is delegated to PollingManager
     private var isPollingEnabled: Boolean
@@ -489,6 +492,26 @@ class MainActivity : AppCompatActivity(), MainActivityBroadcastReceiver.Callback
         pollingLastEvent = findViewById(R.id.pollingLastEvent)
         btnPollingReconnect = findViewById(R.id.btnPollingReconnect)
         switchPollingEnabled = findViewById(R.id.switchPollingEnabled)
+        pollingCollapsibleContent = findViewById(R.id.pollingCollapsibleContent)
+        btnTogglePollingCard = findViewById(R.id.btnTogglePollingCard)
+        
+        // Initialize collapsible card state (collapsed by default)
+        isPollingCardExpanded = false
+        pollingCollapsibleContent.visibility = View.GONE
+        pollingCollapsibleContent.alpha = 0f
+        btnTogglePollingCard.setIconResource(R.drawable.ic_expand)
+        
+        // Set up toggle button click listener
+        btnTogglePollingCard.setOnClickListener {
+            isPollingCardExpanded = !isPollingCardExpanded
+            togglePollingCardVisibility()
+        }
+        
+        // Set up header click listener
+        findViewById<LinearLayout>(R.id.pollingCardHeader).setOnClickListener {
+            isPollingCardExpanded = !isPollingCardExpanded
+            togglePollingCardVisibility()
+        }
         
         // Load polling preference
         val prefs = getSharedPreferences(AudioService.PREFS_NAME, Context.MODE_PRIVATE)
@@ -2736,6 +2759,33 @@ class MainActivity : AppCompatActivity(), MainActivityBroadcastReceiver.Callback
         saveAppPreferences()
     }
     
+    private fun togglePollingCardVisibility() {
+        if (isPollingCardExpanded) {
+            // Show content with animation
+            pollingCollapsibleContent.visibility = View.VISIBLE
+            pollingCollapsibleContent.animate()
+                .alpha(1f)
+                .setDuration(300)
+                .setListener(null)
+            
+            // Update toggle button icon
+            btnTogglePollingCard.setIconResource(R.drawable.ic_collapse)
+        } else {
+            // Hide content with animation
+            pollingCollapsibleContent.animate()
+                .alpha(0f)
+                .setDuration(300)
+                .setListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        pollingCollapsibleContent.visibility = View.GONE
+                    }
+                })
+            
+            // Update toggle button icon
+            btnTogglePollingCard.setIconResource(R.drawable.ic_expand)
+        }
+    }
+    
     private fun loadCommandHistoryState() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isCommandHistoryExpanded = prefs.getBoolean(KEY_IS_COMMAND_HISTORY_EXPANDED, false)
@@ -3218,7 +3268,8 @@ private class FullscreenImageDialog(
     
     // Recording state within the dialog
     private var isRecordingLocal = false
-    private lateinit var recordButton: MaterialButton
+    private lateinit var recordButtonContainer: FrameLayout
+    private lateinit var recordButtonIcon: ImageView
     
     // Receiver to sync recording state
     private val recordingStateReceiver = object : BroadcastReceiver() {
@@ -3363,23 +3414,17 @@ private class FullscreenImageDialog(
             visibility = View.GONE
         }
         
-        // Floating semi-transparent recording button (similar to landscape)
-        recordButton = MaterialButton(context).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                144, // approx 72dp on mdpi; good enough for our use here
-                144
-            ).apply {
+        // Floating recording button: glass effect, icon centered (FrameLayout + ImageView)
+        val btnSizePx = (144 * context.resources.displayMetrics.density).toInt()
+        val iconSizePx = (37 * context.resources.displayMetrics.density).toInt() // ~2/3 of previous 56dp
+        recordButtonContainer = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(btnSizePx, btnSizePx).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
                 setMargins(24, 24, 24, 36)
             }
-            alpha = 0.7f
-            setIconResource(android.R.drawable.ic_btn_speak_now)
-            iconTint = ColorStateList.valueOf(Color.WHITE)
-            rippleColor = ColorStateList.valueOf(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#006400"))
-            contentDescription = context.getString(R.string.start_recording)
+            alpha = 0.92f
+            setBackground(ContextCompat.getDrawable(context, R.drawable.fullscreen_record_btn_glass_idle))
             setOnClickListener {
-                // Toggle start/stop by sending the same service intents MainActivity uses
                 val action = if (!isRecordingLocal) "START_RECORDING" else "STOP_RECORDING"
                 val svcIntent = Intent(context, AudioService::class.java).apply { this.action = action }
                 try {
@@ -3387,12 +3432,22 @@ private class FullscreenImageDialog(
                 } catch (_: Exception) { /* ignore */ }
             }
         }
+        recordButtonIcon = ImageView(context).apply {
+            layoutParams = FrameLayout.LayoutParams(iconSizePx, iconSizePx).apply {
+                gravity = Gravity.CENTER
+            }
+            setImageResource(android.R.drawable.ic_btn_speak_now)
+            setColorFilter(Color.WHITE)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            contentDescription = context.getString(R.string.start_recording)
+        }
+        recordButtonContainer.addView(recordButtonIcon)
         
         // Add views to container
         container.addView(imageView)
         container.addView(closeButton)
         container.addView(screenshotProgressIndicator)
-        container.addView(recordButton)
+        container.addView(recordButtonContainer)
         
         setContentView(container)
         
@@ -3472,17 +3527,15 @@ private class FullscreenImageDialog(
     }
     
     private fun updateRecordButtonState() {
-        if (::recordButton.isInitialized) {
+        if (::recordButtonContainer.isInitialized && ::recordButtonIcon.isInitialized) {
             if (isRecordingLocal) {
-                // Recording state - red background, pause icon
-                recordButton.setBackgroundColor(Color.parseColor("#D32F2F")) // Material red
-                recordButton.setIconResource(android.R.drawable.ic_media_pause)
-                recordButton.contentDescription = context.getString(R.string.stop_recording)
+                recordButtonContainer.background = ContextCompat.getDrawable(context, R.drawable.fullscreen_record_btn_glass_recording)
+                recordButtonIcon.setImageResource(android.R.drawable.ic_media_pause)
+                recordButtonIcon.contentDescription = context.getString(R.string.stop_recording)
             } else {
-                // Idle state - green background, mic icon
-                recordButton.setBackgroundColor(Color.parseColor("#006400")) // Dark green
-                recordButton.setIconResource(android.R.drawable.ic_btn_speak_now)
-                recordButton.contentDescription = context.getString(R.string.start_recording)
+                recordButtonContainer.background = ContextCompat.getDrawable(context, R.drawable.fullscreen_record_btn_glass_idle)
+                recordButtonIcon.setImageResource(android.R.drawable.ic_btn_speak_now)
+                recordButtonIcon.contentDescription = context.getString(R.string.start_recording)
             }
         }
     }
@@ -3696,7 +3749,8 @@ private class FullscreenVncDialog(
     
     // Recording state within the dialog
     private var isRecordingLocal = false
-    private lateinit var recordButton: MaterialButton
+    private lateinit var recordButtonContainer: FrameLayout
+    private lateinit var recordButtonIcon: ImageView
     
     // Receiver to sync recording state
     private val recordingStateReceiver = object : BroadcastReceiver() {
@@ -3740,23 +3794,17 @@ private class FullscreenVncDialog(
             setOnClickListener { dismiss() }
         }
         
-        // Floating semi-transparent recording button (same as screenshot fullscreen)
-        recordButton = MaterialButton(context).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                144, // approx 72dp on mdpi; good enough for our use here
-                144
-            ).apply {
+        // Floating recording button: glass effect, icon centered (FrameLayout + ImageView)
+        val btnSizePxVnc = (144 * context.resources.displayMetrics.density).toInt()
+        val iconSizePxVnc = (37 * context.resources.displayMetrics.density).toInt() // ~2/3 of previous 56dp
+        recordButtonContainer = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(btnSizePxVnc, btnSizePxVnc).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
                 setMargins(24, 24, 24, 36)
             }
-            alpha = 0.7f
-            setIconResource(android.R.drawable.ic_btn_speak_now)
-            iconTint = ColorStateList.valueOf(Color.WHITE)
-            rippleColor = ColorStateList.valueOf(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#006400"))
-            contentDescription = context.getString(R.string.start_recording)
+            alpha = 0.92f
+            setBackground(ContextCompat.getDrawable(context, R.drawable.fullscreen_record_btn_glass_idle))
             setOnClickListener {
-                // Toggle start/stop by sending the same service intents MainActivity uses
                 val action = if (!isRecordingLocal) "START_RECORDING" else "STOP_RECORDING"
                 val svcIntent = Intent(context, AudioService::class.java).apply { this.action = action }
                 try {
@@ -3764,11 +3812,21 @@ private class FullscreenVncDialog(
                 } catch (_: Exception) { /* ignore */ }
             }
         }
+        recordButtonIcon = ImageView(context).apply {
+            layoutParams = FrameLayout.LayoutParams(iconSizePxVnc, iconSizePxVnc).apply {
+                gravity = Gravity.CENTER
+            }
+            setImageResource(android.R.drawable.ic_btn_speak_now)
+            setColorFilter(Color.WHITE)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            contentDescription = context.getString(R.string.start_recording)
+        }
+        recordButtonContainer.addView(recordButtonIcon)
         
         // Add views to container
         container.addView(vncView)
         container.addView(closeButton)
-        container.addView(recordButton)
+        container.addView(recordButtonContainer)
         
         setContentView(container)
         
@@ -3823,17 +3881,15 @@ private class FullscreenVncDialog(
     }
     
     private fun updateRecordButtonState() {
-        if (::recordButton.isInitialized) {
+        if (::recordButtonContainer.isInitialized && ::recordButtonIcon.isInitialized) {
             if (isRecordingLocal) {
-                // Recording state - red background, pause icon
-                recordButton.setBackgroundColor(Color.parseColor("#D32F2F")) // Material red
-                recordButton.setIconResource(android.R.drawable.ic_media_pause)
-                recordButton.contentDescription = context.getString(R.string.stop_recording)
+                recordButtonContainer.background = ContextCompat.getDrawable(context, R.drawable.fullscreen_record_btn_glass_recording)
+                recordButtonIcon.setImageResource(android.R.drawable.ic_media_pause)
+                recordButtonIcon.contentDescription = context.getString(R.string.stop_recording)
             } else {
-                // Idle state - green background, mic icon
-                recordButton.setBackgroundColor(Color.parseColor("#006400")) // Dark green
-                recordButton.setIconResource(android.R.drawable.ic_btn_speak_now)
-                recordButton.contentDescription = context.getString(R.string.start_recording)
+                recordButtonContainer.background = ContextCompat.getDrawable(context, R.drawable.fullscreen_record_btn_glass_idle)
+                recordButtonIcon.setImageResource(android.R.drawable.ic_btn_speak_now)
+                recordButtonIcon.contentDescription = context.getString(R.string.start_recording)
             }
         }
     }

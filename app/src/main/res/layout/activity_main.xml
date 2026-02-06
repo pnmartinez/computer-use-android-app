@@ -108,12 +108,15 @@
                     android:orientation="vertical"
                     android:padding="12dp">
 
-                    <!-- Title row with switch -->
+                    <!-- Title row with status dot, toggle button and switch -->
                     <LinearLayout
+                        android:id="@+id/pollingCardHeader"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:gravity="center_vertical">
+                        android:gravity="center_vertical"
+                        android:clickable="true"
+                        android:focusable="true">
 
                         <TextView
                             android:layout_width="0dp"
@@ -122,6 +125,23 @@
                             android:text="🖥️ MCP Server"
                             android:textAppearance="?attr/textAppearanceTitleSmall" />
 
+                        <!-- Status indicator dot -->
+                        <View
+                            android:id="@+id/pollingStatusDot"
+                            android:layout_width="10dp"
+                            android:layout_height="10dp"
+                            android:layout_marginEnd="8dp"
+                            android:background="@drawable/status_tag_background"
+                            android:backgroundTint="@color/md_theme_outline" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnTogglePollingCard"
+                            style="@style/Widget.Material3.Button.IconButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:contentDescription="@string/expand_collapse_logs"
+                            app:icon="@drawable/ic_expand" />
+
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchPollingEnabled"
                             android:layout_width="wrap_content"
@@ -129,66 +149,68 @@
                             android:checked="true" />
                     </LinearLayout>
 
-                    <!-- Status row -->
+                    <!-- Collapsible content -->
                     <LinearLayout
-                        android:id="@+id/pollingStatusContainer"
+                        android:id="@+id/pollingCollapsibleContent"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginTop="8dp">
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        android:alpha="0"
+                        android:animateLayoutChanges="true">
 
-                        <!-- Status indicator dot -->
-                        <View
-                            android:id="@+id/pollingStatusDot"
-                            android:layout_width="10dp"
-                            android:layout_height="10dp"
-                            android:background="@drawable/status_tag_background"
-                            android:backgroundTint="@color/md_theme_outline" />
-
-                        <TextView
-                            android:id="@+id/pollingStatusText"
-                            android:layout_width="0dp"
+                        <!-- Status row -->
+                        <LinearLayout
+                            android:id="@+id/pollingStatusContainer"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="8dp"
-                            android:text="Desactivado"
-                            android:textAppearance="?attr/textAppearanceBodySmall" />
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginTop="8dp">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnPollingReconnect"
-                            style="@style/Widget.Material3.Button.TextButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="32dp"
-                            android:text="Reconectar"
-                            android:textSize="11sp"
-                            android:minWidth="0dp"
-                            android:paddingHorizontal="8dp" />
+                            <TextView
+                                android:id="@+id/pollingStatusText"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Desactivado"
+                                android:textAppearance="?attr/textAppearanceBodySmall" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnPollingReconnect"
+                                style="@style/Widget.Material3.Button.TextButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="32dp"
+                                android:text="Reconectar"
+                                android:textSize="11sp"
+                                android:minWidth="0dp"
+                                android:paddingHorizontal="8dp" />
+                        </LinearLayout>
+
+                        <!-- Server info -->
+                        <TextView
+                            android:id="@+id/pollingServerUrl"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Servidor: no configurado"
+                            android:textAppearance="?attr/textAppearanceBodySmall"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="11sp" />
+
+                        <!-- Last event -->
+                        <TextView
+                            android:id="@+id/pollingLastEvent"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Recibe notificaciones del servidor LLM Control"
+                            android:textAppearance="?attr/textAppearanceBodySmall"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="10sp"
+                            android:maxLines="2"
+                            android:ellipsize="end" />
                     </LinearLayout>
-
-                    <!-- Server info -->
-                    <TextView
-                        android:id="@+id/pollingServerUrl"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Servidor: no configurado"
-                        android:textAppearance="?attr/textAppearanceBodySmall"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="11sp" />
-
-                    <!-- Last event -->
-                    <TextView
-                        android:id="@+id/pollingLastEvent"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Recibe notificaciones del servidor LLM Control"
-                        android:textAppearance="?attr/textAppearanceBodySmall"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="10sp"
-                        android:maxLines="2"
-                        android:ellipsize="end" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

@@ -19,14 +19,14 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true  // ← ACTIVAR MINIFICACIÓN
-            isShrinkResources = true  // ← Eliminar recursos no usados
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Usar signing config de debug para builds sin firmar (release sin firma)
-            signingConfig = signingConfigs.getByName("debug")
+            // Sin firma: APK de producción minificado pero no firmado
+            signingConfig = null
         }
     }
     compileOptions {
